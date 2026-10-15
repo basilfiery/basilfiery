@@ -1,0 +1,9 @@
+project_id = "gpnjhwiuwotmkqvzeojt"
+
+# As duas funções fazem a própria verificação de acesso
+# (segredo do banco em "notificar"; login do usuário em "gestao").
+[functions.notificar]
+verify_jwt = false
+
+[functions.gestao]
+verify_jwt = false

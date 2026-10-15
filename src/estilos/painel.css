@@ -10,7 +10,11 @@
 .login__logo { justify-self: center; text-decoration: none; margin-bottom: 8px; }
 .login h1 { margin: 0; font-size: 1.6rem; text-align: center; }
 .login > p { margin: 0; text-align: center; font-size: .92rem; }
-.login__ajuda { font-size: .85rem !important; }
+.login__ajuda { font-size: .88rem !important; }
+.login__abas { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
+.login__abas button { padding: 9px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 600; }
+.login__abas button.ativo { background: var(--surface-2); color: var(--text); }
+.link-botao { padding: 0; border: 0; background: none; color: var(--fire-2); font-weight: 600; text-decoration: underline; }
 
 /* ---------- Layout do painel ---------- */
 .painel { min-height: 100dvh; display: grid; grid-template-columns: 232px 1fr; }

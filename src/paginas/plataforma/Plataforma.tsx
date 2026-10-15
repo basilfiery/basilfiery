@@ -131,6 +131,7 @@ function Restaurantes() {
                   <td><strong>{r.nome}</strong></td>
                   <td>
                     <select className="select" style={{ width: 'auto', padding: '6px 10px' }} value={r.plano} onChange={(e) => void atualizar(r, { plano: e.target.value })}>
+                      <option value="teste">Sem plano (teste)</option>
                       {SITE.planos.map((p) => <option key={p.nome} value={p.nome.toLowerCase()}>{p.nome}</option>)}
                     </select>
                   </td>

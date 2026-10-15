@@ -62,6 +62,44 @@ async function obterOuCriarUsuario(email: string, senha: unknown, nome: string) 
 type Corpo = Record<string, any>;
 
 const acoes: Record<string, (req: Request, c: Corpo) => Promise<unknown>> = {
+  // Cadastro aberto pela tela de login. A primeira conta da plataforma vira
+  // administradora e dona do restaurante de demonstração; as demais ganham
+  // um restaurante próprio, sem plano.
+  async cadastrar(_req, c) {
+    const nome = String(c.nome ?? '').trim();
+    const nomeRestaurante = String(c.restaurante ?? '').trim();
+    if (!nome) throw new Falha('Informe seu nome.');
+    if (!emailValido(c.email)) throw new Falha('E-mail inválido.');
+    const email = c.email.trim().toLowerCase();
+    const { data: existente } = await admin.rpc('usuario_por_email', { p_email: email });
+    if (existente) throw new Falha('Já existe uma conta com este e-mail. Use "Entrar".', 409);
+
+    const { count } = await admin.from('plataforma_admins').select('*', { count: 'exact', head: true });
+    const primeiraConta = (count ?? 0) === 0;
+    if (!primeiraConta && !nomeRestaurante) throw new Falha('Informe o nome do restaurante.');
+
+    const u = await obterOuCriarUsuario(email, c.senha, nome);
+
+    if (primeiraConta) {
+      await admin.from('plataforma_admins').insert({ user_id: u.id });
+      const { data: demo } = await admin.from('restaurantes').select('id').order('criado_em').limit(1).maybeSingle();
+      if (demo) {
+        await admin.from('membros').upsert({ restaurante_id: demo.id, user_id: u.id, papel: 'dono', nome, email });
+        return { ok: true, admin: true };
+      }
+    }
+
+    const { data: rest, error } = await admin.from('restaurantes')
+      .insert({ nome: nomeRestaurante || 'Meu restaurante', plano: 'teste' }).select('id').single();
+    if (error) throw error;
+    const { error: e2 } = await admin.from('membros').insert({ restaurante_id: rest.id, user_id: u.id, papel: 'dono', nome, email });
+    if (e2) throw e2;
+    await admin.from('mesas').insert(
+      Array.from({ length: 5 }, (_, i) => ({ restaurante_id: rest.id, nome: `Mesa ${i + 1}`, ordem: i + 1 })),
+    );
+    return { ok: true, admin: primeiraConta };
+  },
+
   // Cria o primeiro administrador da plataforma (só funciona uma vez)
   async bootstrap(_req, c) {
     const { count } = await admin.from('plataforma_admins').select('*', { count: 'exact', head: true });

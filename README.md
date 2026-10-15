@@ -51,3 +51,4 @@ npx supabase functions deploy --use-api
 
 - **Preços dos planos e WhatsApp de vendas:** `src/config/site.ts`
 - **Textos do site de vendas:** `src/paginas/site/Site.tsx`
+"# basilfiery" 

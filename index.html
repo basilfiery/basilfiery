@@ -17,7 +17,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Aparece enquanto o sistema carrega. Se algo travar, depois de 10 s mostra a opção de recarregar
+         (nunca fica uma tela preta sem saída). Estilos aqui mesmo, caso o CSS não tenha carregado. -->
+    <div id="root">
+      <div class="bf-inicio">
+        <img src="/favicon.png" width="56" height="56" alt="" />
+        <p>Carregando o BasilFiery…</p>
+        <a href="/" class="bf-inicio__recarregar" onclick="location.replace(location.pathname + '?_v=' + Date.now()); return false;">
+          Está demorando? Clique para recarregar
+        </a>
+      </div>
+    </div>
+    <style>
+      .bf-inicio { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 12px; margin: 0;
+        background: #121010; color: #b3a69b; font: 15px system-ui, -apple-system, 'Segoe UI', sans-serif; text-align: center; }
+      .bf-inicio img { border-radius: 14px; animation: bf-pulsar 1.4s ease-in-out infinite; }
+      .bf-inicio p { margin: 0; }
+      .bf-inicio__recarregar { color: #ff9a3d; opacity: 0; pointer-events: none; animation: bf-mostrar 0s 10s forwards; }
+      @keyframes bf-mostrar { to { opacity: 1; pointer-events: auto; } }
+      @keyframes bf-pulsar { 50% { opacity: .55; } }
+    </style>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

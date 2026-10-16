@@ -70,6 +70,12 @@ function criarJanela() {
     if (principal && codigo !== -3) janela.loadFile(path.join(__dirname, 'offline.html'));
   });
 
+  // Se a página travar ou fechar sozinha, recarrega limpo (nunca deixa a tela preta)
+  janela.webContents.on('render-process-gone', () => {
+    janela.webContents.session.clearCache().finally(() => janela.loadURL(INICIO));
+  });
+  janela.webContents.on('unresponsive', () => janela.webContents.reloadIgnoringCache());
+
   // Links de fora (WhatsApp, link do tablet etc.) abrem no navegador
   janela.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url)) shell.openExternal(url);
@@ -151,6 +157,13 @@ function veioDoSite(evento) {
 }
 
 ipcMain.handle('bf:mostrar', (e) => { if (veioDoSite(e)) mostrar(); });
+
+// Atualizar o sistema: limpa as cópias guardadas e recarrega tudo do servidor
+ipcMain.handle('bf:recarregar', async (e) => {
+  if (!veioDoSite(e)) return;
+  await janela.webContents.session.clearCache();
+  janela.webContents.reloadIgnoringCache();
+});
 
 ipcMain.handle('bf:impressoras', async (e) => {
   if (!veioDoSite(e)) return [];

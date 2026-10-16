@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ls } from './util';
+import { recarregarLimpo } from './carregamento';
 
 export const VERSAO_ATUAL = __VERSAO__;
 /** Versão curta para mostrar na tela (ex.: 3768cb7). */
@@ -44,7 +45,8 @@ export function useNovaVersao(intervalo = 60000): string | null {
 
 export function aplicarAtualizacao() {
   ls.gravar(CHAVE_ADIADA, null);
-  window.location.reload();
+  // Busca tudo de novo no servidor (sem cópias antigas), no navegador e no programa
+  recarregarLimpo();
 }
 
 /** "Atualizar quando fechar o caixa": guarda qual versão foi adiada. */

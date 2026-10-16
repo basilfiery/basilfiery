@@ -104,6 +104,7 @@ export default function Cardapio() {
                               {p.video_url && ' · 🎬 vídeo'}
                               {p.controla_estoque && ` · estoque ${p.estoque}`}
                               {p.vegetariano && ' · 🌿'}
+                              {!p.precisa_preparo && ' · sem preparo'}
                               {p.picancia > 0 && ` · ${'🌶️'.repeat(p.picancia)}`}
                             </small>
                           </div>
@@ -214,7 +215,11 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
   const toast = useToast();
   const arquivoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
+  // Produto novo em categoria de bebidas já começa "sem preparo"
+  const ehBebida = (catId: string) =>
+    /bebida|drink|refri|cerveja|suco|vinho|dose/i.test(categorias.find((c) => c.id === catId)?.nome ?? '');
   const [f, setF] = useState({
+    precisa_preparo: produto?.precisa_preparo ?? !ehBebida(produto?.categoria_id ?? categoriaPadrao ?? ''),
     nome: produto?.nome ?? '',
     descricao: produto?.descricao ?? '',
     preco: produto ? precoParaTexto(produto.preco) : '',
@@ -284,6 +289,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
       ativo: f.ativo,
       ordem: Number(f.ordem) || 0,
       controla_estoque: f.controla_estoque,
+      precisa_preparo: f.precisa_preparo,
       estoque_minimo: Math.max(0, Number(f.estoque_minimo) || 0),
     };
     if (produto) {
@@ -362,7 +368,15 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
         <div className="form-linha">
           <Campo rotulo="Preço (R$)"><input className="input" inputMode="decimal" value={f.preco} onChange={(e) => mudar('preco', e.target.value)} placeholder="49,90" /></Campo>
           <Campo rotulo="Categoria">
-            <select className="select" value={f.categoria_id} onChange={(e) => mudar('categoria_id', e.target.value)}>
+            <select
+              className="select"
+              value={f.categoria_id}
+              onChange={(e) => {
+                const cat = e.target.value;
+                // Em produto novo, acompanha a categoria (bebidas = sem preparo)
+                setF((x) => ({ ...x, categoria_id: cat, precisa_preparo: produto ? x.precisa_preparo : !ehBebida(cat) }));
+              }}
+            >
               {categorias.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.nome}</option>)}
             </select>
           </Campo>
@@ -384,6 +398,15 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
           <Switch marcado={f.vegetariano} aoMudar={(v) => mudar('vegetariano', v)}>Vegetariano</Switch>
           <Switch marcado={f.destaque} aoMudar={(v) => mudar('destaque', v)}>Mais pedido</Switch>
           <Switch marcado={f.novo} aoMudar={(v) => mudar('novo', v)}>Novidade</Switch>
+        </div>
+
+        <div className="card" style={{ padding: 14, background: 'var(--bg-2)', display: 'grid', gap: 6 }}>
+          <Switch marcado={f.precisa_preparo} aoMudar={(v) => mudar('precisa_preparo', v)}>Vai para a cozinha (precisa de preparo)</Switch>
+          <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>
+            {f.precisa_preparo
+              ? 'O pedido passa por “Em preparo” antes de ser servido.'
+              : 'Bebida ou item pronto: ao aceitar, o pedido vai direto para “Prontos” para levar à mesa. Em pedidos com comida, ele é separado para não esperar a cozinha.'}
+          </p>
         </div>
 
         <div className="card" style={{ padding: 14, background: 'var(--bg-2)' }}>

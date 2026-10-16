@@ -11,7 +11,10 @@ interface Props {
 }
 
 export function PedidoCard({ pedido: p, agora, aoMudar, aoImprimir, compacto }: Props) {
-  const proximo = PROXIMO_STATUS[p.status];
+  // Só bebidas/itens prontos: aceitar já deixa pronto para servir (pula "Em preparo")
+  const semPreparo = p.status === 'novo' && p.precisa_preparo === false;
+  const proximo = semPreparo ? 'pronto' : PROXIMO_STATUS[p.status];
+  const rotuloAcao = semPreparo ? 'Aceitar e servir' : ACAO_STATUS[p.status];
   const emAndamento = p.status === 'novo' || p.status === 'preparando';
   const minutos = minutosDesde(p.criado_em, agora);
   const atrasado = emAndamento && minutos >= 20;
@@ -22,7 +25,7 @@ export function PedidoCard({ pedido: p, agora, aoMudar, aoImprimir, compacto }: 
       <header className="pedido__topo">
         <div>
           <strong className="pedido__mesa">{p.mesa_nome}</strong>
-          <span className="pedido__num">#{p.numero} · {hora(p.criado_em)}</span>
+          <span className="pedido__num">#{p.numero} · {hora(p.criado_em)}{p.precisa_preparo === false && ' · sem preparo'}</span>
         </div>
         <span className={cx('pedido__tempo', atencao && 'atencao', atrasado && 'atrasado')} title="Tempo desde o pedido">
           <Clock size={14} /> {tempoDesde(p.criado_em, agora)}
@@ -59,7 +62,7 @@ export function PedidoCard({ pedido: p, agora, aoMudar, aoImprimir, compacto }: 
           )}
           {proximo ? (
             <button type="button" className={cx('btn btn--sm', p.status === 'preparando' ? 'btn--sucesso' : 'btn--primario')} onClick={() => aoMudar(proximo)}>
-              {ACAO_STATUS[p.status]}
+              {rotuloAcao}
             </button>
           ) : (
             <span className={`badge badge--${p.status}`}>{STATUS_ROTULO[p.status]}</span>

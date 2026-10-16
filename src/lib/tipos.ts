@@ -51,6 +51,8 @@ export interface Produto {
   ativo: boolean;
   ordem: number;
   controla_estoque: boolean;
+  /** false = bebida/item pronto: o pedido pula a etapa "Em preparo" */
+  precisa_preparo: boolean;
   estoque: number;
   estoque_minimo: number;
 }
@@ -87,6 +89,8 @@ export interface Pedido {
   atualizado_em: string;
   impresso_em: string | null;
   pago_em: string | null;
+  /** false = só itens prontos (bebidas): ao aceitar vai direto para "Prontos" */
+  precisa_preparo: boolean;
   pedido_itens: PedidoItem[];
 }
 

@@ -692,3 +692,10 @@
 .mov--saida { color: var(--danger); }
 .mov--entrada { color: var(--ok); }
 .input--grande { font-size: 1.4rem !important; font-weight: 700; padding: 12px 14px; }
+/* Pedido só com itens prontos (bebidas) */
+.cp__cliente { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.cp__selo {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+  border-radius: 999px; background: rgba(59, 130, 246, .1); color: var(--info);
+  font-size: .74rem; font-weight: 600;
+}

@@ -56,7 +56,7 @@ export default function Mesa() {
   const [verConta, setVerConta] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [sucesso, setSucesso] = useState<number | null>(null);
+  const [sucesso, setSucesso] = useState<number[] | null>(null);
   const [catAtiva, setCatAtiva] = useState('');
   const listaRef = useRef<HTMLDivElement>(null);
 
@@ -180,7 +180,8 @@ export default function Mesa() {
     setCarrinho([]);
     setObsPedido('');
     setVerCarrinho(false);
-    setSucesso((data as { numero: number }).numero);
+    const r = data as { numero: number; numeros?: number[] };
+    setSucesso(r.numeros?.length ? r.numeros : [r.numero]);
     void carregar(true);
   }
 
@@ -408,7 +409,7 @@ export default function Mesa() {
 
       {verConta && <ModalConta token={token} aoFechar={() => setVerConta(false)} aoPedirConta={() => void chamar('conta')} />}
 
-      {sucesso !== null && <TelaSucesso numero={sucesso} aoFechar={() => setSucesso(null)} />}
+      {sucesso !== null && <TelaSucesso numeros={sucesso} aoFechar={() => setSucesso(null)} />}
     </div>
   );
 }
@@ -526,7 +527,7 @@ function ModalConta({ token, aoFechar, aoPedirConta }: { token: string; aoFechar
   );
 }
 
-function TelaSucesso({ numero, aoFechar }: { numero: number; aoFechar: () => void }) {
+function TelaSucesso({ numeros, aoFechar }: { numeros: number[]; aoFechar: () => void }) {
   useEffect(() => {
     const t = setTimeout(aoFechar, 8000);
     return () => clearTimeout(t);
@@ -535,8 +536,11 @@ function TelaSucesso({ numero, aoFechar }: { numero: number; aoFechar: () => voi
   return (
     <div className="sucesso" role="alertdialog" aria-label="Pedido enviado" onClick={aoFechar}>
       <CheckCircle2 size={88} className="sucesso__icone" />
-      <h2 className="titulo">Pedido #{numero} enviado!</h2>
-      <p>A cozinha já recebeu e o garçom foi avisado.<br />Acompanhe em “Minha conta”.</p>
+      <h2 className="titulo">{numeros.length > 1 ? `Pedidos ${numeros.map((n) => `#${n}`).join(' e ')} enviados!` : `Pedido #${numeros[0]} enviado!`}</h2>
+      <p>
+        {numeros.length > 1 ? 'As bebidas saem antes e a cozinha já recebeu o resto.' : 'Já recebemos e o garçom foi avisado.'}
+        <br />Acompanhe em “Minha conta”.
+      </p>
       <button className="btn btn--primario btn--lg">Voltar ao cardápio</button>
     </div>
   );

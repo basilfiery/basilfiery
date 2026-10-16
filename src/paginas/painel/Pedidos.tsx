@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Ban, Check, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, LayoutGrid, List, MoreVertical, Plus, Printer,
+  Ban, Check, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MoreVertical, Plus, Printer,
   SlidersHorizontal, UtensilsCrossed, X,
 } from 'lucide-react';
 import { FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
@@ -47,10 +47,14 @@ function useMudarStatus() {
 }
 
 /** Ação principal de cada estágio (nada inventado: só os status que existem). */
-function acaoPrincipal(status: StatusPedido) {
-  switch (status) {
+function acaoPrincipal(p: Pedido) {
+  switch (p.status) {
     // rotulo: curto, para o cartão do quadro · longo: painel de detalhes e lista
-    case 'novo': return { rotulo: 'Aceitar', longo: 'Aceitar pedido', proximo: 'preparando' as const, classe: 'btn--primario', icone: null };
+    case 'novo':
+      // Só bebidas/itens prontos: ao aceitar, já fica pronto para servir
+      return p.precisa_preparo === false
+        ? { rotulo: 'Aceitar', longo: 'Aceitar e servir', proximo: 'pronto' as const, classe: 'btn--primario', icone: null }
+        : { rotulo: 'Aceitar', longo: 'Aceitar pedido', proximo: 'preparando' as const, classe: 'btn--primario', icone: null };
     case 'preparando': return { rotulo: 'Marcar pronto', longo: 'Marcar como pronto', proximo: 'pronto' as const, classe: 'btn--pronto', icone: <Check size={16} /> };
     case 'pronto': return { rotulo: 'Marcar entregue', longo: 'Entregue na mesa', proximo: 'entregue' as const, classe: 'btn--entregar', icone: <ConciergeBell size={16} /> };
     default: return null;
@@ -279,7 +283,7 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
   aoMudar: (s: StatusPedido) => void;
   aoImprimir: () => void;
 }) {
-  const acao = acaoPrincipal(p.status);
+  const acao = acaoPrincipal(p);
   const mostrar = p.pedido_itens.slice(0, 3);
   const resto = p.pedido_itens.length - mostrar.length;
 
@@ -296,7 +300,10 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
         <TempoPedido p={p} agora={agora} />
         <span className="cp__tipo"><UtensilsCrossed size={13} /> Mesa</span>
       </header>
-      <div className="cp__cliente">{p.mesa_nome}</div>
+      <div className="cp__cliente">
+        {p.mesa_nome}
+        {p.precisa_preparo === false && <span className="cp__selo" title="Bebidas ou itens prontos: não passa pela cozinha"><GlassWater size={13} /> Sem preparo</span>}
+      </div>
       <ul className="cp__itens">
         {mostrar.map((i) => <li key={i.id}><span>{i.qtd}x</span><span>{i.nome}</span></li>)}
         {resto > 0 && <li className="cp__mais">+ {resto} {resto === 1 ? 'item' : 'itens'}</li>}
@@ -346,7 +353,7 @@ function ListaPedidos({ pedidos, agora, selId, aoSelecionar, aoMudar, finalizado
         </thead>
         <tbody>
           {pedidos.map((p) => {
-            const acao = acaoPrincipal(p.status);
+            const acao = acaoPrincipal(p);
             return (
               <tr key={p.id} className={cx('linha-clicavel', p.id === selId && 'linha-selecionada')} onClick={() => aoSelecionar(p.id === selId ? null : p.id)}>
                 <td><b>#{p.numero}</b></td>
@@ -382,7 +389,7 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
 }) {
   const [aba, setAba] = useState<'detalhes' | 'historico'>('detalhes');
   useEffect(() => { setAba('detalhes'); }, [p.id]);
-  const acao = acaoPrincipal(p.status);
+  const acao = acaoPrincipal(p);
   const subtotal = p.pedido_itens.reduce((s, i) => s + i.qtd * Number(i.preco_unit), 0);
   const qtdItens = p.pedido_itens.reduce((s, i) => s + i.qtd, 0);
 
@@ -393,7 +400,9 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
   if (p.status !== 'novo') {
     historico.push({
       titulo: p.status === 'cancelado' ? 'Pedido cancelado' : `Status: ${STATUS_ROTULO[p.status]}`,
-      detalhe: 'Última atualização do pedido',
+      detalhe: p.precisa_preparo === false && p.status !== 'cancelado'
+        ? 'Sem preparo: aceito direto para servir'
+        : 'Última atualização do pedido',
       quando: p.atualizado_em,
       feito: p.status !== 'cancelado',
     });
@@ -444,6 +453,12 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
             <section className="dp__linha">
               <span>Tipo de pedido</span>
               <span className="dp__chip"><UtensilsCrossed size={15} /> Mesa · {p.mesa_nome}</span>
+            </section>
+            <section className="dp__linha">
+              <span>Preparo</span>
+              {p.precisa_preparo === false
+                ? <span className="dp__chip"><GlassWater size={15} /> Sem preparo</span>
+                : <span className="dp__chip"><ChefHat size={15} /> Cozinha</span>}
             </section>
             <section className="dp__linha">
               <span>Conta</span>

@@ -365,6 +365,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
     emoji: produto?.emoji ?? '',
     imagem_url: produto?.imagem_url ?? null as string | null,
     video_url: produto?.video_url ?? null as string | null,
+    capa: (produto?.capa ?? 'imagem') as 'imagem' | 'video',
     vegetariano: produto?.vegetariano ?? false,
     picancia: produto?.picancia ?? 0,
     destaque: produto?.destaque ?? false,
@@ -397,7 +398,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
     if (!arquivo) return;
     setEnviandoVideo(true);
     try {
-      mudar('video_url', await enviarVideo(restauranteId, arquivo, 'videos'));
+      const url = await enviarVideo(restauranteId, arquivo, 'videos');
+      // Sem foto? O vídeo vira a capa automaticamente (dá para trocar abaixo)
+      setF((x) => ({ ...x, video_url: url, capa: x.imagem_url ? x.capa : 'video' }));
       toast('Vídeo enviado.', 'ok');
     } catch (e) {
       toast(msgErro(e), 'erro');
@@ -420,6 +423,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
       emoji: f.emoji.trim() || null,
       imagem_url: f.imagem_url,
       video_url: f.video_url,
+      capa: f.capa === 'video' && f.video_url ? 'video' : 'imagem',
       vegetariano: f.vegetariano,
       picancia: f.picancia,
       destaque: f.destaque,
@@ -496,9 +500,36 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
             <button className="btn btn--contorno btn--sm" onClick={() => videoRef.current?.click()} disabled={enviandoVideo}>
               <Film size={16} /> {enviandoVideo ? 'Enviando vídeo…' : f.video_url ? 'Trocar vídeo' : 'Enviar vídeo'}
             </button>
-            {f.video_url && <button className="btn btn--fantasma btn--sm" onClick={() => mudar('video_url', null)}>Remover vídeo</button>}
+            {f.video_url && <button className="btn btn--fantasma btn--sm" onClick={() => setF((x) => ({ ...x, video_url: null, capa: 'imagem' }))}>Remover vídeo</button>}
             <input ref={videoRef} className="input-arquivo" type="file" accept={ACEITA_VIDEO} onChange={(e) => void escolherVideo(e.target.files?.[0])} />
           </div>
+        </div>
+
+        <div className="capa-escolha">
+          <span className="midia-editor__rotulo">Capa no cardápio do tablet</span>
+          <div className="segmentado" role="radiogroup" aria-label="Capa no cardápio">
+            <button type="button" role="radio" aria-checked={f.capa !== 'video'} className={cx(f.capa !== 'video' && 'ativo')} onClick={() => mudar('capa', 'imagem')}>
+              <ImagePlus size={16} /> Foto
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={f.capa === 'video'}
+              className={cx(f.capa === 'video' && 'ativo')}
+              onClick={() => mudar('capa', 'video')}
+              disabled={!f.video_url}
+              title={f.video_url ? undefined : 'Envie um vídeo para usar como capa'}
+            >
+              <Film size={16} /> Vídeo
+            </button>
+          </div>
+          <small className="muted">
+            {f.capa === 'video' && f.video_url
+              ? 'O vídeo roda sozinho no cartão do produto, sem som, assim que o cliente abre o cardápio.'
+              : f.video_url
+                ? 'A foto aparece no cartão; o vídeo toca quando o cliente abre o produto.'
+                : 'Envie um vídeo acima para poder usá-lo como capa.'}
+          </small>
         </div>
 
         <Campo rotulo="Nome"><input className="input" value={f.nome} onChange={(e) => mudar('nome', e.target.value)} maxLength={60} autoFocus={!produto} /></Campo>

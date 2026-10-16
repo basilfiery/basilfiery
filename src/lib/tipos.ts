@@ -44,6 +44,8 @@ export interface Produto {
   emoji: string | null;
   imagem_url: string | null;
   video_url: string | null;
+  /** O que aparece no cartão do tablet: a foto ou o vídeo rodando */
+  capa: 'imagem' | 'video';
   vegetariano: boolean;
   picancia: number;
   destaque: boolean;

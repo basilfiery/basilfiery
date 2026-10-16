@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle2, ConciergeBell, Maximize, Play, Plus, Receipt, ShoppingBag, Trash2 } from 'lucide-react';
-import { FotoProduto, Selos, Stepper } from '../../componentes/Basicos';
+import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
@@ -20,6 +20,7 @@ interface ProdutoMesa {
   emoji: string | null;
   imagem_url: string | null;
   video_url: string | null;
+  capa: 'imagem' | 'video';
   vegetariano: boolean;
   picancia: number;
   destaque: boolean;
@@ -328,8 +329,10 @@ export default function Mesa() {
                         disabled={!p.disponivel}
                         onClick={() => setProdutoAberto(p)}
                       >
-                        <FotoProduto p={p} classe="prod__foto" />
-                        {p.video_url && <span className="prod__video"><Play size={14} fill="currentColor" /> Vídeo</span>}
+                        {p.capa === 'video' && p.video_url
+                          ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" />
+                          : <FotoProduto p={p} classe="prod__foto" />}
+                        {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={14} fill="currentColor" /> Vídeo</span>}
                         {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
                         {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
                         <div className="prod__info">

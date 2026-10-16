@@ -14,7 +14,8 @@
   border-bottom: 1px solid var(--line);
   background: var(--bg-2);
 }
-.mesa__marca { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mesa__marca { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mesa__marca > div { min-width: 0; }
 .mesa__marca strong { display: block; font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mesa__marca span { color: var(--acento); font-weight: 700; font-size: .95rem; }
 .mesa__logo { width: 48px; height: 48px; border-radius: 12px; object-fit: cover; flex: none; }
@@ -22,7 +23,7 @@
 .mesa__acoes { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 .mesa__acoes .btn { min-height: 48px; }
 
-.mesa__corpo { display: grid; grid-template-columns: 210px 1fr 360px; min-height: 0; }
+.mesa__corpo { display: grid; grid-template-columns: 210px minmax(0, 1fr) 360px; min-height: 0; min-width: 0; }
 
 .mesa__cats {
   display: flex; flex-direction: column; gap: 6px;
@@ -162,7 +163,7 @@
 
 /* Tablet em pé / telas médias: carrinho vira botão flutuante */
 @media (max-width: 1100px) {
-  .mesa__corpo { grid-template-columns: 180px 1fr; }
+  .mesa__corpo { grid-template-columns: 180px minmax(0, 1fr); }
   .mesa__carrinho { display: none; }
   .mesa__flutuante { display: flex; }
 }
@@ -173,7 +174,8 @@
   .mesa__logo { width: 40px; height: 40px; }
   .mesa__rotulo { display: none; }
   .mesa__acoes .btn { min-height: 44px; padding: 8px 12px; }
-  .mesa__corpo { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .mesa__corpo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .mesa__acoes { gap: 6px; flex: none; }
   .mesa__cats { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: none; }
   .mesa__cat { flex: none; min-height: 44px; padding: 8px 14px; font-size: .95rem; border-radius: 999px; background: var(--surface); }
   .mesa__cat-emoji { font-size: 1.1rem; }
@@ -181,3 +183,7 @@
   .mesa__grade { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
   .prod__foto { font-size: 48px; }
 }
+
+/* A coluna principal nunca passa da largura da tela (nome longo no topo não estica o layout) */
+.mesa { grid-template-columns: minmax(0, 1fr); }
+.mesa__topo { min-width: 0; }

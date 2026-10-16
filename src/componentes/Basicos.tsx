@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { cx } from '../lib/util';
 
@@ -83,6 +83,44 @@ export function Selos({ p }: { p: { destaque?: boolean; novo?: boolean; vegetari
           {'🌶️'.repeat(p.picancia)}
         </span>
       )}
+    </div>
+  );
+}
+
+/**
+ * Capa em vídeo: roda sozinho, sem som e em repetição, só enquanto está visível
+ * na tela (economiza bateria e internet). Se o vídeo falhar, mostra a foto/emoji.
+ */
+export function VideoCapa({ p, classe }: { p: { video_url: string; imagem_url: string | null; emoji: string | null; nome: string }; classe?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [falhou, setFalhou] = useState(false);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) void v.play().catch(() => { /* modo economia: fica a primeira imagem */ });
+      else v.pause();
+    }, { threshold: 0.25 });
+    obs.observe(v);
+    return () => obs.disconnect();
+  }, [falhou]);
+
+  if (falhou) return <FotoProduto p={p} classe={classe} />;
+  return (
+    <div className={cx('foto foto--video', classe)}>
+      <video
+        ref={ref}
+        src={p.video_url}
+        poster={p.imagem_url ?? undefined}
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload="metadata"
+        aria-label={`Vídeo de ${p.nome}`}
+        onError={() => setFalhou(true)}
+      />
     </div>
   );
 }

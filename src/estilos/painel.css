@@ -725,3 +725,7 @@
 }
 .preco-editavel__ok { width: 15px; display: grid; color: var(--ok); opacity: 0; transition: opacity .2s; }
 .preco-editavel.salvo .preco-editavel__ok { opacity: 1; }
+/* Capa: foto ou vídeo */
+.capa-escolha { display: grid; gap: 8px; }
+.capa-escolha .segmentado button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.capa-escolha small { font-size: .82rem; }

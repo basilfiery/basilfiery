@@ -43,16 +43,71 @@ export async function gestao<T = unknown>(acao: string, dados: Record<string, un
   return data as T;
 }
 
-/** Envia uma imagem para o Storage e devolve a URL pública. */
-export async function enviarImagem(restauranteId: string, arquivo: File, pasta: string): Promise<string> {
-  if (!arquivo.type.startsWith('image/')) throw new Error('Escolha um arquivo de imagem.');
-  if (arquivo.size > 3 * 1024 * 1024) throw new Error('Imagem muito grande (máximo 3 MB).');
-  const ext = (arquivo.name.split('.').pop() || 'jpg').toLowerCase();
-  const caminho = `${restauranteId}/${pasta}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from('imagens').upload(caminho, arquivo, {
+const EXT_IMAGEM = /\.(jpe?g|png|gif|webp|avif|bmp|heic|heif|svg|tiff?)$/i;
+const EXT_VIDEO = /\.(mp4|m4v|mov|qt|webm|ogv|ogg|avi|mkv|3gp)$/i;
+export const ACEITA_IMAGEM = 'image/*,.heic,.heif';
+export const ACEITA_VIDEO = 'video/*,.mov,.qt,.m4v,.webm,.mkv,.avi,.3gp';
+export const LIMITE_VIDEO_MB = 50;
+
+const ehImagem = (f: File) => f.type.startsWith('image/') || EXT_IMAGEM.test(f.name);
+const ehVideo = (f: File) => f.type.startsWith('video/') || EXT_VIDEO.test(f.name);
+
+async function subir(caminho: string, conteudo: Blob, contentType: string) {
+  const { error } = await supabase.storage.from('imagens').upload(caminho, conteudo, {
     cacheControl: '31536000',
-    contentType: arquivo.type,
+    contentType,
   });
-  if (error) throw error;
+  if (error) {
+    if (/exceeded|too large|payload/i.test(error.message)) throw new Error('Arquivo grande demais para o armazenamento.');
+    throw error;
+  }
   return supabase.storage.from('imagens').getPublicUrl(caminho).data.publicUrl;
+}
+
+/**
+ * Converte qualquer foto (inclusive HEIC do iPhone) para um formato que todo
+ * navegador mostra, e reduz para no máximo 1600 px — carrega rápido no tablet.
+ */
+async function prepararImagem(arquivo: File): Promise<Blob> {
+  let blob: Blob = arquivo;
+  if (/hei[cf]/i.test(arquivo.type) || /\.hei[cf]$/i.test(arquivo.name)) {
+    const { default: heic2any } = await import('heic2any');
+    const r = await heic2any({ blob: arquivo, toType: 'image/jpeg', quality: 0.9 });
+    blob = Array.isArray(r) ? r[0] : r;
+  }
+  if (/svg|gif/i.test(blob.type)) return blob; // mantém vetor e animação
+  try {
+    const bmp = await createImageBitmap(blob);
+    const escala = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * escala);
+    canvas.height = Math.round(bmp.height * escala);
+    canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const saida = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/webp', 0.85));
+    return saida ?? blob;
+  } catch {
+    return blob; // formato que o navegador não decodifica: envia como veio
+  }
+}
+
+/** Envia uma imagem (qualquer formato) e devolve a URL pública. */
+export async function enviarImagem(restauranteId: string, arquivo: File, pasta: string): Promise<string> {
+  if (!ehImagem(arquivo)) throw new Error('Escolha um arquivo de imagem.');
+  const blob = await prepararImagem(arquivo);
+  if (blob.size > 15 * 1024 * 1024) throw new Error('Imagem muito grande (máximo 15 MB).');
+  const tipo = blob.type || 'image/jpeg';
+  const ext = tipo.split('/')[1]?.replace('jpeg', 'jpg').replace('svg+xml', 'svg') || 'jpg';
+  return subir(`${restauranteId}/${pasta}/${crypto.randomUUID()}.${ext}`, blob, tipo);
+}
+
+/** Envia um vídeo (MP4, MOV, WEBM…) e devolve a URL pública. */
+export async function enviarVideo(restauranteId: string, arquivo: File, pasta: string): Promise<string> {
+  if (!ehVideo(arquivo)) throw new Error('Escolha um arquivo de vídeo.');
+  if (arquivo.size > LIMITE_VIDEO_MB * 1024 * 1024) {
+    throw new Error(`Vídeo muito grande (máximo ${LIMITE_VIDEO_MB} MB). Envie um trecho mais curto.`);
+  }
+  const ext = (arquivo.name.split('.').pop() || 'mp4').toLowerCase();
+  // MOV do iPhone (H.264) toca no Chrome/Android quando servido como MP4
+  const tipo = /^(mov|qt)$/.test(ext) || arquivo.type === 'video/quicktime' ? 'video/mp4' : arquivo.type || 'video/mp4';
+  return subir(`${restauranteId}/${pasta}/${crypto.randomUUID()}.${ext}`, arquivo, tipo);
 }

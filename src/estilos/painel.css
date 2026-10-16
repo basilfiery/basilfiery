@@ -176,6 +176,11 @@
 .foto-editor { display: flex; align-items: center; gap: 14px; }
 .foto-editor .foto { width: 96px; height: 96px; border-radius: 14px; font-size: 44px; flex: none; }
 .input-arquivo { display: none; }
+.midia-editor { display: grid; gap: 10px; padding: 14px; border: 1px dashed var(--line-2); border-radius: 14px; }
+.midia-editor__rotulo { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: .92rem; }
+.midia-editor__rotulo small { color: var(--muted); font-weight: 400; }
+.midia-editor__dica { margin: 0; font-size: .85rem; }
+.midia-editor__video { width: 100%; max-height: 260px; border-radius: 10px; background: #000; }
 
 /* ---------- Estoque ---------- */
 .estoque-qtd { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }

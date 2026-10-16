@@ -6,7 +6,7 @@ import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, type ConfigIm
 import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
 import { definirSom, somLigado, tocarAlerta } from '../../lib/som';
-import { enviarImagem, msgErro, supabase } from '../../lib/supabase';
+import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../lib/supabase';
 import { cx, ehGestor } from '../../lib/util';
 import { usePainel } from './Painel';
 
@@ -68,7 +68,7 @@ function CartaoRestaurante() {
           <div className="acoes-linha">
             <button className="btn btn--contorno btn--sm" onClick={() => arquivoRef.current?.click()}><ImagePlus size={16} /> {logo ? 'Trocar logo' : 'Enviar logo'}</button>
             {logo && <button className="btn btn--fantasma btn--sm" onClick={() => setLogo(null)}>Remover</button>}
-            <input ref={arquivoRef} className="input-arquivo" type="file" accept="image/*" onChange={(e) => void enviarLogo(e.target.files?.[0])} />
+            <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => void enviarLogo(e.target.files?.[0])} />
           </div>
         </div>
         <Campo rotulo="Nome do restaurante"><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} /></Campo>

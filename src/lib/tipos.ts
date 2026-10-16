@@ -43,6 +43,7 @@ export interface Produto {
   preco: number;
   emoji: string | null;
   imagem_url: string | null;
+  video_url: string | null;
   vegetariano: boolean;
   picancia: number;
   destaque: boolean;

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
+import { Film, ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
 import { Campo, FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
-import { enviarImagem, msgErro, supabase } from '../../lib/supabase';
+import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
 import type { Categoria, Produto } from '../../lib/tipos';
 import { brl, cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
@@ -101,6 +101,7 @@ export default function Cardapio() {
                             <strong>{p.nome}</strong>
                             <small>
                               {nomeCat(p.categoria_id)}
+                              {p.video_url && ' · 🎬 vídeo'}
                               {p.controla_estoque && ` · estoque ${p.estoque}`}
                               {p.vegetariano && ' · 🌿'}
                               {p.picancia > 0 && ` · ${'🌶️'.repeat(p.picancia)}`}
@@ -212,6 +213,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
 }) {
   const toast = useToast();
   const arquivoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const [f, setF] = useState({
     nome: produto?.nome ?? '',
     descricao: produto?.descricao ?? '',
@@ -219,6 +221,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
     categoria_id: produto?.categoria_id ?? categoriaPadrao ?? '',
     emoji: produto?.emoji ?? '',
     imagem_url: produto?.imagem_url ?? null as string | null,
+    video_url: produto?.video_url ?? null as string | null,
     vegetariano: produto?.vegetariano ?? false,
     picancia: produto?.picancia ?? 0,
     destaque: produto?.destaque ?? false,
@@ -231,6 +234,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
   });
   const [salvando, setSalvando] = useState(false);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [enviandoVideo, setEnviandoVideo] = useState(false);
   const mudar = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
 
   async function escolherFoto(arquivo?: File) {
@@ -242,6 +246,21 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
       toast(msgErro(e), 'erro');
     } finally {
       setEnviandoFoto(false);
+      if (arquivoRef.current) arquivoRef.current.value = '';
+    }
+  }
+
+  async function escolherVideo(arquivo?: File) {
+    if (!arquivo) return;
+    setEnviandoVideo(true);
+    try {
+      mudar('video_url', await enviarVideo(restauranteId, arquivo, 'videos'));
+      toast('Vídeo enviado.', 'ok');
+    } catch (e) {
+      toast(msgErro(e), 'erro');
+    } finally {
+      setEnviandoVideo(false);
+      if (videoRef.current) videoRef.current.value = '';
     }
   }
 
@@ -257,6 +276,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
       categoria_id: f.categoria_id || null,
       emoji: f.emoji.trim() || null,
       imagem_url: f.imagem_url,
+      video_url: f.video_url,
       vegetariano: f.vegetariano,
       picancia: f.picancia,
       destaque: f.destaque,
@@ -303,7 +323,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
         <>
           {produto && <button className="btn btn--perigo" style={{ marginRight: 'auto' }} onClick={() => void excluir()}><Trash2 size={16} /> Excluir</button>}
           <button className="btn btn--contorno" onClick={aoFechar}>Cancelar</button>
-          <button className="btn btn--primario" disabled={salvando || enviandoFoto} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Salvar'}</button>
+          <button className="btn btn--primario" disabled={salvando || enviandoFoto || enviandoVideo} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Salvar'}</button>
         </>
       }
     >
@@ -315,7 +335,25 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
               <ImagePlus size={16} /> {enviandoFoto ? 'Enviando…' : f.imagem_url ? 'Trocar foto' : 'Enviar foto'}
             </button>
             {f.imagem_url && <button className="btn btn--fantasma btn--sm" onClick={() => mudar('imagem_url', null)}>Remover foto</button>}
-            <input ref={arquivoRef} className="input-arquivo" type="file" accept="image/*" onChange={(e) => void escolherFoto(e.target.files?.[0])} />
+            <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => void escolherFoto(e.target.files?.[0])} />
+          </div>
+        </div>
+
+        <div className="midia-editor">
+          <span className="midia-editor__rotulo"><Film size={16} /> Vídeo do prato <small>(opcional)</small></span>
+          {f.video_url ? (
+            <video className="midia-editor__video" src={f.video_url} poster={f.imagem_url ?? undefined} controls muted playsInline preload="metadata" />
+          ) : (
+            <p className="muted midia-editor__dica">
+              MP4, MOV (iPhone), WEBM e outros, até {LIMITE_VIDEO_MB} MB. Vídeos curtos, de 5 a 15 segundos, ficam melhores. No tablet o vídeo toca sozinho, sem som, quando o cliente abre o prato.
+            </p>
+          )}
+          <div className="acoes-linha">
+            <button className="btn btn--contorno btn--sm" onClick={() => videoRef.current?.click()} disabled={enviandoVideo}>
+              <Film size={16} /> {enviandoVideo ? 'Enviando vídeo…' : f.video_url ? 'Trocar vídeo' : 'Enviar vídeo'}
+            </button>
+            {f.video_url && <button className="btn btn--fantasma btn--sm" onClick={() => mudar('video_url', null)}>Remover vídeo</button>}
+            <input ref={videoRef} className="input-arquivo" type="file" accept={ACEITA_VIDEO} onChange={(e) => void escolherVideo(e.target.files?.[0])} />
           </div>
         </div>
 

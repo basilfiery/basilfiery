@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, ConciergeBell, Maximize, Plus, Receipt, ShoppingBag, Trash2 } from 'lucide-react';
+import { CheckCircle2, ConciergeBell, Maximize, Play, Plus, Receipt, ShoppingBag, Trash2 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
@@ -18,6 +18,7 @@ interface ProdutoMesa {
   preco: number;
   emoji: string | null;
   imagem_url: string | null;
+  video_url: string | null;
   vegetariano: boolean;
   picancia: number;
   destaque: boolean;
@@ -318,6 +319,7 @@ export default function Mesa() {
                         onClick={() => setProdutoAberto(p)}
                       >
                         <FotoProduto p={p} classe="prod__foto" />
+                        {p.video_url && <span className="prod__video"><Play size={14} fill="currentColor" /> Vídeo</span>}
                         {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
                         {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
                         <div className="prod__info">
@@ -410,6 +412,7 @@ function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
 }) {
   const [qtd, setQtd] = useState(1);
   const [obs, setObs] = useState('');
+  const [videoFalhou, setVideoFalhou] = useState(false);
   const max = p.estoque_max !== null ? Math.max(0, p.estoque_max - jaNoCarrinho) : 50;
 
   return (
@@ -427,7 +430,21 @@ function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
         </div>
       }
     >
-      <FotoProduto p={p} classe="modal-produto__foto" />
+      {p.video_url && !videoFalhou ? (
+        <video
+          className="modal-produto__video"
+          src={p.video_url}
+          poster={p.imagem_url ?? undefined}
+          autoPlay
+          muted
+          loop
+          playsInline
+          controls
+          onError={() => setVideoFalhou(true)}
+        />
+      ) : (
+        <FotoProduto p={p} classe="modal-produto__foto" />
+      )}
       <h2 className="titulo modal-produto__nome">{p.nome}</h2>
       <Selos p={p} />
       <p className="modal-produto__desc">{p.descricao}</p>

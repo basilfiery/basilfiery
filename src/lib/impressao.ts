@@ -179,6 +179,8 @@ export function imprimirFechamento(r: ResumoCaixa, restaurante: string, parcial:
     <table>
       ${linha('Troco inicial', brl(Number(r.valor_inicial)))}
       ${linha('+ Recebido em dinheiro', brl(Number(r.por_forma.dinheiro ?? 0)))}
+      ${Number(r.suprimentos ?? 0) > 0 ? linha('+ Reforços de troco', brl(Number(r.suprimentos))) : ''}
+      ${Number(r.retiradas ?? 0) > 0 ? linha('- Retiradas', brl(Number(r.retiradas))) : ''}
       ${linha('= Esperado', brl(Number(r.dinheiro_esperado)))}
       ${conferencia}
     </table>
@@ -191,6 +193,31 @@ export function imprimirFechamento(r: ResumoCaixa, restaurante: string, parcial:
     ${r.observacao ? `<hr><b>OBS:</b> ${esc(r.observacao)}` : ''}
     <hr>
     <div class="c p">Impresso em ${agoraTxt()}</div>
+  </div>`;
+  imprimirHTML(corpo, c.largura);
+}
+
+/** Comprovante de retirada (sangria) ou reforço de troco, com espaço para assinatura. */
+export function imprimirMovimentoCaixa(
+  m: { tipo: 'retirada' | 'suprimento'; valor: number; motivo: string | null; user_nome: string | null; criado_em: string },
+  restaurante: string,
+  esperadoDepois: number,
+) {
+  const c = lerConfigImpressao();
+  const titulo = m.tipo === 'retirada' ? 'RETIRADA DE CAIXA' : 'REFORÇO DE TROCO';
+  const corpo = `<div class="via">
+    <h1>${esc(restaurante)}</h1>
+    <div class="c g">${titulo}</div>
+    <div class="c p">${new Date(m.criado_em).toLocaleString('pt-BR')}</div>
+    <hr>
+    <div class="tot"><span>VALOR</span><span>${brl(Number(m.valor))}</span></div>
+    ${m.motivo ? `<div><b>Motivo:</b> ${esc(m.motivo)}</div>` : ''}
+    ${m.user_nome ? `<div><b>Por:</b> ${esc(m.user_nome)}</div>` : ''}
+    <hr>
+    <div>Dinheiro esperado na gaveta agora: <b>${brl(esperadoDepois)}</b></div>
+    <br><br>
+    <div class="c">______________________________</div>
+    <div class="c p">Assinatura</div>
   </div>`;
   imprimirHTML(corpo, c.largura);
 }

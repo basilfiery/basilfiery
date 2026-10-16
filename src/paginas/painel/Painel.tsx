@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  BarChart3, Bell, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, LayoutGrid, LogOut, Moon,
-  Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, Users, Volume2, VolumeX, Wallet,
+  Banknote, BarChart3, Bell, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, Eye, History, LayoutGrid,
+  Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, Users,
+  Volume2, VolumeX, Wallet,
   type LucideIcon,
 } from 'lucide-react';
-import { AvisoAtualizacao, ModalCaixa } from './Caixa';
+import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
 import { Logo, Switch } from '../../componentes/Basicos';
 import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
@@ -17,7 +18,7 @@ import { useSessao } from '../../lib/sessao';
 import { definirSom, notificarLocal, somLigado, tocarAlerta } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
-import { PAPEL_ROTULO, brl, cx, ehGestor, hora, ls, tempoDesde, useAgora } from '../../lib/util';
+import { PAPEL_ROTULO, brl, cx, ehGestor, hora, ls, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
 import '../../estilos/painel.css';
@@ -110,7 +111,7 @@ export default function Painel() {
 
   /* ---------- Caixa (aberto/fechado), sincronizado entre computadores ---------- */
   const [caixa, setCaixa] = useState<ResumoCaixa | null | undefined>(undefined);
-  const [verCaixa, setVerCaixa] = useState(false);
+  const [modoCaixa, setModoCaixa] = useState<ModoCaixa | null>(null);
   const rid = r?.id;
   const carregarCaixa = useCallback(async () => {
     if (!rid) return;
@@ -125,6 +126,7 @@ export default function Painel() {
     const canal = supabase
       .channel(`caixa-${rid}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'caixas', filter: `restaurante_id=eq.${rid}` }, () => void carregarCaixa())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'caixa_movimentos', filter: `restaurante_id=eq.${rid}` }, () => void carregarCaixa())
       .subscribe();
     const i = setInterval(() => void carregarCaixa(), 60000);
     return () => { void supabase.removeChannel(canal); clearInterval(i); };
@@ -216,7 +218,7 @@ export default function Painel() {
     recarregar: vivo.recarregar,
     atualizarPedido: vivo.atualizarPedido,
     caixa,
-    abrirCaixa: () => setVerCaixa(true),
+    abrirCaixa: () => setModoCaixa('resumo'),
     recarregarCaixa: () => void carregarCaixa(),
     busca,
   };
@@ -334,17 +336,56 @@ export default function Painel() {
               )}
             </Suspenso>
 
-            {/* Caixa */}
-            <button
-              className="topo-btn"
-              onClick={() => setVerCaixa(true)}
-              disabled={caixa === undefined}
-              title={caixa ? `Caixa aberto desde ${hora(caixa.aberto_em)} · recebido ${brl(caixa.recebido)}` : 'Caixa fechado: clique para abrir'}
+            {/* Caixa: menu com resumo rápido, retirada e fechamento */}
+            <Suspenso
+              largura={300}
+              gatilho={(aberto, alternar) => (
+                <button
+                  className={cx('topo-btn', aberto && 'ativo')}
+                  onClick={alternar}
+                  disabled={caixa === undefined}
+                  aria-label="Caixa"
+                >
+                  <Wallet size={20} strokeWidth={1.8} />
+                  <span>Caixa</span>
+                  <i className={cx('topo-btn__ponto', caixa ? 'on' : caixa === null && 'alerta')} />
+                </button>
+              )}
             >
-              <Wallet size={20} strokeWidth={1.8} />
-              <span>Caixa</span>
-              <i className={cx('topo-btn__ponto', caixa ? 'on' : caixa === null && 'alerta')} />
-            </button>
+              {(fechar) => {
+                const abrir = (m: ModoCaixa) => { setModoCaixa(m); fechar(); };
+                const pode = podeCaixa(papel);
+                return caixa ? (
+                  <>
+                    <div className="menu-cab">
+                      <span className="avatar avatar--ok"><Wallet size={18} /></span>
+                      <div>
+                        <strong>Caixa aberto</strong>
+                        <small>Desde {hora(caixa.aberto_em)}{caixa.aberto_por_nome ? ` · ${caixa.aberto_por_nome}` : ''}</small>
+                      </div>
+                    </div>
+                    <div className="menu-numeros">
+                      <div><small>Recebido</small><strong>{brl(caixa.recebido)}</strong></div>
+                      <div><small>Na gaveta</small><strong>{brl(caixa.dinheiro_esperado)}</strong></div>
+                    </div>
+                    <div className="menu-sep" />
+                    <button className="menu-item" onClick={() => abrir('resumo')}><Eye size={18} /> Ver resumo do caixa</button>
+                    <button className="menu-item" onClick={() => abrir('retirada')} disabled={!pode}><Banknote size={18} /> Retirada (sangria)</button>
+                    <button className="menu-item" onClick={() => abrir('fechar')} disabled={!pode}><Lock size={18} /> Fechar caixa</button>
+                  </>
+                ) : (
+                  <>
+                    <div className="menu-cab">
+                      <span className="avatar avatar--alerta"><Wallet size={18} /></span>
+                      <div><strong>Caixa fechado</strong><small>Abra para receber pagamentos</small></div>
+                    </div>
+                    <div className="menu-sep" />
+                    <button className="menu-item" onClick={() => abrir('resumo')} disabled={!pode}><LockOpen size={18} /> Abrir caixa</button>
+                    <button className="menu-item" onClick={() => abrir('resumo')}><History size={18} /> Últimos fechamentos</button>
+                  </>
+                );
+              }}
+            </Suspenso>
 
             {/* Impressora */}
             <Suspenso
@@ -469,12 +510,14 @@ export default function Painel() {
         />
       )}
 
-      {verCaixa && caixa !== undefined && (
+      {modoCaixa && caixa !== undefined && (
         <ModalCaixa
+          key={modoCaixa}
           restaurante={{ id: r.id, nome: r.nome }}
           papel={papel}
           caixa={caixa}
-          aoFechar={() => setVerCaixa(false)}
+          modo={modoCaixa}
+          aoFechar={() => setModoCaixa(null)}
           aoMudar={() => void carregarCaixa()}
           atualizarAoConcluir={!!novaVersao}
         />

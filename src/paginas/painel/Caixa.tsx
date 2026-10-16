@@ -1,43 +1,61 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Printer, RefreshCw, Wallet } from 'lucide-react';
-import { Campo } from '../../componentes/Basicos';
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, CheckCircle2, Lock, Printer, RefreshCw, Wallet } from 'lucide-react';
+import { Campo, Switch } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
-import { imprimirFechamento } from '../../lib/impressao';
+import { imprimirFechamento, imprimirMovimentoCaixa } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Caixa, Papel, ResumoCaixa } from '../../lib/tipos';
+import type { Caixa, MovimentoCaixa, Papel, ResumoCaixa } from '../../lib/tipos';
 import { FORMAS, brl, cx, dataHora, hora, lerPreco, podeCaixa } from '../../lib/util';
 import { aplicarAtualizacao } from '../../lib/versao';
+
+export type ModoCaixa = 'resumo' | 'fechar' | 'retirada';
 
 interface Props {
   restaurante: { id: string; nome: string };
   papel: Papel;
   caixa: ResumoCaixa | null;
+  modo: ModoCaixa;
   aoFechar: () => void;
   aoMudar: () => void;
   atualizarAoConcluir: boolean;
 }
 
-export function ModalCaixa({ restaurante, papel, caixa, aoFechar, aoMudar, atualizarAoConcluir }: Props) {
+export function ModalCaixa({ restaurante, papel, caixa, modo: modoInicial, aoFechar, aoMudar, atualizarAoConcluir }: Props) {
   const [resultado, setResultado] = useState<ResumoCaixa | null>(null);
+  const [modo, setModo] = useState<ModoCaixa>(modoInicial);
+  const pode = podeCaixa(papel);
 
-  const titulo = resultado ? 'Caixa fechado' : caixa ? 'Caixa aberto' : 'Caixa fechado';
-  return (
-    <Modal aberto aoFechar={resultado ? () => concluir() : aoFechar} titulo={titulo} largura={600}>
-      {resultado ? (
-        <Resultado r={resultado} restaurante={restaurante.nome} aoConcluir={concluir} atualizar={atualizarAoConcluir} />
-      ) : caixa ? (
-        <CaixaAberto r={caixa} restaurante={restaurante} pode={podeCaixa(papel)} aoFechado={(r) => { setResultado(r); aoMudar(); }} />
-      ) : (
-        <CaixaFechado restaurante={restaurante} pode={podeCaixa(papel)} aoAberto={() => { aoMudar(); aoFechar(); }} />
-      )}
-    </Modal>
-  );
+  const titulo = resultado ? 'Caixa fechado'
+    : !caixa ? 'Abrir caixa'
+      : modo === 'retirada' ? 'Retirada de caixa'
+        : modo === 'fechar' ? 'Fechar caixa' : 'Resumo do caixa';
 
   function concluir() {
     if (atualizarAoConcluir) aplicarAtualizacao();
     else aoFechar();
   }
+
+  return (
+    <Modal aberto aoFechar={resultado ? concluir : aoFechar} titulo={titulo} largura={600}>
+      {resultado ? (
+        <Resultado r={resultado} restaurante={restaurante.nome} aoConcluir={concluir} atualizar={atualizarAoConcluir} />
+      ) : !caixa ? (
+        <CaixaFechado restaurante={restaurante} pode={pode} aoAberto={() => { aoMudar(); aoFechar(); }} />
+      ) : modo === 'retirada' ? (
+        <Retirada r={caixa} restaurante={restaurante.nome} pode={pode} aoVoltar={() => setModo('resumo')} aoConcluir={() => { aoMudar(); aoFechar(); }} />
+      ) : (
+        <CaixaAberto
+          r={caixa}
+          restaurante={restaurante}
+          pode={pode}
+          comFechamento={modo === 'fechar'}
+          aoIrPara={setModo}
+          aoFechado={(r) => { setResultado(r); aoMudar(); }}
+        />
+      )}
+    </Modal>
+  );
 }
 
 /* ---------------- Caixa fechado: abrir + histórico ---------------- */
@@ -121,11 +139,13 @@ function CaixaFechado({ restaurante, pode, aoAberto }: { restaurante: { id: stri
   );
 }
 
-/* ---------------- Caixa aberto: acompanhar e fechar ---------------- */
-function CaixaAberto({ r, restaurante, pode, aoFechado }: {
+/* ---------------- Caixa aberto: resumo e fechamento ---------------- */
+function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado }: {
   r: ResumoCaixa;
   restaurante: { id: string; nome: string };
   pode: boolean;
+  comFechamento: boolean;
+  aoIrPara: (m: ModoCaixa) => void;
   aoFechado: (r: ResumoCaixa) => void;
 }) {
   const toast = useToast();
@@ -164,13 +184,15 @@ function CaixaAberto({ r, restaurante, pode, aoFechado }: {
         <p className="caixa__alerta"><AlertTriangle size={16} /> {brl(r.em_aberto.total)} ainda em aberto em {r.em_aberto.mesas} mesa(s).</p>
       )}
 
-      {pode ? (
+      {!pode ? (
+        <p className="muted">Só dono, gerente ou caixa podem fazer retiradas e fechar o caixa.</p>
+      ) : comFechamento ? (
         <section className="bloco">
           <h3>Fechamento</h3>
           <div className="form">
             <div className="form-linha">
               <Campo rotulo="Dinheiro contado na gaveta (R$)" dica={`Esperado: ${brl(r.dinheiro_esperado)}`}>
-                <input className="input" inputMode="decimal" placeholder="0,00" value={contado} onChange={(e) => setContado(e.target.value)} />
+                <input className="input" inputMode="decimal" placeholder="0,00" value={contado} onChange={(e) => setContado(e.target.value)} autoFocus />
               </Campo>
               <div className={cx('caixa__diferenca', diferenca !== null && (Math.abs(diferenca) < 0.005 ? 'ok' : diferenca > 0 ? 'sobra' : 'falta'))}>
                 <span>Diferença</span>
@@ -180,7 +202,7 @@ function CaixaAberto({ r, restaurante, pode, aoFechado }: {
               </div>
             </div>
             <Campo rotulo="Observação (opcional)">
-              <input className="input" value={obs} onChange={(e) => setObs(e.target.value)} maxLength={200} placeholder="Ex.: sangria de R$ 200 às 21h" />
+              <input className="input" value={obs} onChange={(e) => setObs(e.target.value)} maxLength={200} placeholder="Algo a registrar sobre este caixa" />
             </Campo>
             <div className="acoes-linha">
               <button className="btn btn--contorno" onClick={() => imprimirFechamento(r, restaurante.nome, true)}><Printer size={18} /> Imprimir parcial</button>
@@ -191,20 +213,94 @@ function CaixaAberto({ r, restaurante, pode, aoFechado }: {
           </div>
         </section>
       ) : (
-        <p className="muted">Só dono, gerente ou caixa podem fechar o caixa.</p>
+        <div className="acoes-linha">
+          <button className="btn btn--contorno" onClick={() => imprimirFechamento(r, restaurante.nome, true)}><Printer size={18} /> Imprimir parcial</button>
+          <button className="btn btn--contorno" onClick={() => aoIrPara('retirada')}><Banknote size={18} /> Retirada</button>
+          <button className="btn btn--primario" style={{ flex: 1 }} onClick={() => aoIrPara('fechar')}><Lock size={18} /> Fechar caixa</button>
+        </div>
       )}
     </div>
   );
 }
 
+/* ---------------- Retirada (sangria) ---------------- */
+function Retirada({ r, restaurante, pode, aoVoltar, aoConcluir }: {
+  r: ResumoCaixa;
+  restaurante: string;
+  pode: boolean;
+  aoVoltar: () => void;
+  aoConcluir: () => void;
+}) {
+  const toast = useToast();
+  const [valor, setValor] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [imprimir, setImprimir] = useState(true);
+  const [ocupado, setOcupado] = useState(false);
+  const v = valor.trim() ? lerPreco(valor) : NaN;
+  const disponivel = Number(r.dinheiro_esperado);
+  const invalido = !Number.isFinite(v) || v <= 0;
+  const excede = !invalido && v > disponivel + 0.001;
+
+  async function registrar() {
+    if (invalido || excede) return;
+    setOcupado(true);
+    const { data, error } = await supabase.rpc('caixa_movimentar', { p_caixa: r.caixa_id, p_tipo: 'retirada', p_valor: v, p_motivo: motivo });
+    setOcupado(false);
+    if (error) return toast(msgErro(error), 'erro');
+    const novo = data as ResumoCaixa;
+    const mov = novo.movimentos?.[novo.movimentos.length - 1];
+    if (imprimir && mov) imprimirMovimentoCaixa(mov, restaurante, Number(novo.dinheiro_esperado));
+    toast(`Retirada de ${brl(v)} registrada. Na gaveta: ${brl(Number(novo.dinheiro_esperado))}.`, 'ok');
+    aoConcluir();
+  }
+
+  if (!pode) return <p className="muted">Só dono, gerente ou caixa podem fazer retiradas.</p>;
+
+  return (
+    <div className="caixa">
+      <div className="caixa__estado caixa__estado--retirada">
+        <Banknote size={28} />
+        <div>
+          <strong>Dinheiro esperado na gaveta: {brl(disponivel)}</strong>
+          <span>A retirada é descontada do dinheiro esperado e entra no fechamento do caixa.</span>
+        </div>
+      </div>
+
+      <div className="form">
+        <Campo rotulo="Valor da retirada (R$)">
+          <input className="input input--grande" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && void registrar()} />
+        </Campo>
+        {excede && <p className="erro-form">O valor é maior que o dinheiro esperado na gaveta ({brl(disponivel)}).</p>}
+        <Campo rotulo="Motivo (opcional)">
+          <input className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={120} placeholder="Ex.: depósito no banco, pagamento de fornecedor" />
+        </Campo>
+        <Switch marcado={imprimir} aoMudar={setImprimir}>Imprimir comprovante com espaço para assinatura</Switch>
+        <div className="acoes-linha">
+          <button className="btn btn--contorno" onClick={aoVoltar}>Voltar ao resumo</button>
+          <button className="btn btn--primario" style={{ flex: 1 }} onClick={() => void registrar()} disabled={ocupado || invalido || excede}>
+            {ocupado ? 'Registrando…' : invalido ? 'Registrar retirada' : `Registrar retirada de ${brl(v)}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Peças do resumo ---------------- */
 function ResumoView({ r }: { r: ResumoCaixa }) {
   const formas = FORMAS.filter((f) => r.por_forma[f.id]);
+  const movimentos = r.movimentos ?? [];
   return (
     <>
       <div className="caixa__kpis">
         <div><span>Recebido</span><strong>{brl(r.recebido)}</strong><small>{r.contas_fechadas} conta(s)</small></div>
         <div><span>Vendas</span><strong>{brl(r.vendas.total)}</strong><small>{r.vendas.pedidos} pedido(s)</small></div>
-        <div><span>Dinheiro esperado</span><strong>{brl(r.dinheiro_esperado)}</strong><small>troco + dinheiro</small></div>
+        <div>
+          <span>Dinheiro na gaveta</span>
+          <strong>{brl(r.dinheiro_esperado)}</strong>
+          <small>{Number(r.retiradas ?? 0) > 0 ? `troco + dinheiro − retiradas` : 'troco + dinheiro'}</small>
+        </div>
       </div>
       <section className="bloco">
         <h3>Recebido por forma de pagamento</h3>
@@ -218,7 +314,29 @@ function ResumoView({ r }: { r: ResumoCaixa }) {
           </ul>
         )}
       </section>
+      {movimentos.length > 0 && (
+        <section className="bloco">
+          <h3>Retiradas e reforços</h3>
+          <ul className="caixa__movimentos">
+            {movimentos.map((m) => <LinhaMovimento key={m.id} m={m} />)}
+          </ul>
+        </section>
+      )}
     </>
+  );
+}
+
+function LinhaMovimento({ m }: { m: MovimentoCaixa }) {
+  const retirada = m.tipo === 'retirada';
+  return (
+    <li>
+      {retirada ? <ArrowUpCircle size={18} className="mov--saida" /> : <ArrowDownCircle size={18} className="mov--entrada" />}
+      <div>
+        <strong>{retirada ? 'Retirada' : 'Reforço de troco'}{m.motivo ? ` · ${m.motivo}` : ''}</strong>
+        <small className="muted">{hora(m.criado_em)}{m.user_nome ? ` · ${m.user_nome}` : ''}</small>
+      </div>
+      <b className={retirada ? 'mov--saida' : 'mov--entrada'}>{retirada ? '−' : '+'} {brl(Number(m.valor))}</b>
+    </li>
   );
 }
 

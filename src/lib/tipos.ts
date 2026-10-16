@@ -115,11 +115,24 @@ export interface ResumoCaixa {
   por_forma: Partial<Record<FormaPagamento, number>>;
   dinheiro_esperado: number;
   em_aberto: { mesas: number; total: number };
+  // retiradas (sangria) e reforços de troco (ausentes em fechamentos antigos)
+  retiradas?: number;
+  suprimentos?: number;
+  movimentos?: MovimentoCaixa[];
   // só no fechamento
   valor_contado?: number | null;
   diferenca?: number | null;
   fechado_por_nome?: string | null;
   observacao?: string | null;
+}
+
+export interface MovimentoCaixa {
+  id: string;
+  tipo: 'retirada' | 'suprimento';
+  valor: number;
+  motivo: string | null;
+  user_nome: string | null;
+  criado_em: string;
 }
 
 export interface Caixa {

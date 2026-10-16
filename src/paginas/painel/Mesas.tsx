@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Copy, ExternalLink, LayoutGrid, Plus, Printer, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2 } from 'lucide-react';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
@@ -21,6 +21,7 @@ export default function Mesas() {
   const [carregado, setCarregado] = useState(false);
   const [selecionada, setSelecionada] = useState<Mesa | null>(null);
   const [criando, setCriando] = useState(false);
+  const [verLinks, setVerLinks] = useState(false);
   const gestor = ehGestor(papel);
 
   const carregar = useCallback(async () => {
@@ -51,8 +52,17 @@ export default function Mesas() {
           <h1 className="titulo">Mesas</h1>
           <p>{ocupadas} de {mesas.filter((m) => m.ativo).length} ocupadas · {brl(emAberto)} em contas abertas</p>
         </div>
+        {mesas.length > 0 && (
+          <button className="btn btn--contorno" onClick={() => setVerLinks(true)}><Tablet size={18} /> Links dos tablets</button>
+        )}
         {gestor && <button className="btn btn--primario" onClick={() => setCriando(true)}><Plus size={18} /> Nova mesa</button>}
       </div>
+
+      {mesas.length > 0 && (
+        <p className="dica-mesas">
+          <Tablet size={16} /> Cada mesa tem um link próprio para o tablet. Toque numa mesa para ver o link e o QR code, ou use <b>Links dos tablets</b>.
+        </p>
+      )}
 
       {carregado && mesas.length === 0 ? (
         <Vazio icone={<LayoutGrid size={36} />} titulo="Nenhuma mesa cadastrada">
@@ -102,6 +112,8 @@ export default function Mesas() {
           aoMudar={() => void carregar()}
         />
       )}
+
+      {verLinks && <ModalLinks mesas={mesas.filter((m) => m.ativo)} aoFechar={() => setVerLinks(false)} />}
 
       {criando && (
         <ModalNovaMesa
@@ -267,6 +279,37 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
           </div>
         </section>
       )}
+    </Modal>
+  );
+}
+
+function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }) {
+  const toast = useToast();
+  const copiar = async (m: Mesa) => {
+    try {
+      await navigator.clipboard.writeText(linkMesa(m.token));
+      toast(`Link da ${m.nome} copiado!`, 'ok');
+    } catch {
+      toast('Não foi possível copiar. Selecione o link manualmente.', 'erro');
+    }
+  };
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo="Links dos tablets" largura={640}>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Abra o link de cada mesa no tablet correspondente e deixe a tela aberta. Dica: no tablet, use o menu do Chrome →
+        <b> Adicionar à tela inicial</b> para abrir em tela cheia.
+      </p>
+      <ul className="lista-links">
+        {mesas.map((m) => (
+          <li key={m.id}>
+            <strong>{m.nome}</strong>
+            <code title={linkMesa(m.token)}>{linkMesa(m.token)}</code>
+            <button className="icone-btn" onClick={() => void copiar(m)} title="Copiar" aria-label={`Copiar link da ${m.nome}`}><Copy size={18} /></button>
+            <a className="icone-btn" href={linkMesa(m.token)} target="_blank" rel="noopener" title="Abrir" aria-label={`Abrir cardápio da ${m.nome}`}><ExternalLink size={18} /></a>
+          </li>
+        ))}
+      </ul>
     </Modal>
   );
 }

@@ -146,6 +146,13 @@
 .total-linha strong { font-size: 1.4rem; }
 .link-mesa { display: flex; gap: 8px; align-items: center; }
 .link-mesa code { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--line); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dica-mesas { display: flex; align-items: center; gap: 8px; margin: -6px 0 0; color: var(--muted); font-size: .9rem; }
+.dica-mesas svg { flex: none; color: var(--acento); }
+.lista-links { list-style: none; margin: 0; padding: 0; }
+.lista-links li { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.lista-links li:last-child { border-bottom: 0; }
+.lista-links strong { min-width: 80px; }
+.lista-links code { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--line); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qr { width: 180px; height: 180px; border-radius: 12px; background: #fff; padding: 8px; }
 .acoes-linha { display: flex; flex-wrap: wrap; gap: 8px; }
 

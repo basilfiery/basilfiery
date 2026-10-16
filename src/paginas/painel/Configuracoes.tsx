@@ -8,6 +8,7 @@ import { useSessao } from '../../lib/sessao';
 import { definirSom, somLigado, tocarAlerta } from '../../lib/som';
 import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../lib/supabase';
 import { cx, ehGestor } from '../../lib/util';
+import { VERSAO_CURTA } from '../../lib/versao';
 import { usePainel } from './Painel';
 
 const CORES = ['#ff5a1f', '#e63946', '#d6336c', '#7048e8', '#1c7ed6', '#0ca678', '#5c940d', '#f08c00'];
@@ -22,6 +23,9 @@ export default function Configuracoes() {
         <CartaoImpressora />
         <CartaoNotificacoes />
       </div>
+      <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>
+        Versão do sistema: <b>{VERSAO_CURTA}</b> · as atualizações são verificadas a cada minuto.
+      </p>
     </div>
   );
 }

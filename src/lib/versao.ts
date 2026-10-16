@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { ls } from './util';
 
 export const VERSAO_ATUAL = __VERSAO__;
+/** Versão curta para mostrar na tela (ex.: 3768cb7). */
+export const VERSAO_CURTA = VERSAO_ATUAL.startsWith('local-') ? 'local' : VERSAO_ATUAL.slice(0, 7);
 const CHAVE_ADIADA = 'bf:atualizacao-adiada';
 
 /**
  * Verifica de tempos em tempos se saiu uma publicação nova.
  * Devolve o identificador da versão nova, ou null se esta já é a mais recente.
  */
-export function useNovaVersao(intervalo = 120000): string | null {
+export function useNovaVersao(intervalo = 60000): string | null {
   const [nova, setNova] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,11 +29,13 @@ export function useNovaVersao(intervalo = 120000): string | null {
     const aoVoltar = () => { if (document.visibilityState === 'visible') void checar(); };
     document.addEventListener('visibilitychange', aoVoltar);
     window.addEventListener('online', aoVoltar);
+    window.addEventListener('focus', aoVoltar);
     return () => {
       ativo = false;
       clearInterval(i);
       document.removeEventListener('visibilitychange', aoVoltar);
       window.removeEventListener('online', aoVoltar);
+      window.removeEventListener('focus', aoVoltar);
     };
   }, [intervalo]);
 

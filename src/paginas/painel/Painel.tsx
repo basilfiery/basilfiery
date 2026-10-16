@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { Link, NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  BarChart3, Bell, ClipboardList, LayoutGrid, LogOut, Package, Printer, RefreshCw, Settings, ShieldCheck, Smartphone,
-  Users, UtensilsCrossed, Volume2, VolumeX, Wallet, type LucideIcon,
+  BarChart3, Bell, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, LayoutGrid, LogOut, Moon,
+  Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, Users, Volume2, VolumeX, Wallet,
+  type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa } from './Caixa';
-import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
-import { Logo } from '../../componentes/Basicos';
+import { Logo, Switch } from '../../componentes/Basicos';
+import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
-import { EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, imprimirPedido, lerConfigImpressao } from '../../lib/impressao';
+import {
+  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, gravarConfigImpressao, imprimirPedido, imprimirTeste,
+  lerConfigImpressao, programaDesktop,
+} from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
 import { definirSom, notificarLocal, somLigado, tocarAlerta } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
-import { PAPEL_ROTULO, brl, cx, hora, tempoDesde, useAgora } from '../../lib/util';
+import { PAPEL_ROTULO, brl, cx, ehGestor, hora, ls, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
+import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
 import '../../estilos/painel.css';
 
 export interface ContextoPainel {
@@ -30,6 +35,8 @@ export interface ContextoPainel {
   caixa: ResumoCaixa | null | undefined;
   abrirCaixa: () => void;
   recarregarCaixa: () => void;
+  /** Texto digitado na busca da barra superior */
+  busca: string;
 }
 
 export const usePainel = () => useOutletContext<ContextoPainel>();
@@ -38,21 +45,57 @@ const TODOS: Papel[] = ['dono', 'gerente', 'caixa', 'garcom'];
 const MENU: { para: string; icone: LucideIcon; rotulo: string; papeis: Papel[]; fim?: boolean }[] = [
   { para: '/painel', icone: ClipboardList, rotulo: 'Pedidos', papeis: TODOS, fim: true },
   { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
-  { para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: ['dono', 'gerente', 'caixa'] },
-  { para: '/painel/cardapio', icone: UtensilsCrossed, rotulo: 'Cardápio', papeis: ['dono', 'gerente'] },
+  { para: '/painel/cardapio', icone: BookOpen, rotulo: 'Cardápio', papeis: ['dono', 'gerente'] },
   { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: ['dono', 'gerente', 'caixa'] },
+  { para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: ['dono', 'gerente', 'caixa'] },
   { para: '/painel/equipe', icone: Users, rotulo: 'Equipe', papeis: ['dono', 'gerente'] },
   { para: '/painel/config', icone: Settings, rotulo: 'Configurações', papeis: TODOS },
 ];
+
+const PLANO_ROTULO: Record<string, string> = {
+  teste: 'Teste gratuito',
+  essencial: 'Plano Essencial',
+  profissional: 'Plano Profissional',
+  rede: 'Plano Rede',
+};
+
+type Tema = 'claro' | 'escuro';
+
+const iniciais = (nome: string) =>
+  nome.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
 
 export default function Painel() {
   const s = useSessao();
   const toast = useToast();
   const local = useLocation();
+  const navegar = useNavigate();
   const r = s.restaurante;
   const [som, setSom] = useState(somLigado());
   const [cfgImp, setCfgImp] = useState(lerConfigImpressao());
+  const [busca, setBusca] = useState('');
+  const buscaRef = useRef<HTMLInputElement>(null);
   const agora = useAgora(30000);
+
+  /* ---------- Tema claro/escuro (só no painel) ---------- */
+  const [tema, setTema] = useState<Tema>(() => ls.ler<Tema>('bf:tema', 'claro'));
+  useEffect(() => {
+    document.documentElement.dataset.tema = tema;
+    ls.gravar('bf:tema', tema);
+    return () => { delete document.documentElement.dataset.tema; };
+  }, [tema]);
+
+  // Ctrl+K: foca a busca
+  useEffect(() => {
+    const atalho = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        buscaRef.current?.focus();
+        buscaRef.current?.select();
+      }
+    };
+    document.addEventListener('keydown', atalho);
+    return () => document.removeEventListener('keydown', atalho);
+  }, []);
 
   const vivo = usePedidosAoVivo(r?.id, {
     aoNovoPedido: (p) => {
@@ -146,10 +189,21 @@ export default function Painel() {
   const itens = MENU.filter((m) => m.papeis.includes(papel));
   const atual = MENU.find((m) => (m.fim ? local.pathname === m.para : local.pathname.startsWith(m.para)));
   const permitido = !atual || atual.papeis.includes(papel);
+  const naTelaDePedidos = local.pathname === '/painel';
+  const novos = vivo.pedidos.filter((p) => p.status === 'novo').length;
+  const desktop = programaDesktop();
+  const ultimoPedido = vivo.pedidos.filter((p) => p.status !== 'cancelado').slice(-1)[0];
 
   async function atender(c: Chamado) {
     const { error } = await supabase.rpc('chamado_atender', { p_chamado: c.id });
     if (error) toast(msgErro(error), 'erro');
+  }
+
+  function alternarSom() {
+    const v = !som;
+    setSom(v);
+    definirSom(v);
+    if (v) tocarAlerta('pronto');
   }
 
   const ctx: ContextoPainel = {
@@ -164,78 +218,230 @@ export default function Painel() {
     caixa,
     abrirCaixa: () => setVerCaixa(true),
     recarregarCaixa: () => void carregarCaixa(),
+    busca,
   };
-  const novos = vivo.pedidos.filter((p) => p.status === 'novo').length;
+
+  const avatarEmpresa = r.logo_url
+    ? <span className="avatar"><img src={r.logo_url} alt="" /></span>
+    : <span className="avatar" style={{ background: r.cor }}>{iniciais(r.nome)}</span>;
 
   return (
     <div className="painel" style={{ '--acento': r.cor } as CSSProperties}>
-      <aside className="painel__lateral">
-        <Link to="/painel" className="painel__logo"><Logo tamanho="sm" /></Link>
-        <nav className="painel__menu">
+      {/* ================= Barra lateral ================= */}
+      <aside className="lateral">
+        <Link to="/painel" className="lateral__marca" aria-label="BasilFiery">
+          <img src="/favicon.png" alt="" />
+          <div>
+            <strong>Basil<span>Fiery</span></strong>
+            <small>Gestão de pedidos</small>
+          </div>
+        </Link>
+
+        <nav className="lateral__menu" aria-label="Menu principal">
           {itens.map((m) => (
-            <NavLink key={m.para} to={m.para} end={m.fim} className={({ isActive }) => cx('painel__item', isActive && 'ativo')}>
-              <m.icone size={20} />
+            <NavLink key={m.para} to={m.para} end={m.fim} title={m.rotulo} className={({ isActive }) => cx('lateral__item', isActive && 'ativo')}>
+              <m.icone size={20} strokeWidth={1.8} />
               <span>{m.rotulo}</span>
-              {m.para === '/painel' && novos > 0 && <span className="painel__contador">{novos}</span>}
+              {m.para === '/painel' && novos > 0 && <b className="lateral__contador">{novos}</b>}
             </NavLink>
           ))}
-          {s.ehAdmin && (
-            <NavLink to="/plataforma" className="painel__item">
-              <ShieldCheck size={20} /><span>Plataforma</span>
-            </NavLink>
-          )}
         </nav>
-        <div className="painel__usuario">
-          <div>
-            <strong>{s.nome}</strong>
-            <span>{PAPEL_ROTULO[papel]}</span>
-          </div>
-          <button className="icone-btn" onClick={() => void s.sair()} title="Sair" aria-label="Sair"><LogOut size={18} /></button>
+
+        <div className="lateral__rodape">
+          <Suspenso
+            alinhar="esq"
+            largura={240}
+            gatilho={(_, alternar) => (
+              <button className="usuario-btn" onClick={alternar} aria-label="Menu da conta">
+                <span className="avatar">{iniciais(s.nome || 'Usuário')}</span>
+                <div>
+                  <strong>{s.nome || 'Usuário'}</strong>
+                  <small>{PAPEL_ROTULO[papel]}</small>
+                </div>
+                <ChevronsUpDown size={16} />
+              </button>
+            )}
+          >
+            {(fechar) => (
+              <>
+                <div className="menu-cab">
+                  <span className="avatar">{iniciais(s.nome || 'Usuário')}</span>
+                  <div><strong>{s.nome || 'Usuário'}</strong><small>{s.usuario?.email}</small></div>
+                </div>
+                <div className="menu-sep" />
+                <Link className="menu-item" to="/garcom" onClick={fechar}><Smartphone size={18} /> Tela do garçom</Link>
+                {s.ehAdmin && <Link className="menu-item" to="/plataforma" onClick={fechar}><ShieldCheck size={18} /> Plataforma</Link>}
+                <div className="menu-sep" />
+                <button className="menu-item menu-item--perigo" onClick={() => void s.sair()}><LogOut size={18} /> Sair</button>
+              </>
+            )}
+          </Suspenso>
         </div>
       </aside>
 
+      {/* ================= Área principal ================= */}
       <div className="painel__principal">
-        <header className="painel__topo">
-          {s.restaurantes.length > 1 ? (
-            <select className="select painel__rest" value={r.id} onChange={(e) => s.escolherRestaurante(e.target.value)} aria-label="Restaurante">
-              {s.restaurantes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-            </select>
-          ) : (
-            <strong className="painel__rest-nome">{r.nome}</strong>
-          )}
-          <span className={cx('ao-vivo', vivo.conectado && 'on')} title={vivo.conectado ? 'Recebendo pedidos em tempo real' : 'Reconectando…'}>
-            {vivo.conectado ? 'Ao vivo' : 'Reconectando…'}
-          </span>
-          <div className="painel__topo-acoes">
-            <Link to="/painel/config" className={cx('chip-status', cfgImp.auto && 'on')} title="Impressão automática neste computador">
-              <Printer size={16} /> <span>{cfgImp.auto ? 'Impressão automática' : 'Impressão desligada'}</span>
-            </Link>
-            <button
-              className="icone-btn"
-              onClick={() => { const v = !som; setSom(v); definirSom(v); if (v) tocarAlerta('pronto'); }}
-              title={som ? 'Som ligado' : 'Som desligado'}
-              aria-label={som ? 'Desligar som' : 'Ligar som'}
-            >
-              {som ? <Volume2 size={20} /> : <VolumeX size={20} />}
-            </button>
-            <Link to="/garcom" className="icone-btn" title="Tela do garçom (celular)" aria-label="Tela do garçom"><Smartphone size={20} /></Link>
+        <header className="topo">
+          <label className="topo__busca">
+            <Search size={20} />
+            <span className="sr">Buscar</span>
+            <input
+              ref={buscaRef}
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setBusca('');
+                if (e.key === 'Enter' && !naTelaDePedidos) navegar('/painel');
+              }}
+              placeholder="Buscar pedido, mesa ou número..."
+            />
+            {busca ? (
+              <button type="button" className="topo__limpar" onClick={() => setBusca('')} aria-label="Limpar busca">×</button>
+            ) : (
+              <kbd>Ctrl + K</kbd>
+            )}
+          </label>
+
+          <div className="topo__acoes">
+            {!vivo.conectado && <span className="topo__aviso"><RefreshCw size={14} /> Reconectando…</span>}
             {pendenteNoFechamento && (
               <button className="chip-status chip-status--atualizacao" onClick={aplicarAtualizacao} title="Clique para atualizar agora">
                 <RefreshCw size={16} /> <span>Atualiza no fechamento</span>
               </button>
             )}
+
+            {/* Assistente do WhatsApp: ainda não integrado */}
+            <Suspenso
+              largura={300}
+              gatilho={(_, alternar) => (
+                <button className="topo-btn topo-btn--icone oculto-mobile" onClick={alternar} title="Assistente do WhatsApp" aria-label="Assistente do WhatsApp">
+                  <Bot size={21} strokeWidth={1.8} />
+                  <i className="topo-btn__ponto" />
+                </button>
+              )}
+            >
+              {() => (
+                <>
+                  <div className="menu-cab">
+                    <span className="avatar avatar--cinza"><Bot size={18} /></span>
+                    <div><strong>Assistente do WhatsApp</strong><small>Não conectado</small></div>
+                  </div>
+                  <p className="menu-texto">
+                    A integração com o WhatsApp ainda não está disponível no BasilFiery. Quando estiver, as conversas e as
+                    respostas automáticas aparecem aqui.
+                  </p>
+                </>
+              )}
+            </Suspenso>
+
+            {/* Caixa */}
             <button
-              className={cx('caixa-btn', caixa ? 'aberto' : 'fechado')}
+              className="topo-btn"
               onClick={() => setVerCaixa(true)}
               disabled={caixa === undefined}
-              title={caixa ? 'Ver ou fechar o caixa' : 'Abrir o caixa'}
+              title={caixa ? `Caixa aberto desde ${hora(caixa.aberto_em)} · recebido ${brl(caixa.recebido)}` : 'Caixa fechado: clique para abrir'}
             >
-              <Wallet size={18} />
-              <span className="caixa-btn__texto">
-                <b>{caixa === undefined ? 'Caixa…' : caixa ? 'Caixa aberto' : 'Caixa fechado'}</b>
-                {caixa && <small>desde {hora(caixa.aberto_em)} · {brl(caixa.recebido)}</small>}
-              </span>
+              <Wallet size={20} strokeWidth={1.8} />
+              <span>Caixa</span>
+              <i className={cx('topo-btn__ponto', caixa ? 'on' : caixa === null && 'alerta')} />
             </button>
+
+            {/* Impressora */}
+            <Suspenso
+              largura={300}
+              gatilho={(_, alternar) => (
+                <button className="topo-btn topo-btn--icone" onClick={alternar} title="Impressão" aria-label="Impressão">
+                  <Printer size={20} strokeWidth={1.8} />
+                  <i className={cx('topo-btn__ponto', cfgImp.auto && 'on')} />
+                </button>
+              )}
+            >
+              {(fechar) => (
+                <>
+                  <div className="menu-cab">
+                    <span className="avatar avatar--cinza"><Printer size={18} /></span>
+                    <div>
+                      <strong>Impressão</strong>
+                      <small>{desktop ? (cfgImp.impressora || 'Impressora padrão do Windows') : 'Pelo navegador'} · {cfgImp.largura} mm</small>
+                    </div>
+                  </div>
+                  <div className="menu-item menu-item--switch">
+                    <Switch marcado={cfgImp.auto} aoMudar={(v) => gravarConfigImpressao({ ...cfgImp, auto: v })}>
+                      Imprimir pedidos novos automaticamente
+                    </Switch>
+                  </div>
+                  <div className="menu-sep" />
+                  <button className="menu-item" disabled={!ultimoPedido} onClick={() => { if (ultimoPedido) imprimirPedido(ultimoPedido, r.nome); fechar(); }}>
+                    <Printer size={18} /> Reimprimir último pedido {ultimoPedido && <small>#{ultimoPedido.numero}</small>}
+                  </button>
+                  <button className="menu-item" onClick={() => { imprimirTeste(r.nome); fechar(); }}>
+                    <Printer size={18} /> Imprimir teste
+                  </button>
+                  <Link className="menu-item" to="/painel/config" onClick={fechar}><Settings size={18} /> Configurar impressora</Link>
+                </>
+              )}
+            </Suspenso>
+
+            {/* Tema */}
+            <button
+              className="topo-btn topo-btn--icone oculto-mobile"
+              onClick={() => setTema((t) => (t === 'claro' ? 'escuro' : 'claro'))}
+              title={tema === 'claro' ? 'Usar tema escuro' : 'Usar tema claro'}
+              aria-label="Alternar tema"
+            >
+              {tema === 'claro' ? <Moon size={20} strokeWidth={1.8} /> : <Sun size={20} strokeWidth={1.8} />}
+            </button>
+
+            {/* Empresa */}
+            <Suspenso
+              largura={290}
+              gatilho={(_, alternar) => (
+                <button className="empresa-btn" onClick={alternar} aria-label="Menu da empresa">
+                  {avatarEmpresa}
+                  <div>
+                    <strong>{r.nome}</strong>
+                    <small>{PLANO_ROTULO[r.plano] ?? r.plano}</small>
+                  </div>
+                  <ChevronDown size={18} />
+                </button>
+              )}
+            >
+              {(fechar) => (
+                <>
+                  <div className="menu-cab">
+                    {avatarEmpresa}
+                    <div><strong>{r.nome}</strong><small>{PLANO_ROTULO[r.plano] ?? r.plano} · {PAPEL_ROTULO[papel]}</small></div>
+                  </div>
+                  <div className="menu-sep" />
+                  {ehGestor(papel) && (
+                    <>
+                      <Link className="menu-item" to="/painel/config" onClick={fechar}><Building2 size={18} /> Dados e identidade visual</Link>
+                      <Link className="menu-item" to="/painel/equipe" onClick={fechar}><Users size={18} /> Equipe</Link>
+                    </>
+                  )}
+                  <Link className="menu-item" to="/painel/config" onClick={fechar}><Settings size={18} /> Configurações</Link>
+                  <button className="menu-item" onClick={alternarSom}>
+                    {som ? <Volume2 size={18} /> : <VolumeX size={18} />} Som de novos pedidos <small>{som ? 'Ligado' : 'Desligado'}</small>
+                  </button>
+                  <button className="menu-item menu-item--mobile" onClick={() => setTema((t) => (t === 'claro' ? 'escuro' : 'claro'))}>
+                    {tema === 'claro' ? <Moon size={18} /> : <Sun size={18} />} Tema {tema === 'claro' ? 'escuro' : 'claro'}
+                  </button>
+                  {s.restaurantes.length > 1 && (
+                    <>
+                      <div className="menu-sep" />
+                      <p className="menu-texto" style={{ paddingBottom: 4 }}>Trocar de restaurante</p>
+                      {s.restaurantes.map((x) => (
+                        <button key={x.id} className="menu-item" onClick={() => { s.escolherRestaurante(x.id); fechar(); }}>
+                          <Store size={18} /> {x.nome} {x.id === r.id && <small>atual</small>}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  <div className="menu-sep" />
+                  <button className="menu-item menu-item--perigo" onClick={() => void s.sair()}><LogOut size={18} /> Sair</button>
+                </>
+              )}
+            </Suspenso>
           </div>
         </header>
 
@@ -245,13 +451,13 @@ export default function Painel() {
               <div key={c.id} className={cx('chamado', c.tipo === 'conta' && 'chamado--conta')}>
                 <Bell size={18} />
                 <span><b>{c.mesa_nome}</b> {c.tipo === 'conta' ? 'pediu a conta' : 'chamou o garçom'} · {tempoDesde(c.criado_em, agora)}</span>
-                <button className="btn btn--sm" onClick={() => void atender(c)}>Atendido</button>
+                <button className="btn btn--sm btn--contorno" onClick={() => void atender(c)}>Atendido</button>
               </div>
             ))}
           </div>
         )}
 
-        <main className="painel__conteudo">
+        <main className={cx('painel__conteudo', naTelaDePedidos && permitido && 'painel__conteudo--cheio')}>
           {permitido ? <Outlet context={ctx} /> : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}
         </main>
       </div>

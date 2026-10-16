@@ -24,7 +24,48 @@
   --r-sm: 10px;
   --fonte: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --titulo: 'Fraunces', Georgia, serif;
+  --hover: rgba(255, 255, 255, .05);
+  --anel: rgba(255, 255, 255, .08);
+  --sombra: none;
+  --coluna-bg: var(--bg-2);
+  --foto-bg: radial-gradient(circle at 30% 25%, #3d2e24, #211a16);
   color-scheme: dark;
+}
+
+/* Painel do restaurante: tema claro (padrão) e escuro, escolhidos pelo usuário.
+   Só vale enquanto o painel está aberto (o tablet e o site seguem escuros). */
+:root[data-tema='claro'] {
+  --bg: #f6f6f7;
+  --bg-2: #f9f9fa;
+  --surface: #ffffff;
+  --surface-2: #f2f2f4;
+  --surface-3: #ffffff;
+  --line: #e6e6e9;
+  --line-2: #d2d2d7;
+  --text: #17171a;
+  --muted: #6b6b73;
+  --muted-2: #9d9da5;
+  --fire-2: #ea580c;
+  --basil: #4d7c0f;
+  --ok: #16a34a;
+  --warn: #b45309;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --hover: rgba(0, 0, 0, .04);
+  --anel: rgba(23, 23, 26, .08);
+  --sombra: 0 1px 2px rgba(16, 24, 40, .04);
+  --coluna-bg: #fbfbfc;
+  --foto-bg: radial-gradient(circle at 30% 25%, #fff6ef, #fde6d6);
+  --primario-bg: #121214;
+  --primario-txt: #ffffff;
+  --titulo: var(--fonte);
+  color-scheme: light;
+}
+:root[data-tema='escuro'] {
+  --primario-bg: #f4f1ee;
+  --primario-txt: #121010;
+  --titulo: var(--fonte);
+  --sombra: none;
 }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -70,7 +111,7 @@ h1, h2, h3 { line-height: 1.2; }
 .btn:hover:not(:disabled) { filter: brightness(1.12); }
 .btn:active:not(:disabled) { transform: scale(.98); }
 .btn:focus-visible, .icone-btn:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
-.btn--primario { background: var(--acento); color: #fff; }
+.btn--primario { background: var(--primario-bg, var(--acento)); color: var(--primario-txt, #fff); }
 .btn--sucesso { background: var(--ok); color: #06240f; }
 .btn--whats { background: #25d366; color: #062c14; }
 .btn--contorno { background: transparent; border-color: var(--line-2); }
@@ -130,7 +171,7 @@ h1, h2, h3 { line-height: 1.2; }
 .stepper--lg span { min-width: 36px; font-size: 1.2rem; }
 
 /* ---------- Cartões, selos, badges ---------- */
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; box-shadow: var(--sombra); }
 .card__titulo { margin: 0 0 14px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
 
 .badge {
@@ -154,7 +195,7 @@ h1, h2, h3 { line-height: 1.2; }
 
 .foto {
   display: grid; place-items: center; overflow: hidden;
-  background: radial-gradient(circle at 30% 25%, #3d2e24, #211a16);
+  background: var(--foto-bg);
   font-size: 44px;
 }
 .foto img { width: 100%; height: 100%; object-fit: cover; }

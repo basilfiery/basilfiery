@@ -699,3 +699,29 @@
   border-radius: 999px; background: rgba(59, 130, 246, .1); color: var(--info);
   font-size: .74rem; font-weight: 600;
 }
+/* ---------- Cardápio: arrastar categorias e preço editável ---------- */
+.cat-item { position: relative; cursor: pointer; }
+.cat-item__alca { flex: none; color: var(--muted-2); cursor: grab; opacity: .6; }
+.cat-item:hover .cat-item__alca { opacity: 1; }
+.cat-item.arrastando { opacity: .4; }
+.cat-item.alvo-antes::before, .cat-item.alvo-depois::after {
+  content: ''; position: absolute; left: 6px; right: 6px; height: 2px; border-radius: 2px; background: var(--acento);
+}
+.cat-item.alvo-antes::before { top: -2px; }
+.cat-item.alvo-depois::after { bottom: -2px; }
+.cats-dica { display: flex; align-items: center; gap: 4px; margin: 10px 4px 0; color: var(--muted-2); font-size: .78rem; }
+
+.preco-editavel {
+  display: inline-flex; align-items: center; gap: 3px; padding: 4px 6px 4px 8px;
+  border: 1px solid transparent; border-radius: 8px; cursor: text;
+  transition: border-color .15s, background .15s;
+}
+.preco-editavel:hover { border-color: var(--line); background: var(--bg-2); }
+.preco-editavel:focus-within { border-color: var(--acento); background: var(--surface); box-shadow: 0 0 0 3px var(--anel); }
+.preco-editavel__rs { color: var(--muted); font-size: .88rem; }
+.preco-editavel input {
+  width: 74px; padding: 0; border: 0; outline: none; background: transparent;
+  color: var(--text); font: 600 .95rem var(--fonte); text-align: right; font-variant-numeric: tabular-nums;
+}
+.preco-editavel__ok { width: 15px; display: grid; color: var(--ok); opacity: 0; transition: opacity .2s; }
+.preco-editavel.salvo .preco-editavel__ok { opacity: 1; }

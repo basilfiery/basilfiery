@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Film, ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
+import { Check, Film, GripVertical, ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
 import { Campo, FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
 import type { Categoria, Produto } from '../../lib/tipos';
-import { brl, cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
+import { cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
 
 export default function Cardapio() {
@@ -39,9 +39,45 @@ export default function Cardapio() {
     }
   }
 
+  /* ---------- Arrastar categorias para mudar a ordem (igual à do tablet) ---------- */
+  // Estado para o visual + ref para a lógica (a ref já vale no evento seguinte, mesmo num arrasto rápido)
+  const [arrastando, setArrastando] = useState<string | null>(null);
+  const [alvo, setAlvo] = useState<{ id: string; depois: boolean } | null>(null);
+  const arrastandoRef = useRef<string | null>(null);
+  const alvoRef = useRef<{ id: string; depois: boolean } | null>(null);
+  const limparArrasto = () => {
+    arrastandoRef.current = null;
+    alvoRef.current = null;
+    setArrastando(null);
+    setAlvo(null);
+  };
+
+  async function moverCategoria(origemId: string, destinoId: string, depois: boolean) {
+    if (origemId === destinoId) return;
+    const lista = categorias.filter((c) => c.id !== origemId);
+    const origem = categorias.find((c) => c.id === origemId);
+    const idx = lista.findIndex((c) => c.id === destinoId);
+    if (!origem || idx < 0) return;
+    lista.splice(depois ? idx + 1 : idx, 0, origem);
+    const novas = lista.map((c, i) => ({ ...c, ordem: i + 1 }));
+    const mudaram = novas.filter((c) => categorias.find((x) => x.id === c.id)?.ordem !== c.ordem);
+    setCategorias(novas);
+    const resultados = await Promise.all(mudaram.map((c) => supabase.from('categorias').update({ ordem: c.ordem }).eq('id', c.id)));
+    const falha = resultados.find((r) => r.error);
+    if (falha) {
+      toast(msgErro(falha.error), 'erro');
+      void carregar();
+    } else {
+      toast('Ordem do cardápio salva. Os tablets atualizam em até 1 minuto.', 'ok');
+    }
+  }
+
   const termo = busca.trim().toLowerCase();
-  const visiveis = produtos.filter((p) =>
-    (!catSel || p.categoria_id === catSel) && (!termo || p.nome.toLowerCase().includes(termo)));
+  const ordemCat = new Map(categorias.map((c, i) => [c.id, i]));
+  const visiveis = produtos
+    .filter((p) => (!catSel || p.categoria_id === catSel) && (!termo || p.nome.toLowerCase().includes(termo)))
+    // Em "Todos os produtos", segue a ordem das categorias (como no tablet)
+    .sort((a, b) => (ordemCat.get(a.categoria_id ?? '') ?? 999) - (ordemCat.get(b.categoria_id ?? '') ?? 999) || ordenarNome(a, b));
   const nomeCat = (id: string | null) => categorias.find((c) => c.id === id)?.nome ?? 'Sem categoria';
 
   return (
@@ -64,8 +100,43 @@ export default function Cardapio() {
               <span>Todos os produtos</span><span className="contagem">{produtos.length}</span>
             </button>
             {categorias.map((c) => (
-              <div key={c.id} className={cx('cat-item', catSel === c.id && 'ativo', !c.ativo && 'cat-item--inativa')} role="button" tabIndex={0}
-                onClick={() => setCatSel(c.id)} onKeyDown={(e) => e.key === 'Enter' && setCatSel(c.id)}>
+              <div
+                key={c.id}
+                className={cx(
+                  'cat-item', catSel === c.id && 'ativo', !c.ativo && 'cat-item--inativa',
+                  arrastando === c.id && 'arrastando',
+                  alvo?.id === c.id && arrastando !== c.id && (alvo.depois ? 'alvo-depois' : 'alvo-antes'),
+                )}
+                role="button"
+                tabIndex={0}
+                draggable
+                onClick={() => setCatSel(c.id)}
+                onKeyDown={(e) => e.key === 'Enter' && setCatSel(c.id)}
+                onDragStart={(e) => {
+                  arrastandoRef.current = c.id;
+                  setArrastando(c.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', c.id);
+                }}
+                onDragOver={(e) => {
+                  if (!arrastandoRef.current) return;
+                  e.preventDefault();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const novo = { id: c.id, depois: e.clientY > r.top + r.height / 2 };
+                  alvoRef.current = novo;
+                  setAlvo(novo);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const origem = arrastandoRef.current;
+                  const destino = alvoRef.current;
+                  if (origem && destino) void moverCategoria(origem, destino.id, destino.depois);
+                  limparArrasto();
+                }}
+                onDragEnd={limparArrasto}
+                title="Arraste para mudar a ordem"
+              >
+                <GripVertical size={16} className="cat-item__alca" aria-hidden="true" />
                 <span>{c.emoji} {c.nome}</span>
                 <span className="contagem">{produtos.filter((p) => p.categoria_id === c.id).length}</span>
                 <button className="icone-btn" style={{ width: 30, height: 30 }} onClick={(e) => { e.stopPropagation(); setEditCat(c); }} aria-label={`Editar ${c.nome}`}>
@@ -74,6 +145,7 @@ export default function Cardapio() {
               </div>
             ))}
           </div>
+          {categorias.length > 1 && <p className="cats-dica">Arraste pela alça <GripVertical size={13} /> para mudar a ordem no tablet.</p>}
           <button className="btn btn--contorno btn--sm btn--bloco" style={{ marginTop: 12 }} onClick={() => setEditCat('nova')}>
             <Plus size={16} /> Nova categoria
           </button>
@@ -110,7 +182,12 @@ export default function Cardapio() {
                           </div>
                         </div>
                       </td>
-                      <td className="num">{brl(p.preco)}</td>
+                      <td className="num">
+                        <PrecoEditavel
+                          produto={p}
+                          aoSalvar={(preco) => setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, preco } : x)))}
+                        />
+                      </td>
                       <td><Switch marcado={p.ativo} aoMudar={(v) => void alternarAtivo(p, v)} /></td>
                       <td className="num">
                         <button className="icone-btn" onClick={() => setEditProd(p)} aria-label={`Editar ${p.nome}`}><Pencil size={18} /></button>
@@ -144,6 +221,67 @@ export default function Cardapio() {
         />
       )}
     </div>
+  );
+}
+
+/** Preço editável direto na lista: clica, digita e pronto (salva ao sair do campo ou com Enter). */
+function PrecoEditavel({ produto, aoSalvar }: { produto: Produto; aoSalvar: (preco: number) => void }) {
+  const toast = useToast();
+  const [texto, setTexto] = useState(precoParaTexto(produto.preco));
+  const [estado, setEstado] = useState<'parado' | 'salvando' | 'salvo'>('parado');
+  const focado = useRef(false);
+  const cancelou = useRef(false);
+
+  // Acompanha mudanças vindas de fora (ex.: editado no formulário)
+  useEffect(() => {
+    if (!focado.current) setTexto(precoParaTexto(produto.preco));
+  }, [produto.preco]);
+
+  async function salvar() {
+    focado.current = false;
+    if (cancelou.current) {
+      cancelou.current = false;
+      setTexto(precoParaTexto(produto.preco));
+      return;
+    }
+    const novo = lerPreco(texto);
+    if (!Number.isFinite(novo) || novo < 0) {
+      toast('Preço inválido. Ex.: 49,90', 'erro');
+      setTexto(precoParaTexto(produto.preco));
+      return;
+    }
+    setTexto(precoParaTexto(novo));
+    if (Math.abs(novo - Number(produto.preco)) < 0.005) return;
+    setEstado('salvando');
+    const { error } = await supabase.from('produtos').update({ preco: novo }).eq('id', produto.id);
+    if (error) {
+      setEstado('parado');
+      setTexto(precoParaTexto(produto.preco));
+      return toast(msgErro(error), 'erro');
+    }
+    aoSalvar(novo);
+    setEstado('salvo');
+    setTimeout(() => setEstado('parado'), 1800);
+  }
+
+  return (
+    <label className={cx('preco-editavel', estado === 'salvo' && 'salvo')} title="Clique para alterar o preço">
+      <span className="preco-editavel__rs">R$</span>
+      <input
+        value={texto}
+        inputMode="decimal"
+        aria-label={`Preço de ${produto.nome}`}
+        onFocus={(e) => { focado.current = true; e.currentTarget.select(); }}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={() => void salvar()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') { cancelou.current = true; e.currentTarget.blur(); }
+        }}
+        disabled={estado === 'salvando'}
+      />
+      <span className="preco-editavel__ok" aria-hidden="true"><Check size={15} /></span>
+    </label>
   );
 }
 

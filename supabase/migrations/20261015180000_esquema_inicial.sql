@@ -495,7 +495,7 @@ end $$;
 
 -- Endereço da edge function e segredo gerado aqui mesmo (não fica no código)
 insert into privado.config (chave, valor) values
-  ('push_url', 'https://gpnjhwiuwotmkqvzeojt.supabase.co/functions/v1/notificar'),
+  ('push_url', 'https://bceeeeielhqbtdiaiypi.supabase.co/functions/v1/notificar'),
   ('push_segredo', replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''))
 on conflict (chave) do nothing;
 

@@ -3,9 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 // A chave publicável foi feita para ficar no navegador: quem protege os dados
 // são as regras de acesso (RLS) do banco. Pode ser trocada por variáveis de ambiente.
 export const SUPABASE_URL: string =
-  import.meta.env.VITE_SUPABASE_URL ?? 'https://gpnjhwiuwotmkqvzeojt.supabase.co';
+  import.meta.env.VITE_SUPABASE_URL ?? 'https://bceeeeielhqbtdiaiypi.supabase.co';
 export const SUPABASE_CHAVE: string =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_CkNlkxT4b-TrndOfDo8qvw_mOPfSQ1J';
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_cv9v7PW8nIJHuX2Jb9tKRA_xyS0sFw5';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_CHAVE);
 

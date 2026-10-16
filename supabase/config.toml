@@ -1,4 +1,4 @@
-project_id = "gpnjhwiuwotmkqvzeojt"
+project_id = "bceeeeielhqbtdiaiypi"
 
 # As duas funções fazem a própria verificação de acesso
 # (segredo do banco em "notificar"; login do usuário em "gestao").

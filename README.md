@@ -14,7 +14,7 @@ Sistema de pedidos pelo tablet na mesa, para vários restaurantes.
 ## Tecnologia
 
 - **Front-end:** React + Vite + TypeScript, publicado na Vercel.
-- **Back-end:** Supabase (projeto `gpnjhwiuwotmkqvzeojt`): banco, login, tempo real e storage.
+- **Back-end:** Supabase (projeto `bceeeeielhqbtdiaiypi`): banco, login, tempo real e storage.
   - `supabase/migrations/`: tabelas, regras de acesso e dados de demonstração.
   - `supabase/functions/notificar`: envia as notificações push.
   - `supabase/functions/gestao`: cria restaurantes e logins da equipe.

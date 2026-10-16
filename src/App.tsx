@@ -15,6 +15,7 @@ const Cardapio = lazy(() => import('./paginas/painel/Cardapio'));
 const Estoque = lazy(() => import('./paginas/painel/Estoque'));
 const Equipe = lazy(() => import('./paginas/painel/Equipe'));
 const Configuracoes = lazy(() => import('./paginas/painel/Configuracoes'));
+const Relatorios = lazy(() => import('./paginas/painel/Relatorios'));
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/painel" element={<ExigeLogin><Painel /></ExigeLogin>}>
           <Route index element={<Pedidos />} />
           <Route path="mesas" element={<Mesas />} />
+          <Route path="relatorios" element={<Relatorios />} />
           <Route path="cardapio" element={<Cardapio />} />
           <Route path="estoque" element={<Estoque />} />
           <Route path="equipe" element={<Equipe />} />

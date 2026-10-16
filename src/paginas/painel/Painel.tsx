@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import {
-  Bell, ClipboardList, LayoutGrid, LogOut, Package, Printer, Settings, ShieldCheck, Smartphone,
+  BarChart3, Bell, ClipboardList, LayoutGrid, LogOut, Package, Printer, Settings, ShieldCheck, Smartphone,
   Users, UtensilsCrossed, Volume2, VolumeX, type LucideIcon,
 } from 'lucide-react';
 import { Logo } from '../../componentes/Basicos';
@@ -32,6 +32,7 @@ const TODOS: Papel[] = ['dono', 'gerente', 'caixa', 'garcom'];
 const MENU: { para: string; icone: LucideIcon; rotulo: string; papeis: Papel[]; fim?: boolean }[] = [
   { para: '/painel', icone: ClipboardList, rotulo: 'Pedidos', papeis: TODOS, fim: true },
   { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
+  { para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: ['dono', 'gerente', 'caixa'] },
   { para: '/painel/cardapio', icone: UtensilsCrossed, rotulo: 'Cardápio', papeis: ['dono', 'gerente'] },
   { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: ['dono', 'gerente', 'caixa'] },
   { para: '/painel/equipe', icone: Users, rotulo: 'Equipe', papeis: ['dono', 'gerente'] },

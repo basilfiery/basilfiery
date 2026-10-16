@@ -8,7 +8,8 @@ const fs = require('fs');
 
 const SITE = 'https://basilfiery.vercel.app';
 const INICIO = `${SITE}/painel`;
-const ICONE = path.join(__dirname, 'icone.png');
+// .ico tem uma versão desenhada para cada tamanho (barra de tarefas, relógio): fica nítido
+const ICONE = path.join(__dirname, process.platform === 'win32' ? 'icone.ico' : 'icone.png');
 
 let janela = null;
 let bandeja = null;
@@ -111,7 +112,7 @@ function mostrar() {
 }
 
 function criarBandeja() {
-  bandeja = new Tray(nativeImage.createFromPath(ICONE).resize({ width: 16, height: 16 }));
+  bandeja = new Tray(nativeImage.createFromPath(ICONE));
   bandeja.setToolTip('BasilFiery: recebendo pedidos');
   bandeja.on('click', mostrar);
   atualizarMenu();

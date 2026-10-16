@@ -1,7 +1,7 @@
 {
   "name": "basilfiery-desktop",
   "productName": "BasilFiery",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BasilFiery para Windows: painel de pedidos com impressão direta na térmica.",
   "main": "main.js",
   "private": true,
@@ -17,11 +17,11 @@
     "appId": "com.basilfiery.app",
     "productName": "BasilFiery",
     "copyright": "BasilFiery",
-    "files": ["main.js", "preload.js", "offline.html", "icone.png"],
+    "files": ["main.js", "preload.js", "offline.html", "icone.png", "icone.ico"],
     "directories": { "output": "dist" },
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "icone.png"
+      "icon": "icone.ico"
     },
     "nsis": {
       "oneClick": true,

@@ -1,4 +1,5 @@
 import { ls } from './util';
+import { programaDesktop } from './impressao';
 
 let ctx: AudioContext | null = null;
 
@@ -47,6 +48,11 @@ export function tocarAlerta(tipo: keyof typeof MELODIAS = 'pedido') {
 export function notificarLocal(titulo: string, corpo = '') {
   if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return;
   try {
-    new Notification(titulo, { body: corpo, icon: '/icone-192.png' });
+    const n = new Notification(titulo, { body: corpo, icon: '/icone-192.png' });
+    n.onclick = () => {
+      const desktop = programaDesktop();
+      if (desktop) void desktop.mostrar();
+      else window.focus();
+    };
   } catch { /* Android exige service worker: lá usamos o push */ }
 }

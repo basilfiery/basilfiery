@@ -5,13 +5,24 @@ export interface ConfigImpressao {
   auto: boolean;
   largura: 58 | 80;
   copias: number;
+  impressora: string; // só no programa para Windows ('' = padrão do Windows)
 }
+
+/** Ponte com o programa BasilFiery para Windows (não existe no navegador). */
+interface ProgramaDesktop {
+  imprimir: (html: string, larguraMm: number, impressora?: string) => Promise<void>;
+  impressoras: () => Promise<{ nome: string; padrao: boolean }[]>;
+  mostrar: () => Promise<void>;
+}
+export const programaDesktop = (): ProgramaDesktop | undefined =>
+  (window as unknown as { basilfieryDesktop?: ProgramaDesktop }).basilfieryDesktop;
 
 const CHAVE = 'bf:impressao';
 export const EVENTO_CONFIG_IMPRESSAO = 'bf:impressao-mudou';
+export const EVENTO_ERRO_IMPRESSAO = 'bf:impressao-erro';
 
 export function lerConfigImpressao(): ConfigImpressao {
-  return { auto: false, largura: 80, copias: 1, ...ls.ler<Partial<ConfigImpressao>>(CHAVE, {}) };
+  return { auto: false, largura: 80, copias: 1, impressora: '', ...ls.ler<Partial<ConfigImpressao>>(CHAVE, {}) };
 }
 
 export function gravarConfigImpressao(c: ConfigImpressao) {
@@ -28,6 +39,20 @@ const agoraTxt = () => new Date().toLocaleString('pt-BR', { day: '2-digit', mont
 let fila: Promise<void> = Promise.resolve();
 
 function imprimirHTML(corpo: string, largura: 58 | 80) {
+  const html = documento(corpo, largura);
+  const desktop = programaDesktop();
+
+  // No programa para Windows: direto na impressora, sem janela
+  if (desktop) {
+    const { impressora } = lerConfigImpressao();
+    fila = fila.then(() => desktop.imprimir(html, largura, impressora || undefined).catch((e: unknown) => {
+      const msg = e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(e);
+      window.dispatchEvent(new CustomEvent(EVENTO_ERRO_IMPRESSAO, { detail: msg }));
+    }));
+    return;
+  }
+
+  // No navegador: janela de impressão (ou direto, com o Chrome em --kiosk-printing)
   fila = fila.then(() => new Promise<void>((resolver) => {
     const iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
@@ -35,7 +60,25 @@ function imprimirHTML(corpo: string, largura: 58 | 80) {
     document.body.appendChild(iframe);
     const doc = iframe.contentDocument!;
     doc.open();
-    doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>
+    doc.write(html);
+    doc.close();
+    const win = iframe.contentWindow!;
+    const terminar = () => {
+      setTimeout(() => iframe.remove(), 500);
+      resolver();
+    };
+    win.addEventListener('afterprint', terminar, { once: true });
+    setTimeout(() => {
+      win.focus();
+      win.print();
+      // Se o "afterprint" não vier (alguns navegadores), segue a fila mesmo assim
+      setTimeout(terminar, 1500);
+    }, 80);
+  }));
+}
+
+function documento(corpo: string, largura: 58 | 80) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
       @page { size: ${largura}mm auto; margin: 0; }
       * { box-sizing: border-box; }
       body { margin: 0; padding: 2mm 3mm; width: ${largura}mm; font: ${largura === 58 ? 11 : 12}px/1.35 'Courier New', monospace; color: #000; }
@@ -51,21 +94,7 @@ function imprimirHTML(corpo: string, largura: 58 | 80) {
       .obs { font-style: italic; }
       .tot { display: flex; justify-content: space-between; font-weight: 700; font-size: 1.2em; }
       .p { font-size: .85em; }
-    </style></head><body>${corpo}</body></html>`);
-    doc.close();
-    const win = iframe.contentWindow!;
-    const terminar = () => {
-      setTimeout(() => iframe.remove(), 500);
-      resolver();
-    };
-    win.addEventListener('afterprint', terminar, { once: true });
-    setTimeout(() => {
-      win.focus();
-      win.print();
-      // Se o "afterprint" não vier (alguns navegadores), segue a fila mesmo assim
-      setTimeout(terminar, 1500);
-    }, 80);
-  }));
+    </style></head><body>${corpo}</body></html>`;
 }
 
 function htmlPedido(p: Pedido, restaurante: string) {

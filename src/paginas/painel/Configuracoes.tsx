@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BellRing, ImagePlus, Printer, Store } from 'lucide-react';
 import { Campo, Switch } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
-import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, type ConfigImpressao } from '../../lib/impressao';
+import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, programaDesktop, type ConfigImpressao } from '../../lib/impressao';
 import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
 import { definirSom, somLigado, tocarAlerta } from '../../lib/som';
@@ -89,6 +89,11 @@ function CartaoRestaurante() {
 function CartaoImpressora() {
   const { restaurante } = usePainel();
   const [c, setC] = useState<ConfigImpressao>(lerConfigImpressao());
+  const desktop = programaDesktop();
+  const [impressoras, setImpressoras] = useState<{ nome: string; padrao: boolean }[]>([]);
+  useEffect(() => {
+    if (desktop) void desktop.impressoras().then(setImpressoras).catch(() => setImpressoras([]));
+  }, [desktop]);
   const mudar = (mudancas: Partial<ConfigImpressao>) => {
     const nova = { ...c, ...mudancas };
     setC(nova);
@@ -119,8 +124,21 @@ function CartaoImpressora() {
             </select>
           </Campo>
         </div>
+        {desktop && (
+          <Campo rotulo="Impressora" dica="Escolha a térmica do caixa. Os pedidos saem direto nela, sem janela de confirmação.">
+            <select className="select" value={c.impressora} onChange={(e) => mudar({ impressora: e.target.value })}>
+              <option value="">Padrão do Windows</option>
+              {impressoras.map((p) => <option key={p.nome} value={p.nome}>{p.nome}{p.padrao ? ' (padrão)' : ''}</option>)}
+            </select>
+          </Campo>
+        )}
         <button className="btn btn--contorno" onClick={() => imprimirTeste(restaurante.nome)}><Printer size={18} /> Imprimir teste</button>
 
+        {desktop ? (
+          <p className="muted" style={{ margin: 0, fontSize: '.88rem' }}>
+            ✅ Você está no <b>programa BasilFiery para Windows</b>: a impressão sai direto na impressora escolhida.
+          </p>
+        ) : (
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Como imprimir sem a janela de confirmação</summary>
           <ol className="passos-lista" style={{ marginTop: 10 }}>
@@ -131,7 +149,9 @@ function CartaoImpressora() {
             <li>Feche todas as janelas do Chrome e abra pelo atalho. Os pedidos saem direto na impressora.</li>
             <li>Nas preferências da impressora, ajuste margens para “nenhuma” se o cupom sair cortado.</li>
           </ol>
+          <p className="muted" style={{ fontSize: '.85rem' }}>Mais fácil: instale o <b>programa BasilFiery para Windows</b>, que já imprime direto.</p>
         </details>
+        )}
       </div>
     </section>
   );

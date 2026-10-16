@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
-import { EVENTO_CONFIG_IMPRESSAO, imprimirPedido, lerConfigImpressao } from '../../lib/impressao';
+import { EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, imprimirPedido, lerConfigImpressao } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
 import { definirSom, notificarLocal, somLigado, tocarAlerta } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
@@ -61,9 +61,14 @@ export default function Painel() {
 
   useEffect(() => {
     const atualizar = () => setCfgImp(lerConfigImpressao());
+    const erro = (e: Event) => toast(`A impressora não respondeu: ${(e as CustomEvent<string>).detail}. Confira se está ligada e com papel.`, 'erro');
     window.addEventListener(EVENTO_CONFIG_IMPRESSAO, atualizar);
-    return () => window.removeEventListener(EVENTO_CONFIG_IMPRESSAO, atualizar);
-  }, []);
+    window.addEventListener(EVENTO_ERRO_IMPRESSAO, erro);
+    return () => {
+      window.removeEventListener(EVENTO_CONFIG_IMPRESSAO, atualizar);
+      window.removeEventListener(EVENTO_ERRO_IMPRESSAO, erro);
+    };
+  }, [toast]);
 
   // Impressão automática: só neste computador, se ligada. O banco garante que
   // cada pedido seja impresso uma única vez, mesmo com dois caixas abertos.

@@ -1,0 +1,36 @@
+{
+  "name": "basilfiery-desktop",
+  "productName": "BasilFiery",
+  "version": "1.0.0",
+  "description": "BasilFiery para Windows: painel de pedidos com impressão direta na térmica.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "iniciar": "electron .",
+    "instalador": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.basilfiery.app",
+    "productName": "BasilFiery",
+    "copyright": "BasilFiery",
+    "files": ["main.js", "preload.js", "offline.html", "icone.png"],
+    "directories": { "output": "dist" },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "icone.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BasilFiery",
+      "runAfterFinish": true,
+      "artifactName": "BasilFiery-Instalador.exe"
+    }
+  }
+}

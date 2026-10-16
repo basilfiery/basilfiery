@@ -47,6 +47,19 @@ npx supabase db push
 npx supabase functions deploy --use-api
 ```
 
+## Programa para Windows (`desktop/`)
+
+Abre o sistema online (mesmos dados do site) e imprime direto na térmica, fica no ícone perto do relógio e inicia com o Windows.
+Só precisa gerar de novo se mudar algo dentro de `desktop/`; mudanças no site aparecem sozinhas no programa.
+
+```
+cd desktop
+npm install
+npm run instalador
+```
+
+O instalador sai em `desktop/dist/BasilFiery-Instalador.exe`.
+
 ## Onde editar
 
 - **Preços dos planos e WhatsApp de vendas:** `src/config/site.ts`

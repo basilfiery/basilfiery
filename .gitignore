@@ -6,3 +6,5 @@ dist
 supabase/.temp
 supabase/.branches
 *.log
+desktop/node_modules
+desktop/dist

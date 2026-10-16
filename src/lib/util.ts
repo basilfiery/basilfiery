@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { Papel, StatusPedido } from './tipos';
+import type { FormaPagamento, Papel, StatusPedido } from './tipos';
+
+export const FORMAS: { id: FormaPagamento; rotulo: string; emoji: string }[] = [
+  { id: 'dinheiro', rotulo: 'Dinheiro', emoji: '💵' },
+  { id: 'pix', rotulo: 'Pix', emoji: '⚡' },
+  { id: 'credito', rotulo: 'Crédito', emoji: '💳' },
+  { id: 'debito', rotulo: 'Débito', emoji: '💳' },
+  { id: 'outro', rotulo: 'Outro', emoji: '🧾' },
+];
+export const rotuloForma = (f: string) => FORMAS.find((x) => x.id === f)?.rotulo ?? f;
 
 export const brl = (n: number) =>
   Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

@@ -100,6 +100,41 @@ export interface Chamado {
   atendido_em: string | null;
 }
 
+export type FormaPagamento = 'dinheiro' | 'pix' | 'credito' | 'debito' | 'outro';
+
+export interface ResumoCaixa {
+  caixa_id: string;
+  aberto_em: string;
+  aberto_por_nome: string | null;
+  valor_inicial: number;
+  ate: string;
+  vendas: { pedidos: number; total: number };
+  cancelados: { pedidos: number; total: number };
+  recebido: number;
+  contas_fechadas: number;
+  por_forma: Partial<Record<FormaPagamento, number>>;
+  dinheiro_esperado: number;
+  em_aberto: { mesas: number; total: number };
+  // só no fechamento
+  valor_contado?: number | null;
+  diferenca?: number | null;
+  fechado_por_nome?: string | null;
+  observacao?: string | null;
+}
+
+export interface Caixa {
+  id: string;
+  restaurante_id: string;
+  aberto_em: string;
+  aberto_por_nome: string | null;
+  valor_inicial: number;
+  fechado_em: string | null;
+  fechado_por_nome: string | null;
+  valor_contado: number | null;
+  observacao: string | null;
+  resumo: ResumoCaixa | null;
+}
+
 export interface MovimentoEstoque {
   id: string;
   produto_id: string;

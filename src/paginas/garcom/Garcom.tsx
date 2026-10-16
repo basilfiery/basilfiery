@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, BellOff, LayoutDashboard, LogOut, Receipt, Volume2, VolumeX } from 'lucide-react';
+import { Bell, BellOff, LayoutDashboard, LogOut, Receipt, RefreshCw, Volume2, VolumeX } from 'lucide-react';
+import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { PedidoCard } from '../../componentes/PedidoCard';
@@ -24,6 +25,7 @@ export default function Garcom() {
   const [aba, setAba] = useState<Aba>('levar');
   const [som, setSom] = useState(somLigado());
   const [push, setPush] = useState<EstadoPush | null>(null);
+  const novaVersao = useNovaVersao();
 
   const vivo = usePedidosAoVivo(r?.id, {
     aoNovoPedido: () => tocarAlerta('pedido'),
@@ -87,6 +89,13 @@ export default function Garcom() {
         {r.papel !== 'garcom' && <Link to="/painel" className="icone-btn" aria-label="Abrir painel"><LayoutDashboard size={20} /></Link>}
         <button className="icone-btn" onClick={() => void s.sair()} aria-label="Sair"><LogOut size={20} /></button>
       </header>
+
+      {novaVersao && (
+        <div className="garcom__aviso garcom__aviso--versao">
+          <p><RefreshCw size={16} style={{ verticalAlign: '-3px' }} /> <b>Nova atualização disponível.</b> Leva poucos segundos.</p>
+          <button className="btn btn--primario" onClick={aplicarAtualizacao}>Atualizar agora</button>
+        </div>
+      )}
 
       {push && push !== 'ativo' && (
         <div className="garcom__aviso">

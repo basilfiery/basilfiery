@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Copy, ExternalLink, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Chamado, Mesa, Pedido } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, ehGestor, hora, ordenarNome, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
+import type { Chamado, FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
+import { FORMAS, STATUS_ROTULO, brl, cx, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 
 const linkMesa = (token: string) => `${window.location.origin}/mesa/${token}`;
@@ -139,6 +139,8 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   aoMudar: () => void;
 }) {
   const toast = useToast();
+  const { caixa, abrirCaixa, recarregarCaixa } = usePainel();
+  const caixaAberto = !!caixa;
   const [qr, setQr] = useState('');
   const [nome, setNome] = useState(mesa.nome);
   const [token, setToken] = useState(mesa.token);
@@ -151,13 +153,14 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
     void QRCode.toDataURL(link, { width: 360, margin: 1 }).then(setQr);
   }, [link]);
 
-  async function fecharConta() {
-    if (!confirm(`Confirmar pagamento de ${brl(total)} e liberar a ${mesa.nome}?`)) return;
+  async function fecharConta(forma: FormaPagamento) {
+    if (!confirm(`Receber ${brl(total)} no ${rotuloForma(forma)} e liberar a ${mesa.nome}?`)) return;
     setOcupado(true);
-    const { error } = await supabase.rpc('mesa_fechar_conta', { p_mesa: mesa.id });
+    const { error } = await supabase.rpc('mesa_fechar_conta', { p_mesa: mesa.id, p_forma: forma });
     setOcupado(false);
     if (error) return toast(msgErro(error), 'erro');
-    toast(`${mesa.nome} liberada. Conta de ${brl(total)} fechada.`, 'ok');
+    toast(`${mesa.nome} liberada. ${brl(total)} recebido no ${rotuloForma(forma)}.`, 'ok');
+    recarregarCaixa();
     aoMudar();
     aoFechar();
   }
@@ -230,12 +233,26 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
               <button className="btn btn--contorno" onClick={() => imprimirConta(mesa.nome, restauranteNome, pedidos)}>
                 <Printer size={18} /> Imprimir conta
               </button>
-              {podeFechar && (
-                <button className="btn btn--sucesso" onClick={() => void fecharConta()} disabled={ocupado}>
-                  Fechar conta e liberar mesa
-                </button>
-              )}
             </div>
+            {podeFechar && (
+              caixaAberto ? (
+                <div className="pagamento">
+                  <span className="pagamento__rotulo">Receber {brl(total)} e liberar a mesa:</span>
+                  <div className="pagamento__formas">
+                    {FORMAS.filter((f) => f.id !== 'outro').map((f) => (
+                      <button key={f.id} className="btn btn--sucesso" onClick={() => void fecharConta(f.id)} disabled={ocupado}>
+                        {f.emoji} {f.rotulo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="pagamento pagamento--fechado">
+                  <span>O caixa está fechado. Abra o caixa para receber esta conta.</span>
+                  <button className="btn btn--primario btn--sm" onClick={abrirCaixa}><Wallet size={16} /> Abrir caixa</button>
+                </div>
+              )
+            )}
           </>
         )}
       </section>

@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import {
-  BarChart3, Bell, ClipboardList, LayoutGrid, LogOut, Package, Printer, Settings, ShieldCheck, Smartphone,
-  Users, UtensilsCrossed, Volume2, VolumeX, type LucideIcon,
+  BarChart3, Bell, ClipboardList, LayoutGrid, LogOut, Package, Printer, RefreshCw, Settings, ShieldCheck, Smartphone,
+  Users, UtensilsCrossed, Volume2, VolumeX, Wallet, type LucideIcon,
 } from 'lucide-react';
+import { AvisoAtualizacao, ModalCaixa } from './Caixa';
+import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
 import { Logo } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, imprimirPedido, lerConfigImpressao } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
 import { definirSom, notificarLocal, somLigado, tocarAlerta } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Chamado, Papel, Pedido, RestauranteComPapel } from '../../lib/tipos';
-import { PAPEL_ROTULO, brl, cx, tempoDesde, useAgora } from '../../lib/util';
+import type { Chamado, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
+import { PAPEL_ROTULO, brl, cx, hora, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import '../../estilos/painel.css';
 
@@ -24,6 +26,10 @@ export interface ContextoPainel {
   carregando: boolean;
   recarregar: () => Promise<void>;
   atualizarPedido: (id: string, mudancas: Partial<Pedido>) => void;
+  /** Caixa aberto agora (null = fechado, undefined = carregando) */
+  caixa: ResumoCaixa | null | undefined;
+  abrirCaixa: () => void;
+  recarregarCaixa: () => void;
 }
 
 export const usePainel = () => useOutletContext<ContextoPainel>();
@@ -58,6 +64,41 @@ export default function Painel() {
       notificarLocal(c.tipo === 'conta' ? `${c.mesa_nome} pediu a conta` : `${c.mesa_nome} chamou o garçom`);
     },
   });
+
+  /* ---------- Caixa (aberto/fechado), sincronizado entre computadores ---------- */
+  const [caixa, setCaixa] = useState<ResumoCaixa | null | undefined>(undefined);
+  const [verCaixa, setVerCaixa] = useState(false);
+  const rid = r?.id;
+  const carregarCaixa = useCallback(async () => {
+    if (!rid) return;
+    const { data, error } = await supabase.rpc('caixa_atual', { p_rest: rid });
+    if (!error) setCaixa((data as ResumoCaixa | null) ?? null);
+  }, [rid]);
+
+  useEffect(() => {
+    if (!rid) return;
+    setCaixa(undefined);
+    void carregarCaixa();
+    const canal = supabase
+      .channel(`caixa-${rid}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'caixas', filter: `restaurante_id=eq.${rid}` }, () => void carregarCaixa())
+      .subscribe();
+    const i = setInterval(() => void carregarCaixa(), 60000);
+    return () => { void supabase.removeChannel(canal); clearInterval(i); };
+  }, [rid, carregarCaixa]);
+
+  // Pedido novo / conta fechada mudam os números do caixa
+  const assinaturaPedidos = useMemo(() => vivo.pedidos.map((p) => `${p.id}:${p.status}:${p.pago_em ?? ''}`).join('|'), [vivo.pedidos]);
+  useEffect(() => {
+    const t = setTimeout(() => void carregarCaixa(), 1000);
+    return () => clearTimeout(t);
+  }, [assinaturaPedidos, carregarCaixa]);
+
+  /* ---------- Atualização do sistema ---------- */
+  const novaVersao = useNovaVersao();
+  const [adiada, setAdiada] = useState(versaoAdiada());
+  const caixaAberto = !!caixa;
+  const pendenteNoFechamento = !!novaVersao && adiada === novaVersao && caixaAberto;
 
   useEffect(() => {
     const atualizar = () => setCfgImp(lerConfigImpressao());
@@ -120,6 +161,9 @@ export default function Painel() {
     carregando: vivo.carregando,
     recarregar: vivo.recarregar,
     atualizarPedido: vivo.atualizarPedido,
+    caixa,
+    abrirCaixa: () => setVerCaixa(true),
+    recarregarCaixa: () => void carregarCaixa(),
   };
   const novos = vivo.pedidos.filter((p) => p.status === 'novo').length;
 
@@ -175,6 +219,23 @@ export default function Painel() {
               {som ? <Volume2 size={20} /> : <VolumeX size={20} />}
             </button>
             <Link to="/garcom" className="icone-btn" title="Tela do garçom (celular)" aria-label="Tela do garçom"><Smartphone size={20} /></Link>
+            {pendenteNoFechamento && (
+              <button className="chip-status chip-status--atualizacao" onClick={aplicarAtualizacao} title="Clique para atualizar agora">
+                <RefreshCw size={16} /> <span>Atualiza no fechamento</span>
+              </button>
+            )}
+            <button
+              className={cx('caixa-btn', caixa ? 'aberto' : 'fechado')}
+              onClick={() => setVerCaixa(true)}
+              disabled={caixa === undefined}
+              title={caixa ? 'Ver ou fechar o caixa' : 'Abrir o caixa'}
+            >
+              <Wallet size={18} />
+              <span className="caixa-btn__texto">
+                <b>{caixa === undefined ? 'Caixa…' : caixa ? 'Caixa aberto' : 'Caixa fechado'}</b>
+                {caixa && <small>desde {hora(caixa.aberto_em)} · {brl(caixa.recebido)}</small>}
+              </span>
+            </button>
           </div>
         </header>
 
@@ -194,6 +255,24 @@ export default function Painel() {
           {permitido ? <Outlet context={ctx} /> : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}
         </main>
       </div>
+
+      {novaVersao && !pendenteNoFechamento && (
+        <AvisoAtualizacao
+          caixaAberto={caixaAberto}
+          aoAdiar={() => { adiarAtualizacao(novaVersao); setAdiada(novaVersao); }}
+        />
+      )}
+
+      {verCaixa && caixa !== undefined && (
+        <ModalCaixa
+          restaurante={{ id: r.id, nome: r.nome }}
+          papel={papel}
+          caixa={caixa}
+          aoFechar={() => setVerCaixa(false)}
+          aoMudar={() => void carregarCaixa()}
+          atualizarAoConcluir={!!novaVersao}
+        />
+      )}
     </div>
   );
 }

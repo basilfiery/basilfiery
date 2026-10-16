@@ -8,6 +8,7 @@ import { useToast } from '../../componentes/Toast';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
+import { useNovaVersao } from '../../lib/versao';
 import '../../estilos/mesa.css';
 
 interface ProdutoMesa {
@@ -82,6 +83,9 @@ export default function Mesa() {
   // Tira do carrinho o que esgotou ou saiu do cardápio
   const carrinhoRef = useRef(carrinho);
   carrinhoRef.current = carrinho;
+  const novaVersao = useNovaVersao();
+  const novaVersaoRef = useRef(novaVersao);
+  novaVersaoRef.current = novaVersao;
   useEffect(() => {
     if (!dados) return;
     const atual = carrinhoRef.current;
@@ -100,6 +104,11 @@ export default function Mesa() {
     window.addEventListener('keydown', marcar);
     window.addEventListener('scroll', marcar, true);
     const i = setInterval(() => {
+      // Atualização do sistema: aplica sozinha quando o tablet está parado e sem pedido em montagem
+      if (novaVersaoRef.current && Date.now() - ultimo > 60000 && carrinhoRef.current.length === 0) {
+        window.location.reload();
+        return;
+      }
       if (Date.now() - ultimo < INATIVIDADE_MS) return;
       ultimo = Date.now();
       setCarrinho((c) => (c.length ? [] : c));

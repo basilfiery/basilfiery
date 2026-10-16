@@ -1,5 +1,5 @@
-import type { Pedido } from './tipos';
-import { brl, ls } from './util';
+import type { Pedido, ResumoCaixa } from './tipos';
+import { FORMAS, brl, ls } from './util';
 
 export interface ConfigImpressao {
   auto: boolean;
@@ -145,6 +145,52 @@ export function imprimirConta(mesaNome: string, restaurante: string, pedidos: Pe
     <div class="tot"><span>TOTAL</span><span>${brl(total)}</span></div>
     <hr>
     <div class="c p">Obrigado pela preferência!<br>Não é documento fiscal.</div>
+  </div>`;
+  imprimirHTML(corpo, c.largura);
+}
+
+/** Cupom de fechamento (ou parcial) do caixa. */
+export function imprimirFechamento(r: ResumoCaixa, restaurante: string, parcial: boolean) {
+  const c = lerConfigImpressao();
+  const dt = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const linha = (rotulo: string, valor: string) => `<tr><td>${esc(rotulo)}</td><td class="v">${valor}</td></tr>`;
+  const formas = FORMAS.filter((f) => r.por_forma[f.id]).map((f) => linha(f.rotulo, brl(Number(r.por_forma[f.id])))).join('')
+    || linha('Nenhum pagamento', brl(0));
+  const conferencia = r.valor_contado !== undefined && r.valor_contado !== null
+    ? `${linha('Dinheiro contado', brl(Number(r.valor_contado)))}${linha(Number(r.diferenca) >= 0 ? 'Sobra' : 'Falta', brl(Math.abs(Number(r.diferenca))))}`
+    : '';
+  const corpo = `<div class="via">
+    <h1>${esc(restaurante)}</h1>
+    <div class="c g">${parcial ? 'PARCIAL DO CAIXA' : 'FECHAMENTO DE CAIXA'}</div>
+    <hr>
+    <table>
+      ${linha('Aberto', dt(r.aberto_em))}
+      ${r.aberto_por_nome ? linha('Por', esc(r.aberto_por_nome)) : ''}
+      ${linha(parcial ? 'Até' : 'Fechado', dt(r.ate))}
+      ${r.fechado_por_nome ? linha('Por', esc(r.fechado_por_nome)) : ''}
+    </table>
+    <hr>
+    <b>RECEBIDO POR FORMA</b>
+    <table>${formas}</table>
+    <div class="tot"><span>TOTAL RECEBIDO</span><span>${brl(Number(r.recebido))}</span></div>
+    <div class="p">${r.contas_fechadas} conta(s) fechada(s)</div>
+    <hr>
+    <b>GAVETA (DINHEIRO)</b>
+    <table>
+      ${linha('Troco inicial', brl(Number(r.valor_inicial)))}
+      ${linha('+ Recebido em dinheiro', brl(Number(r.por_forma.dinheiro ?? 0)))}
+      ${linha('= Esperado', brl(Number(r.dinheiro_esperado)))}
+      ${conferencia}
+    </table>
+    <hr>
+    <table>
+      ${linha(`Vendas (${r.vendas.pedidos} pedidos)`, brl(Number(r.vendas.total)))}
+      ${linha(`Cancelados (${r.cancelados.pedidos})`, brl(Number(r.cancelados.total)))}
+      ${linha(`Em aberto (${r.em_aberto.mesas} mesas)`, brl(Number(r.em_aberto.total)))}
+    </table>
+    ${r.observacao ? `<hr><b>OBS:</b> ${esc(r.observacao)}` : ''}
+    <hr>
+    <div class="c p">Impresso em ${agoraTxt()}</div>
   </div>`;
   imprimirHTML(corpo, c.largura);
 }

@@ -41,8 +41,10 @@ export interface Categoria {
   pai_id: string | null;
   /** Usa os sabores deste grupo (ex.: tamanho de pizza) */
   grupo_id: string | null;
-  /** Preço do tamanho quando usa grupo de sabores */
+  /** Preço da subcategoria (ex.: Pizza P R$ 50): os itens dentro custam isso + o acréscimo deles */
   preco_grupo: number | null;
+  /** Subcategoria esgotada: tudo dentro dela fica indisponível no tablet */
+  esgotado: boolean;
 }
 
 export interface Produto {

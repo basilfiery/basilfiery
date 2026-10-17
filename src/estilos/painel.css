@@ -1160,3 +1160,7 @@
   .item-linha__controles { width: 100%; justify-content: flex-end; padding-left: 76px; }
   .item-linha__preco { margin-left: 0; }
 }
+.sub-linha .preco-editavel { border-color: var(--line); background: var(--surface); padding: 6px 8px 6px 10px; border-radius: 10px; min-height: 40px; }
+.sub-linha .preco-editavel:hover { border-color: var(--line-2); }
+.sub-linha .preco-editavel input { width: 64px; }
+.sub-linha .preco-editavel input::placeholder { color: var(--muted-2); font-weight: 500; }

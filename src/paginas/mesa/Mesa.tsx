@@ -43,7 +43,7 @@ interface SaborMesa extends ProdutoMesa { grupo_id: string }
 /** Nome do item no pedido: "Pizza P · Calabresa" quando é sabor de um tamanho. */
 const nomeItem = (p: ProdutoMesa) => (p.prefixo ? `${p.prefixo} · ${p.nome}` : p.nome);
 
-interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null; grupo_id?: string | null; preco_grupo?: number }
+interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null; grupo_id?: string | null; preco_grupo?: number | null; esgotado?: boolean }
 
 interface DadosMesa {
   restaurante: { id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string };
@@ -220,6 +220,7 @@ export default function Mesa() {
         ...x,
         id: `${c.id}:${x.id}`,
         categoria_id: c.id,
+        disponivel: x.disponivel && !c.esgotado,
         preco: Number(c.preco_grupo ?? 0) + Number(x.preco),
         real_id: x.id,
         tamanho_id: c.id,
@@ -228,10 +229,18 @@ export default function Mesa() {
     }
     return mapa;
   }, [dados]);
+  // Subcategoria com preço (ex.: Pizza P R$ 50): o item custa o preço dela + o acréscimo dele
+  const produtosMesa = useMemo(() => {
+    const cats = new Map((dados?.categorias ?? []).map((c) => [c.id, c]));
+    return (dados?.produtos ?? []).map((p) => {
+      const c = cats.get(p.categoria_id);
+      return c?.preco_grupo != null ? { ...p, preco: Number(c.preco_grupo) + Number(p.preco), prefixo: c.nome } : p;
+    });
+  }, [dados]);
   const porId = useMemo(() => new Map([
-    ...(dados?.produtos ?? []).map((p) => [p.id, p] as const),
+    ...produtosMesa.map((p) => [p.id, p] as const),
     ...[...saboresPorCategoria.values()].flat().map((p) => [p.id, p] as const),
-  ]), [dados, saboresPorCategoria]);
+  ]), [produtosMesa, saboresPorCategoria]);
 
   // Tira do carrinho o que esgotou ou saiu do cardápio
   const carrinhoRef = useRef(carrinho);
@@ -392,7 +401,8 @@ export default function Mesa() {
   }
   if (!dados) return <Carregando texto="Carregando cardápio…" />;
 
-  const { restaurante, mesa, categorias, produtos } = dados;
+  const { restaurante, mesa, categorias } = dados;
+  const produtos = produtosMesa;
   // Categorias principais; as subcategorias (ex.: Comida › Pratos) aparecem dentro delas
   const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
   const produtosDe = (id: string) => [...(saboresPorCategoria.get(id) ?? []), ...produtos.filter((p) => p.categoria_id === id)];

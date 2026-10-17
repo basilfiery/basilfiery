@@ -144,6 +144,35 @@ export default function Cardapio() {
     } else toast(esgotado ? `${lista.length} ${lista.length === 1 ? 'item esgotado' : 'itens esgotados'}.` : 'Itens de volta ao cardápio.', esgotado ? 'info' : 'ok');
   }
 
+  async function esgotarCategoria(c: Categoria, esgotado: boolean) {
+    setCategorias((l) => l.map((x) => (x.id === c.id ? { ...x, esgotado } : x)));
+    const { error } = await supabase.rpc('categoria_esgotar', { p_categoria: c.id, p_esgotado: esgotado });
+    if (error) {
+      toast(msgErro(error), 'erro');
+      void carregar();
+    } else toast(esgotado ? `${c.nome} esgotada: nada dela pode ser pedido.` : `${c.nome} voltou ao cardápio.`, esgotado ? 'info' : 'ok');
+  }
+
+  async function precoCategoria(c: Categoria, preco: number | null) {
+    const { error } = await supabase.from('categorias').update({ preco_grupo: preco }).eq('id', c.id);
+    if (error) {
+      toast(msgErro(error), 'erro');
+      return false;
+    }
+    setCategorias((l) => l.map((x) => (x.id === c.id ? { ...x, preco_grupo: preco } : x)));
+    return true;
+  }
+
+  async function excluirCategoria(c: Categoria) {
+    const filhas = categorias.some((x) => x.pai_id === c.id);
+    if (!(await confirmar(`Excluir "${c.nome}"?\n\nOs itens dela ficam sem categoria e somem do tablet até você movê-los.${filhas ? ' As subcategorias viram categorias principais.' : ''}`, { sim: 'Excluir', perigo: true }))) return;
+    const { error } = await supabase.from('categorias').delete().eq('id', c.id);
+    if (error) return toast(msgErro(error), 'erro');
+    toast(`${c.nome} excluída.`, 'ok');
+    if (catSel === c.id) setCatSel(c.pai_id ?? '');
+    void carregar();
+  }
+
   async function alternarCategoria(c: Categoria, ativo: boolean) {
     setCategorias((l) => l.map((x) => (x.id === c.id ? { ...x, ativo } : x)));
     const { error } = await supabase.from('categorias').update({ ativo }).eq('id', c.id);
@@ -255,7 +284,7 @@ export default function Cardapio() {
         </div>
         <div className="item-linha__preco">
           <PrecoEditavel produto={p} aoSalvar={(preco) => setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, preco } : x)))} />
-          {p.grupo_id && <small>acréscimo</small>}
+          {(p.grupo_id || categorias.find((c) => c.id === p.categoria_id)?.preco_grupo != null) && <small>acréscimo</small>}
         </div>
         <Suspenso
           largura={220}
@@ -479,19 +508,50 @@ export default function Cardapio() {
                   {filhasDe(cat.id).map((f) => {
                     const itens = itensDe(f.id);
                     const g = grupoDe(f.grupo_id);
-                    const menor = g ? Number(f.preco_grupo ?? 0) : itens.length ? Math.min(...itens.map((p) => Number(p.preco))) : 0;
+                    const qtd = itens.length + saboresDe(f.grupo_id).length;
                     return (
-                      <li key={f.id} className={cx('sub-linha', !f.ativo && 'item-linha--oculto', arrastoSubs.classe(f.id))} {...arrastoSubs.props(f.id)}>
+                      <li
+                        key={f.id}
+                        className={cx('sub-linha', !f.ativo && 'item-linha--oculto', f.esgotado && 'item-linha--esgotado', arrastoSubs.classe(f.id))}
+                        {...arrastoSubs.props(f.id)}
+                      >
                         <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />
                         <span className={cx('sub-linha__icone', !f.emoji && 'sub-linha__icone--vazia')}>{f.emoji || <ImagemComida />}</span>
                         <button className="sub-linha__nome" onClick={() => abrir(f.id)}>
-                          <strong>{f.nome}</strong>
-                          <small>
-                            {g ? `${g.nome} · ${saboresDe(g.id).length} sabores · ${brl(menor)}` : `${itens.length} ${itens.length === 1 ? 'item' : 'itens'}${menor > 0 ? ` · a partir de ${brl(menor)}` : ''}`}
-                            {!f.ativo && ' · oculta'}
-                          </small>
+                          <strong>
+                            {f.nome}
+                            {f.esgotado && <span className="selo-esgotado">Esgotado</span>}
+                            {!f.ativo && <span className="selo-oculto">Fora do tablet</span>}
+                          </strong>
+                          <small>{qtd} {qtd === 1 ? 'item' : 'itens'}{g && ` · sabores de “${g.nome}”`}</small>
                         </button>
-                        <button className="btn-quadrado" onClick={() => abrir(f.id)} aria-label={`Abrir ${f.nome}`}><ChevronRight size={18} /></button>
+                        <div className="item-linha__controles">
+                          <div className="chave-esgotar" title="Esgota tudo desta subcategoria (ex.: acabou a massa deste tamanho)">
+                            <span>Esgotar</span>
+                            <Switch marcado={f.esgotado} aoMudar={(v) => void esgotarCategoria(f, v)} />
+                          </div>
+                          <div className="item-linha__preco">
+                            <PrecoCategoria valor={f.preco_grupo} aoSalvar={(v) => precoCategoria(f, v)} />
+                          </div>
+                          <Suspenso
+                            largura={230}
+                            gatilho={(aberto, alternar) => (
+                              <button className={cx('btn-quadrado', aberto && 'ativo')} onClick={alternar} aria-label={`Mais opções de ${f.nome}`}><MoreVertical size={18} /></button>
+                            )}
+                          >
+                            {(fechar) => (
+                              <>
+                                <button className="menu-item" onClick={() => { fechar(); setEditCat(f); }}><Pencil size={17} /> Editar</button>
+                                <button className="menu-item" onClick={() => { fechar(); void alternarCategoria(f, !f.ativo); }}>
+                                  {f.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
+                                </button>
+                                <div className="menu-sep" />
+                                <button className="menu-item menu-item--perigo" onClick={() => { fechar(); void excluirCategoria(f); }}><Trash2 size={17} /> Excluir</button>
+                              </>
+                            )}
+                          </Suspenso>
+                          <button className="btn-quadrado" onClick={() => abrir(f.id)} aria-label={`Abrir ${f.nome}`}><ChevronRight size={18} /></button>
+                        </div>
                       </li>
                     );
                   })}
@@ -570,6 +630,56 @@ export default function Cardapio() {
         />
       )}
     </div>
+  );
+}
+
+/** Preço da subcategoria direto na lista (vazio = sem preço: cada item vale o preço dele). */
+function PrecoCategoria({ valor, aoSalvar }: { valor: number | null; aoSalvar: (preco: number | null) => Promise<boolean> }) {
+  const toast = useToast();
+  const texto0 = valor == null ? '' : precoParaTexto(valor);
+  const [texto, setTexto] = useState(texto0);
+  const [estado, setEstado] = useState<'parado' | 'salvando' | 'salvo'>('parado');
+  const focado = useRef(false);
+  useEffect(() => { if (!focado.current) setTexto(valor == null ? '' : precoParaTexto(valor)); }, [valor]);
+
+  async function salvar() {
+    focado.current = false;
+    const novo = texto.trim() ? lerPreco(texto) : null;
+    if (novo !== null && (!Number.isFinite(novo) || novo < 0)) {
+      toast('Preço inválido. Ex.: 50,00', 'erro');
+      return setTexto(texto0);
+    }
+    if (novo !== null) setTexto(precoParaTexto(novo));
+    if ((novo ?? -1) === (valor == null ? -1 : Number(valor))) return;
+    setEstado('salvando');
+    const ok = await aoSalvar(novo);
+    if (!ok) {
+      setEstado('parado');
+      return setTexto(texto0);
+    }
+    setEstado('salvo');
+    setTimeout(() => setEstado('parado'), 1800);
+  }
+
+  return (
+    <label className={cx('preco-editavel', estado === 'salvo' && 'salvo')} title="Preço desta subcategoria (os itens dentro custam isso + o acréscimo deles)">
+      <span className="preco-editavel__rs">R$</span>
+      <input
+        value={texto}
+        inputMode="decimal"
+        placeholder="0,00"
+        aria-label="Preço da subcategoria"
+        onFocus={(e) => { focado.current = true; e.currentTarget.select(); }}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={() => void salvar()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') { setTexto(texto0); e.currentTarget.blur(); }
+        }}
+        disabled={estado === 'salvando'}
+      />
+      <span className="preco-editavel__ok" aria-hidden="true"><Check size={15} /></span>
+    </label>
   );
 }
 
@@ -664,6 +774,10 @@ function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInici
   async function salvar() {
     let grupo: string | null = null;
     let preco: number | null = null;
+    if (!usaGrupo && ehSub && precoGrupo.trim()) {
+      preco = lerPreco(precoGrupo);
+      if (!Number.isFinite(preco) || preco < 0) return toast('Preço inválido. Ex.: 50,00', 'erro');
+    }
     if (usaGrupo) {
       preco = lerPreco(precoGrupo);
       if (!Number.isFinite(preco) || preco < 0) return toast(`Informe o preço ${ehSub ? 'deste tamanho' : 'desta categoria'}. Ex.: 50,00`, 'erro');
@@ -787,6 +901,15 @@ function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInici
               <p className="cat-form__ajuda">
                 Os sabores do grupo aparecem aqui com este preço (mais o acréscimo do sabor, se houver). Cadastre os sabores uma vez e use o mesmo grupo na Pizza P, M e G. Esgotou um sabor? Esgota em todos os tamanhos.
               </p>
+            </>
+          ) : ehSub ? (
+            <>
+              <Campo rotulo="Preço da subcategoria (opcional)" dica="Ex.: Pizza P R$ 50,00. Os itens dentro custam isso; o preço de cada item vira acréscimo. Vazio = cada item com o seu preço.">
+                <div className="input-preco">
+                  <span>R$</span>
+                  <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(e.target.value)} placeholder="0,00" />
+                </div>
+              </Campo>
             </>
           ) : (
             <p className="cat-form__ajuda">Você cadastra os itens desta categoria, cada um com o seu preço.</p>

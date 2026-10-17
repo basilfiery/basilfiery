@@ -104,6 +104,9 @@ export interface Chamado {
   mesa_id: string | null;
   mesa_nome: string;
   tipo: 'garcom' | 'conta';
+  /** O que a mesa precisa (ex.: "Sal e limão"); vazio = só chamou */
+  motivo: string | null;
+  detalhe: string | null;
   criado_em: string;
   atendido_em: string | null;
 }

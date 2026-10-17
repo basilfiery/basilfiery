@@ -11,14 +11,14 @@ import { Logo, Switch } from '../../componentes/Basicos';
 import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
 import {
-  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, gravarConfigImpressao, imprimirPedido, imprimirTeste,
+  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, gravarConfigImpressao, imprimirConta, imprimirPedido, imprimirTeste,
   lerConfigImpressao, programaDesktop,
 } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
 import { definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
-import { PAPEL_ROTULO, brl, cx, ehGestor, hora, ls, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
+import { PAPEL_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
 import '../../estilos/painel.css';
@@ -105,9 +105,51 @@ export default function Painel() {
     },
     aoNovoChamado: (c) => {
       tocarChamado(r?.som_chamado);
-      notificarLocal(c.tipo === 'conta' ? `${c.mesa_nome} pediu a conta` : `${c.mesa_nome} chamou o garçom`);
+      notificarLocal(`${c.mesa_nome}: ${descreverChamado(c)}`);
     },
   });
+
+  // Chamado é obrigatório: enquanto ninguém marcar "Atendido", o toque repete a cada 30 s
+  const somChamadoRef = useRef(r?.som_chamado);
+  somChamadoRef.current = r?.som_chamado;
+  const haChamados = vivo.chamados.length > 0;
+  useEffect(() => {
+    if (!haChamados) return;
+    const i = setInterval(() => tocarChamado(somChamadoRef.current), 30000);
+    return () => clearInterval(i);
+  }, [haChamados]);
+
+  /* ---------- Fila de impressão: o garçom pede a conta pelo celular, este computador imprime ---------- */
+  const cfgImpRef = useRef(cfgImp);
+  cfgImpRef.current = cfgImp;
+  const restRef = useRef(r);
+  restRef.current = r;
+  useEffect(() => {
+    if (!r?.id) return;
+    const rest = r.id;
+    const atender = async (item: { id: string; mesa_id: string | null; criado_em: string }) => {
+      if (!cfgImpRef.current.auto || !item.mesa_id) return; // só o computador que imprime
+      if (Date.now() - new Date(item.criado_em).getTime() > 15 * 60000) return;
+      const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id });
+      if (!pegou) return; // outro computador já imprimiu
+      const [{ data: mesa }, { data: peds }] = await Promise.all([
+        supabase.from('mesas').select('nome').eq('id', item.mesa_id).single(),
+        supabase.from('pedidos').select('*, pedido_itens(*)').eq('mesa_id', item.mesa_id)
+          .is('pago_em', null).neq('status', 'cancelado').order('criado_em'),
+      ]);
+      const nomeRest = restRef.current?.nome ?? '';
+      if (mesa && peds?.length) imprimirConta(mesa.nome, nomeRest, peds as Pedido[]);
+    };
+    // Pendentes de antes deste computador abrir
+    void supabase.from('fila_impressao').select('id, mesa_id, criado_em').eq('restaurante_id', rest).is('impresso_em', null)
+      .then(({ data }) => (data ?? []).forEach((i) => void atender(i)));
+    const canal = supabase
+      .channel(`fila-${rest}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fila_impressao', filter: `restaurante_id=eq.${rest}` },
+        (payload) => void atender(payload.new as { id: string; mesa_id: string | null; criado_em: string }))
+      .subscribe();
+    return () => { void supabase.removeChannel(canal); };
+  }, [r?.id, cfgImp.auto]);
 
   /* ---------- Caixa (aberto/fechado), sincronizado entre computadores ---------- */
   const [caixa, setCaixa] = useState<ResumoCaixa | null | undefined>(undefined);
@@ -491,7 +533,7 @@ export default function Painel() {
             {vivo.chamados.map((c) => (
               <div key={c.id} className={cx('chamado', c.tipo === 'conta' && 'chamado--conta')}>
                 <Bell size={18} />
-                <span><b>{c.mesa_nome}</b> {c.tipo === 'conta' ? 'pediu a conta' : 'chamou o garçom'} · {tempoDesde(c.criado_em, agora)}</span>
+                <span><b>{c.mesa_nome}</b> · {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}</span>
                 <button className="btn btn--sm btn--contorno" onClick={() => void atender(c)}>Atendido</button>
               </div>
             ))}

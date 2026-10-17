@@ -187,3 +187,17 @@
 /* A coluna principal nunca passa da largura da tela (nome longo no topo não estica o layout) */
 .mesa { grid-template-columns: minmax(0, 1fr); }
 .mesa__topo { min-width: 0; }
+/* Chamar garçom: escolha do motivo */
+.motivos { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.motivo {
+  display: grid; justify-items: center; gap: 8px; padding: 22px 12px; min-height: 130px; align-content: center;
+  border: 1px solid var(--line-2); border-radius: 16px; background: var(--bg-2); color: var(--text); text-align: center;
+  transition: transform .1s, border-color .15s;
+}
+.motivo:hover:not(:disabled) { border-color: var(--acento); }
+.motivo:active:not(:disabled) { transform: scale(.97); }
+.motivo__emoji { font-size: 2.6rem; line-height: 1; }
+.motivo strong { font-size: 1.08rem; }
+.motivo--outra { grid-column: 1 / -1; min-height: 90px; grid-auto-flow: column; justify-content: center; align-items: center; gap: 12px; }
+.motivo--outra .motivo__emoji { font-size: 2rem; }
+.input--grande-mesa { font-size: 1.15rem !important; padding: 14px 16px; }

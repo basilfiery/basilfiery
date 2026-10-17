@@ -192,21 +192,32 @@ function CartaoSomChamado() {
       </p>
       <div className="sons" role="radiogroup" aria-label="Toque do chamado">
         {SONS_CHAMADO.map((o) => (
-          <button
+          <div
             key={o.id}
-            type="button"
             role="radio"
+            tabIndex={0}
             aria-checked={atual === o.id}
-            className={cx('som-opcao', atual === o.id && 'ativo')}
+            className={cx('som-opcao', atual === o.id && 'ativo', !gestor && 'som-opcao--so-ouvir')}
             onClick={() => void escolher(o.id)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void escolher(o.id); } }}
           >
-            <span className="som-opcao__play"><Play size={14} fill="currentColor" /></span>
+            <button
+              type="button"
+              className="som-opcao__play"
+              onClick={(e) => { e.stopPropagation(); tocarChamado(o.id, true); }}
+              aria-label={`Ouvir ${o.nome}`}
+              title="Ouvir"
+            >
+              <Play size={15} fill="currentColor" />
+            </button>
             <span className="som-opcao__texto">
               <strong>{o.nome}</strong>
               <small>{o.descricao}</small>
             </span>
-            {atual === o.id && <Check size={18} className="som-opcao__ok" />}
-          </button>
+            {atual === o.id
+              ? <span className="som-opcao__selo"><Check size={15} /> Em uso</span>
+              : gestor && <span className="som-opcao__usar">Usar este</span>}
+          </div>
         ))}
       </div>
       <p className="muted" style={{ margin: '12px 0 0', fontSize: '.82rem' }}>

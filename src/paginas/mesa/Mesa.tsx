@@ -55,6 +55,7 @@ export default function Mesa() {
   const [produtoAberto, setProdutoAberto] = useState<ProdutoMesa | null>(null);
   const [verCarrinho, setVerCarrinho] = useState(false);
   const [verConta, setVerConta] = useState(false);
+  const [verChamado, setVerChamado] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState<number[] | null>(null);
@@ -186,10 +187,14 @@ export default function Mesa() {
     void carregar(true);
   }
 
-  async function chamar(tipo: 'garcom' | 'conta') {
-    const { error } = await supabase.rpc('mesa_chamar', { p_token: token, p_tipo: tipo });
-    if (error) toast(msgErro(error), 'erro');
-    else toast(tipo === 'conta' ? 'Pedimos a sua conta! Já já alguém vem até a mesa.' : 'Garçom chamado! Já já alguém vem até você.', 'ok');
+  async function chamar(tipo: 'garcom' | 'conta', motivo?: string, detalhe?: string) {
+    const { error } = await supabase.rpc('mesa_chamar', { p_token: token, p_tipo: tipo, p_motivo: motivo ?? null, p_detalhe: detalhe ?? null });
+    if (error) {
+      toast(msgErro(error), 'erro');
+      return false;
+    }
+    toast(tipo === 'conta' ? 'Pedimos a sua conta! Já já alguém vem até a mesa.' : 'Garçom chamado! Já já alguém vem até você.', 'ok');
+    return true;
   }
 
   function irPara(catId: string) {
@@ -290,7 +295,7 @@ export default function Mesa() {
           </div>
         </div>
         <div className="mesa__acoes">
-          <button className="btn btn--contorno" onClick={() => void chamar('garcom')}>
+          <button className="btn btn--contorno" onClick={() => setVerChamado(true)}>
             <ConciergeBell size={20} /> <span className="mesa__rotulo">Chamar garçom</span>
           </button>
           <button className="btn btn--contorno" onClick={() => setVerConta(true)}>
@@ -412,6 +417,13 @@ export default function Mesa() {
 
       {verConta && <ModalConta token={token} aoFechar={() => setVerConta(false)} aoPedirConta={() => void chamar('conta')} />}
 
+      {verChamado && (
+        <ModalChamarGarcom
+          aoFechar={() => setVerChamado(false)}
+          aoChamar={async (motivo, detalhe) => { if (await chamar('garcom', motivo, detalhe)) setVerChamado(false); }}
+        />
+      )}
+
       {sucesso !== null && <TelaSucesso numeros={sucesso} aoFechar={() => setSucesso(null)} />}
     </div>
   );
@@ -467,6 +479,66 @@ function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
         <span>Alguma observação?</span>
         <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: sem cebola, bem passado…" />
       </label>
+    </Modal>
+  );
+}
+
+const MOTIVOS_CHAMADO = [
+  { emoji: '🧂', rotulo: 'Sal e limão' },
+  { emoji: '🍽️', rotulo: 'Pratos ou talheres' },
+  { emoji: '🧻', rotulo: 'Guardanapos' },
+  { emoji: '🧽', rotulo: 'Limpar a mesa' },
+];
+
+/** Antes de chamar, a mesa diz o que precisa: o garçom já vem com a coisa certa. */
+function ModalChamarGarcom({ aoFechar, aoChamar }: { aoFechar: () => void; aoChamar: (motivo: string, detalhe?: string) => Promise<void> }) {
+  const [outra, setOutra] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar(motivo: string, detalhe?: string) {
+    setEnviando(true);
+    await aoChamar(motivo, detalhe);
+    setEnviando(false);
+  }
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo="Do que você precisa?" classe="mesa-modal" largura={620}>
+      {!outra ? (
+        <div className="motivos">
+          {MOTIVOS_CHAMADO.map((m) => (
+            <button key={m.rotulo} className="motivo" onClick={() => void enviar(m.rotulo)} disabled={enviando}>
+              <span className="motivo__emoji" aria-hidden="true">{m.emoji}</span>
+              <strong>{m.rotulo}</strong>
+            </button>
+          ))}
+          <button className="motivo motivo--outra" onClick={() => setOutra(true)} disabled={enviando}>
+            <span className="motivo__emoji" aria-hidden="true">💬</span>
+            <strong>Outra coisa</strong>
+          </button>
+        </div>
+      ) : (
+        <div className="form">
+          <label className="campo">
+            <span>Conte rapidinho (opcional)</span>
+            <input
+              className="input input--grande-mesa"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              maxLength={140}
+              placeholder="Ex.: gelo, canudo, ajuda com o pedido…"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && void enviar('Outra coisa', texto.trim() || undefined)}
+            />
+          </label>
+          <div className="acoes-linha">
+            <button className="btn btn--contorno btn--lg" onClick={() => setOutra(false)} disabled={enviando}>Voltar</button>
+            <button className="btn btn--primario btn--lg" style={{ flex: 1 }} onClick={() => void enviar('Outra coisa', texto.trim() || undefined)} disabled={enviando}>
+              <ConciergeBell size={20} /> {enviando ? 'Chamando…' : 'Chamar garçom'}
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

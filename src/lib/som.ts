@@ -48,7 +48,7 @@ export function tocarAlerta(tipo: keyof typeof MELODIAS = 'pedido') {
 export type SomChamado = 'campainha' | 'sino' | 'alerta' | 'marimba';
 
 export const SONS_CHAMADO: { id: SomChamado; nome: string; descricao: string }[] = [
-  { id: 'campainha', nome: 'Campainha de balcão', descricao: 'Dois toques metálicos, “din-din”' },
+  { id: 'campainha', nome: 'Sino de garçom', descricao: 'O clássico “ding-ding” da campainha de balcão de restaurante' },
   { id: 'sino', nome: 'Sino suave', descricao: 'Três notas que sobem, discreto' },
   { id: 'alerta', nome: 'Alerta duplo', descricao: 'Bipes fortes, bom para ambiente barulhento' },
   { id: 'marimba', nome: 'Marimba', descricao: 'Melodia curta e alegre' },
@@ -67,6 +67,44 @@ function nota(c: AudioContext, inicio: number, freq: number, dur: number, tipo: 
     osc.connect(ganho).connect(c.destination);
     osc.start(inicio);
     osc.stop(inicio + dur + 0.02);
+  }
+}
+
+/**
+ * Uma batida da campainha de balcão: o "tec" do martelo + o corpo metálico do sino,
+ * com parciais inarmônicas que somem em tempos diferentes (é isso que dá o som de sino de verdade).
+ */
+function sinoDeBalcao(c: AudioContext, inicio: number, forca: number) {
+  // Batida do martelo: ruído curtinho e agudo
+  const ruido = c.createBuffer(1, Math.floor(c.sampleRate * 0.02), c.sampleRate);
+  const dados = ruido.getChannelData(0);
+  for (let i = 0; i < dados.length; i++) dados[i] = (Math.random() * 2 - 1) * (1 - i / dados.length);
+  const fonte = c.createBufferSource();
+  fonte.buffer = ruido;
+  const filtro = c.createBiquadFilter();
+  filtro.type = 'bandpass';
+  filtro.frequency.value = 4200;
+  const ganhoRuido = c.createGain();
+  ganhoRuido.gain.value = 0.25 * forca;
+  fonte.connect(filtro).connect(ganhoRuido).connect(c.destination);
+  fonte.start(inicio);
+
+  // Corpo do sino: fundamental + parciais (com leve batimento para "brilhar")
+  const base = 1830;
+  const parciais: [number, number, number][] = [
+    [1, 0.42, 2.4], [1.0035, 0.18, 2.2], [2.32, 0.2, 1.4], [4.25, 0.1, 0.8], [6.63, 0.05, 0.5],
+  ];
+  for (const [mult, vol, dur] of parciais) {
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = base * mult;
+    g.gain.setValueAtTime(0.0001, inicio);
+    g.gain.exponentialRampToValueAtTime(vol * forca, inicio + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, inicio + dur);
+    osc.connect(g).connect(c.destination);
+    osc.start(inicio);
+    osc.stop(inicio + dur + 0.05);
   }
 }
 
@@ -90,8 +128,8 @@ export function tocarChamado(som: SomChamado | string | null | undefined = 'camp
     case 'marimba':
       [784, 1046.5, 1318.5, 1568].forEach((f, i) => nota(c, t + i * 0.12, f, 0.4, 'sine', 0.55, [[4, 0.08]]));
       break;
-    default: // campainha de balcão: dois "din" metálicos
-      [0, 0.32].forEach((d) => nota(c, t + d, 2350, 1.1, 'sine', 0.45, [[2.76, 0.15], [5.4, 0.05]]));
+    default: // sino de garçom (campainha de balcão): "ding-ding"
+      [0, 0.42].forEach((d, i) => sinoDeBalcao(c, t + d, i === 0 ? 1 : 0.8));
   }
   if (!teste && 'vibrate' in navigator) navigator.vibrate?.([200, 100, 200, 100, 300]);
 }

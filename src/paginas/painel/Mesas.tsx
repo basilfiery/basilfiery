@@ -7,7 +7,7 @@ import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
-import { FORMAS, STATUS_ROTULO, brl, cx, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
+import { FORMAS, STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 
 const linkMesa = (token: string) => `${window.location.origin}/mesa/${token}`;
@@ -89,7 +89,7 @@ export default function Mesas() {
                   <div className="mesa-card__alertas">
                     {cs.map((c) => (
                       <span key={c.id} className={`badge ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
-                        {c.tipo === 'conta' ? '🧾 Pediu a conta' : '🔔 Chamou'} · {tempoDesde(c.criado_em, agora)}
+                        {c.tipo === 'conta' ? '🧾' : '🔔'} {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}
                       </span>
                     ))}
                   </div>
@@ -207,7 +207,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
         <h3>Conta aberta</h3>
         {chamados.map((c) => (
           <span key={c.id} className={`badge ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
-            {c.tipo === 'conta' ? '🧾 Pediu a conta' : '🔔 Chamou o garçom'}
+            {c.tipo === 'conta' ? '🧾' : '🔔'} {descreverChamado(c)}
           </span>
         ))}
         {pedidos.length === 0 ? (

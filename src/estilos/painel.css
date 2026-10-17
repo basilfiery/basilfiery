@@ -744,3 +744,42 @@
 .som-opcao__texto strong { font-size: .92rem; }
 .som-opcao__texto small { color: var(--muted); font-size: .8rem; }
 .som-opcao__ok { color: var(--acento); flex: none; }
+/* ---------- Garçom: chamados fixos e mesas ---------- */
+.garcom__chamados { display: grid; gap: 10px; padding: 12px 16px 0; }
+.garcom__chamado {
+  display: flex; align-items: center; gap: 12px; padding: 14px;
+  border: 2px solid rgba(255, 90, 31, .7); border-radius: 16px;
+  background: rgba(255, 90, 31, .12); animation: chamando 1.6s ease-in-out infinite;
+}
+.garcom__chamado--conta { border-color: rgba(125, 211, 252, .7); background: rgba(125, 211, 252, .1); animation: none; }
+.garcom__chamado > div { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.garcom__chamado strong { font-size: 1.15rem; }
+.garcom__chamado-motivo { font-weight: 600; color: var(--fire-2); }
+.garcom__chamado--conta .garcom__chamado-motivo { color: var(--info); }
+.garcom__chamado small { color: var(--muted); }
+.garcom__chamado-icone { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 90, 31, .2); color: var(--fire-2); }
+.garcom__chamado--conta .garcom__chamado-icone { background: rgba(125, 211, 252, .18); color: var(--info); }
+.garcom__chamado .btn { flex: none; min-height: 52px; padding: 0 16px; }
+@keyframes chamando { 50% { box-shadow: 0 0 0 4px rgba(255, 90, 31, .18); } }
+
+.garcom__mesas { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 16px; }
+.garcom__mesa {
+  position: relative; display: grid; gap: 2px; align-content: start; min-height: 96px; padding: 14px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left;
+}
+.garcom__mesa strong { font-size: 1.05rem; }
+.garcom__mesa small { color: var(--muted); font-size: .8rem; }
+.garcom__mesa.ocupada { border-color: rgba(255, 90, 31, .45); }
+.garcom__mesa.chamando { border-color: rgba(255, 90, 31, .9); box-shadow: 0 0 0 2px rgba(255, 90, 31, .25); }
+.garcom__mesa-total { font-size: 1.15rem; font-weight: 700; color: var(--fire-2); }
+.garcom__mesa-chamando { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--fire-2); font-size: .78rem; font-weight: 700; }
+.garcom__conta-pedidos { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Opção de toque: ▶ ouve, clicar na linha escolhe */
+.som-opcao { cursor: pointer; }
+.som-opcao--so-ouvir { cursor: default; }
+.som-opcao:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.som-opcao__play { border: 0; cursor: pointer; transition: transform .1s, filter .15s; }
+.som-opcao__play:hover { filter: brightness(1.1); transform: scale(1.06); }
+.som-opcao__selo { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 4px 10px; border-radius: 999px; background: var(--acento); color: #fff; font-size: .78rem; font-weight: 700; }
+.som-opcao__usar { flex: none; padding: 4px 10px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--muted); font-size: .78rem; font-weight: 600; }
+.som-opcao:hover .som-opcao__usar { color: var(--text); border-color: var(--text); }

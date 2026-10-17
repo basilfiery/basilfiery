@@ -8,7 +8,14 @@ export const FORMAS: { id: FormaPagamento; rotulo: string; emoji: string }[] = [
   { id: 'debito', rotulo: 'Débito', emoji: '💳' },
   { id: 'outro', rotulo: 'Outro', emoji: '🧾' },
 ];
-export const rotuloForma = (f: string) => FORMAS.find((x) => x.id === f)?.rotulo ?? f;
+/** Texto curto do chamado da mesa: "Sal e limão", "Pediu a conta", "Chamou o garçom"... */
+export function descreverChamado(c: { tipo: string; motivo?: string | null; detalhe?: string | null }) {
+  if (c.tipo === 'conta') return 'Pediu a conta';
+  if (c.motivo) return c.detalhe ? `${c.motivo}: ${c.detalhe}` : c.motivo;
+  return c.detalhe ? `Chamou: ${c.detalhe}` : 'Chamou o garçom';
+}
+
+export const rotuloForma =(f: string) => FORMAS.find((x) => x.id === f)?.rotulo ?? f;
 
 export const brl = (n: number) =>
   Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

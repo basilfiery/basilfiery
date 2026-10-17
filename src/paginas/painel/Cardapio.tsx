@@ -1,12 +1,74 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, CornerDownRight, Film, GripVertical, ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
+import {
+  Check, ChevronRight, CornerDownRight, Film, FolderOpen, GripVertical, ImagePlus, Pencil, Plus, Search, Trash2, UtensilsCrossed,
+} from 'lucide-react';
 import { Campo, FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
 import type { Categoria, Produto } from '../../lib/tipos';
-import { cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
+import { brl, cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
+
+type Alvo = { id: string; depois: boolean } | null;
+
+/**
+ * Arrastar para mudar a ordem de uma lista (categorias, subcategorias ou itens).
+ * Cada lista tem o seu: não dá para soltar um item numa lista diferente.
+ */
+function useArrastar(aoSoltar: (origem: string, destino: string, depois: boolean) => void) {
+  const [arrastando, setArrastando] = useState<string | null>(null);
+  const [alvo, setAlvo] = useState<Alvo>(null);
+  // A ref já vale no evento seguinte, mesmo num arrasto rápido
+  const arrastandoRef = useRef<string | null>(null);
+  const alvoRef = useRef<Alvo>(null);
+  const limpar = () => {
+    arrastandoRef.current = null;
+    alvoRef.current = null;
+    setArrastando(null);
+    setAlvo(null);
+  };
+  const props = (id: string) => ({
+    draggable: true,
+    onDragStart: (e: DragEvent<HTMLElement>) => {
+      e.stopPropagation();
+      arrastandoRef.current = id;
+      setArrastando(id);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', id);
+    },
+    onDragOver: (e: DragEvent<HTMLElement>) => {
+      if (!arrastandoRef.current) return;
+      e.preventDefault();
+      const r = e.currentTarget.getBoundingClientRect();
+      const novo = { id, depois: e.clientY > r.top + r.height / 2 };
+      alvoRef.current = novo;
+      setAlvo(novo);
+    },
+    onDrop: (e: DragEvent<HTMLElement>) => {
+      e.preventDefault();
+      const origem = arrastandoRef.current;
+      const destino = alvoRef.current;
+      if (origem && destino && origem !== destino.id) aoSoltar(origem, destino.id, destino.depois);
+      limpar();
+    },
+    onDragEnd: limpar,
+  });
+  const classe = (id: string) =>
+    cx(arrastando === id && 'arrastando', alvo?.id === id && arrastando !== id && (alvo.depois ? 'alvo-depois' : 'alvo-antes'));
+  return { props, classe };
+}
+
+/** Nova ordem (1, 2, 3…) depois de mover `origem` para antes/depois de `destino`. */
+function reordenar<T extends { id: string; ordem: number }>(lista: T[], origem: string, destino: string, depois: boolean) {
+  const item = lista.find((x) => x.id === origem);
+  const resto = lista.filter((x) => x.id !== origem);
+  const idx = resto.findIndex((x) => x.id === destino);
+  if (!item || idx < 0) return null;
+  resto.splice(depois ? idx + 1 : idx, 0, item);
+  const novas = resto.map((x, i) => ({ ...x, ordem: i + 1 }));
+  return { novas, mudaram: novas.filter((x) => lista.find((y) => y.id === x.id)?.ordem !== x.ordem) };
+}
 
 export default function Cardapio() {
   const { restaurante } = usePainel();
@@ -18,6 +80,7 @@ export default function Cardapio() {
   const [editCat, setEditCat] = useState<Categoria | 'nova' | null>(null);
   const [novaPai, setNovaPai] = useState<string | null>(null);
   const [editProd, setEditProd] = useState<Produto | 'novo' | null>(null);
+  const [carregado, setCarregado] = useState(false);
 
   const carregar = useCallback(async () => {
     const [c, p] = await Promise.all([
@@ -25,8 +88,12 @@ export default function Cardapio() {
       supabase.from('produtos').select('*').eq('restaurante_id', restaurante.id),
     ]);
     if (c.error || p.error) toast(msgErro(c.error ?? p.error), 'erro');
-    setCategorias(((c.data ?? []) as Categoria[]).sort(ordenarNome));
+    const cats = ((c.data ?? []) as Categoria[]).sort(ordenarNome);
+    setCategorias(cats);
     setProdutos(((p.data ?? []) as Produto[]).sort(ordenarNome));
+    setCarregado(true);
+    // Abre direto na primeira categoria (como no gestor do Anota AI)
+    setCatSel((atual) => atual || (cats.find((x) => !x.pai_id)?.id ?? ''));
   }, [restaurante.id, toast]);
 
   useEffect(() => { void carregar(); }, [carregar]);
@@ -40,61 +107,104 @@ export default function Cardapio() {
     }
   }
 
-  /* ---------- Arrastar categorias para mudar a ordem (igual à do tablet) ---------- */
-  // Estado para o visual + ref para a lógica (a ref já vale no evento seguinte, mesmo num arrasto rápido)
-  const [arrastando, setArrastando] = useState<string | null>(null);
-  const [alvo, setAlvo] = useState<{ id: string; depois: boolean } | null>(null);
-  const arrastandoRef = useRef<string | null>(null);
-  const alvoRef = useRef<{ id: string; depois: boolean } | null>(null);
-  const limparArrasto = () => {
-    arrastandoRef.current = null;
-    alvoRef.current = null;
-    setArrastando(null);
-    setAlvo(null);
-  };
+  async function alternarCategoria(c: Categoria, ativo: boolean) {
+    setCategorias((l) => l.map((x) => (x.id === c.id ? { ...x, ativo } : x)));
+    const { error } = await supabase.from('categorias').update({ ativo }).eq('id', c.id);
+    if (error) {
+      toast(msgErro(error), 'erro');
+      void carregar();
+    } else toast(ativo ? `${c.nome} aparece no tablet.` : `${c.nome} saiu do tablet.`, 'ok');
+  }
 
-  async function moverCategoria(origemId: string, destinoId: string, depois: boolean) {
-    if (origemId === destinoId) return;
-    const origem = categorias.find((c) => c.id === origemId);
-    if (!origem) return;
-    // A ordem vale entre "irmãs": principais entre si, subcategorias dentro da mesma mãe
-    const lista = categorias.filter((c) => c.id !== origemId && c.pai_id === origem.pai_id);
-    const idx = lista.findIndex((c) => c.id === destinoId);
-    if (idx < 0) return;
-    lista.splice(depois ? idx + 1 : idx, 0, origem);
-    const novas = lista.map((c, i) => ({ ...c, ordem: i + 1 }));
-    const mudaram = novas.filter((c) => categorias.find((x) => x.id === c.id)?.ordem !== c.ordem);
-    setCategorias((todas) => todas.map((c) => novas.find((n) => n.id === c.id) ?? c).sort(ordenarNome));
-    const resultados = await Promise.all(mudaram.map((c) => supabase.from('categorias').update({ ordem: c.ordem }).eq('id', c.id)));
+  /** Salva a nova ordem de categorias (irmãs) ou de itens de uma categoria. */
+  async function salvarOrdem(tabela: 'categorias' | 'produtos', mudaram: { id: string; ordem: number }[]) {
+    const resultados = await Promise.all(mudaram.map((x) => supabase.from(tabela).update({ ordem: x.ordem }).eq('id', x.id)));
     const falha = resultados.find((r) => r.error);
     if (falha) {
       toast(msgErro(falha.error), 'erro');
       void carregar();
-    } else {
-      toast('Ordem do cardápio salva. Os tablets atualizam em até 1 minuto.', 'ok');
-    }
+    } else toast('Ordem salva. Os tablets atualizam em até 1 minuto.', 'ok');
   }
 
-  const termo = busca.trim().toLowerCase();
+  function moverCategoria(origem: string, destino: string, depois: boolean) {
+    const pai = categorias.find((c) => c.id === origem)?.pai_id ?? null;
+    const irmas = categorias.filter((c) => (c.pai_id ?? null) === pai);
+    const r = reordenar(irmas, origem, destino, depois);
+    if (!r) return;
+    setCategorias((todas) => todas.map((c) => r.novas.find((n) => n.id === c.id) ?? c).sort(ordenarNome));
+    void salvarOrdem('categorias', r.mudaram);
+  }
+
+  function moverProduto(origem: string, destino: string, depois: boolean) {
+    const cat = produtos.find((p) => p.id === origem)?.categoria_id;
+    const daCategoria = produtos.filter((p) => p.categoria_id === cat);
+    const r = reordenar(daCategoria, origem, destino, depois);
+    if (!r) return;
+    setProdutos((todos) => todos.map((p) => r.novas.find((n) => n.id === p.id) ?? p).sort(ordenarNome));
+    void salvarOrdem('produtos', r.mudaram);
+  }
+
+  const arrastoCats = useArrastar(moverCategoria);
+  const arrastoSubs = useArrastar(moverCategoria);
+  const arrastoItens = useArrastar(moverProduto);
+
   // Árvore: principais na ordem, cada uma seguida das suas subcategorias
   const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
   const filhasDe = (id: string) => categorias.filter((c) => c.pai_id === id);
   const arvore = principais.flatMap((c) => [c, ...filhasDe(c.id)]);
-  const ordemCat = new Map(arvore.map((c, i) => [c.id, i]));
-  const idsDe = (id: string) => [id, ...filhasDe(id).map((c) => c.id)];
-  const contagem = (id: string) => produtos.filter((p) => p.categoria_id && idsDe(id).includes(p.categoria_id)).length;
-  const selecionadas = catSel ? idsDe(catSel) : [];
-  const catSelecionada = categorias.find((c) => c.id === catSel);
-  const visiveis = produtos
-    .filter((p) => (!catSel || selecionadas.includes(p.categoria_id ?? '')) && (!termo || p.nome.toLowerCase().includes(termo)))
-    // Em "Todos os produtos", segue a ordem das categorias (como no tablet)
-    .sort((a, b) => (ordemCat.get(a.categoria_id ?? '') ?? 999) - (ordemCat.get(b.categoria_id ?? '') ?? 999) || ordenarNome(a, b));
+  const itensDe = (id: string) => produtos.filter((p) => p.categoria_id === id);
+  const contagem = (id: string) => itensDe(id).length + filhasDe(id).reduce((s, f) => s + itensDe(f.id).length, 0);
+  const cat = categorias.find((c) => c.id === catSel) ?? null;
+  const pai = cat?.pai_id ? categorias.find((c) => c.id === cat.pai_id) ?? null : null;
+  const principalAberta = pai ?? cat;
+  const termo = busca.trim().toLowerCase();
+  const filtrar = (lista: Produto[]) => (termo ? lista.filter((p) => p.nome.toLowerCase().includes(termo)) : lista);
+
   const nomeCat = (id: string | null) => {
     const c = categorias.find((x) => x.id === id);
     if (!c) return 'Sem categoria';
-    const pai = categorias.find((x) => x.id === c.pai_id);
-    return pai ? `${pai.nome} › ${c.nome}` : c.nome;
+    const p = categorias.find((x) => x.id === c.pai_id);
+    return p ? `${p.nome} › ${c.nome}` : c.nome;
   };
+  const detalhes = (p: Produto, comCategoria: boolean) => [
+    comCategoria && nomeCat(p.categoria_id),
+    p.descricao && !comCategoria && p.descricao,
+    p.video_url && 'vídeo',
+    p.controla_estoque && `estoque ${p.estoque}`,
+    !p.precisa_preparo && 'sem preparo',
+  ].filter(Boolean).join(' · ');
+
+  function abrir(id: string) {
+    setCatSel(id);
+    setBusca('');
+  }
+  function novoItem() {
+    setEditProd('novo');
+  }
+
+  /** Linha de um item (produto), igual nas duas telas. */
+  const linhaItem = (p: Produto, arrastavel: boolean, comCategoria = false) => (
+    <li
+      key={p.id}
+      className={cx('item-linha', !p.ativo && 'item-linha--oculto', arrastavel && arrastoItens.classe(p.id))}
+      {...(arrastavel ? arrastoItens.props(p.id) : {})}
+    >
+      {arrastavel && <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />}
+      <FotoProduto p={p} classe="item-linha__foto" />
+      <button className="item-linha__nome" onClick={() => setEditProd(p)} title="Editar item">
+        <strong>{p.nome}</strong>
+        {detalhes(p, comCategoria) && <small>{detalhes(p, comCategoria)}</small>}
+      </button>
+      <div className="item-linha__preco">
+        <PrecoEditavel produto={p} aoSalvar={(preco) => setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, preco } : x)))} />
+      </div>
+      <div className="item-linha__visivel" title={p.ativo ? 'Aparece no tablet' : 'Escondido do tablet'}>
+        <span>{p.ativo ? 'No tablet' : 'Oculto'}</span>
+        <Switch marcado={p.ativo} aoMudar={(v) => void alternarAtivo(p, v)} />
+      </div>
+      <button className="icone-btn" onClick={() => setEditProd(p)} aria-label={`Editar ${p.nome}`}><Pencil size={17} /></button>
+    </li>
+  );
 
   return (
     <div className="pagina">
@@ -103,126 +213,147 @@ export default function Cardapio() {
           <h1 className="titulo">Cardápio</h1>
           <p>O que você mudar aqui aparece nos tablets em até 1 minuto.</p>
         </div>
-        <button className="btn btn--primario" onClick={() => setEditProd('novo')} disabled={!categorias.length}>
+        <button className="btn btn--primario" onClick={novoItem} disabled={!categorias.length}>
           <Plus size={18} /> Novo produto
         </button>
       </div>
 
       <div className="cardapio">
-        <aside className="card">
-          <h2 className="card__titulo">Categorias</h2>
+        <aside className="card cardapio__cats">
+          <div className="cardapio__cats-cab">
+            <h2 className="card__titulo">Categorias</h2>
+            <button className="btn btn--primario btn--sm" onClick={() => { setNovaPai(null); setEditCat('nova'); }}>
+              <Plus size={16} /> Nova
+            </button>
+          </div>
           <div className="cats-lista">
-            <button className={cx('cat-item', !catSel && 'ativo')} onClick={() => setCatSel('')}>
+            <button className={cx('cat-item', !catSel && 'ativo')} onClick={() => abrir('')}>
               <span>Todos os produtos</span><span className="contagem">{produtos.length}</span>
             </button>
-            {arvore.map((c) => (
-              <div
-                key={c.id}
-                className={cx(
-                  'cat-item', c.pai_id && 'cat-item--sub', catSel === c.id && 'ativo', !c.ativo && 'cat-item--inativa',
-                  arrastando === c.id && 'arrastando',
-                  alvo?.id === c.id && arrastando !== c.id && (alvo.depois ? 'alvo-depois' : 'alvo-antes'),
-                )}
-                role="button"
-                tabIndex={0}
-                draggable
-                onClick={() => setCatSel(c.id)}
-                onKeyDown={(e) => e.key === 'Enter' && setCatSel(c.id)}
-                onDragStart={(e) => {
-                  arrastandoRef.current = c.id;
-                  setArrastando(c.id);
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setData('text/plain', c.id);
-                }}
-                onDragOver={(e) => {
-                  if (!arrastandoRef.current) return;
-                  // Só reordena entre irmãs (não muda a categoria de lugar na árvore)
-                  if (categorias.find((x) => x.id === arrastandoRef.current)?.pai_id !== c.pai_id) return;
-                  e.preventDefault();
-                  const r = e.currentTarget.getBoundingClientRect();
-                  const novo = { id: c.id, depois: e.clientY > r.top + r.height / 2 };
-                  alvoRef.current = novo;
-                  setAlvo(novo);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const origem = arrastandoRef.current;
-                  const destino = alvoRef.current;
-                  if (origem && destino) void moverCategoria(origem, destino.id, destino.depois);
-                  limparArrasto();
-                }}
-                onDragEnd={limparArrasto}
-                title="Arraste para mudar a ordem"
-              >
-                <GripVertical size={16} className="cat-item__alca" aria-hidden="true" />
-                {c.pai_id && <CornerDownRight size={14} className="cat-item__seta" aria-hidden="true" />}
-                <span>{c.emoji} {c.nome}</span>
-                <span className="contagem">{contagem(c.id)}</span>
-                <button className="icone-btn" style={{ width: 30, height: 30 }} onClick={(e) => { e.stopPropagation(); setEditCat(c); }} aria-label={`Editar ${c.nome}`}>
-                  <Pencil size={14} />
-                </button>
+            {principais.map((c) => (
+              <div key={c.id} className="cats-grupo">
+                <div
+                  className={cx('cat-item', principalAberta?.id === c.id && 'ativo', !c.ativo && 'cat-item--inativa', arrastoCats.classe(c.id))}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => abrir(c.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && abrir(c.id)}
+                  title="Arraste para mudar a ordem"
+                  {...arrastoCats.props(c.id)}
+                >
+                  <GripVertical size={16} className="cat-item__alca" aria-hidden="true" />
+                  <span>{c.emoji} {c.nome}</span>
+                  <span className="contagem">{contagem(c.id)}</span>
+                </div>
+                {/* Subcategorias da categoria aberta, para pular direto */}
+                {principalAberta?.id === c.id && filhasDe(c.id).map((f) => (
+                  <button key={f.id} className={cx('cat-item cat-item--sub', catSel === f.id && 'ativo-sub', !f.ativo && 'cat-item--inativa')} onClick={() => abrir(f.id)}>
+                    <CornerDownRight size={14} className="cat-item__seta" aria-hidden="true" />
+                    <span>{f.emoji} {f.nome}</span>
+                    <span className="contagem">{itensDe(f.id).length}</span>
+                  </button>
+                ))}
               </div>
             ))}
           </div>
-          {categorias.length > 1 && <p className="cats-dica">Arraste pela alça <GripVertical size={13} /> para mudar a ordem no tablet.</p>}
-          <button className="btn btn--contorno btn--sm btn--bloco" style={{ marginTop: 12 }} onClick={() => { setNovaPai(null); setEditCat('nova'); }}>
-            <Plus size={16} /> Nova categoria
-          </button>
-          {catSelecionada && !catSelecionada.pai_id && (
-            <button className="btn btn--fantasma btn--sm btn--bloco" style={{ marginTop: 6 }} onClick={() => { setNovaPai(catSelecionada.id); setEditCat('nova'); }}>
-              <CornerDownRight size={16} /> Subcategoria em {catSelecionada.nome}
-            </button>
-          )}
+          {principais.length > 1 && <p className="cats-dica">Arraste pela alça <GripVertical size={13} /> para mudar a ordem no tablet.</p>}
         </aside>
 
-        <section className="pagina" style={{ gap: 12 }}>
-          <input className="input" placeholder="Buscar produto…" value={busca} onChange={(e) => setBusca(e.target.value)} />
-          {categorias.length === 0 ? (
-            <Vazio icone={<UtensilsCrossed size={36} />} titulo="Comece criando uma categoria">Ex.: Entradas, Pizzas, Bebidas.</Vazio>
-          ) : visiveis.length === 0 ? (
-            <Vazio icone={<UtensilsCrossed size={36} />} titulo="Nenhum produto aqui" />
-          ) : (
-            <div className="tabela-wrap">
-              <table className="tabela">
-                <thead>
-                  <tr><th>Produto</th><th className="num">Preço</th><th>No tablet</th><th /></tr>
-                </thead>
-                <tbody>
-                  {visiveis.map((p) => (
-                    <tr key={p.id}>
-                      <td>
-                        <div className="prod-linha">
-                          <FotoProduto p={p} />
-                          <div>
-                            <strong>{p.nome}</strong>
-                            <small>
-                              {nomeCat(p.categoria_id)}
-                              {p.video_url && ' · vídeo'}
-                              {p.controla_estoque && ` · estoque ${p.estoque}`}
-                              {p.vegetariano && ' · vegetariano'}
-                              {!p.precisa_preparo && ' · sem preparo'}
-                              {p.picancia > 0 && ` · picância ${['', 'leve', 'média', 'forte'][p.picancia]}`}
-                            </small>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="num">
-                        <PrecoEditavel
-                          produto={p}
-                          aoSalvar={(preco) => setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, preco } : x)))}
-                        />
-                      </td>
-                      <td><Switch marcado={p.ativo} aoMudar={(v) => void alternarAtivo(p, v)} /></td>
-                      <td className="num">
-                        <button className="icone-btn" onClick={() => setEditProd(p)} aria-label={`Editar ${p.nome}`}><Pencil size={18} /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* ---------- A "guia" da categoria aberta ---------- */}
+        {!carregado ? null : categorias.length === 0 ? (
+          <section className="card cat-painel">
+            <Vazio icone={<UtensilsCrossed size={36} />} titulo="Comece criando uma categoria">
+              Ex.: Pizzas, Porções, Bebidas. Depois você coloca os itens dentro dela.
+            </Vazio>
+            <button className="btn btn--primario" style={{ justifySelf: 'center' }} onClick={() => { setNovaPai(null); setEditCat('nova'); }}>
+              <Plus size={18} /> Nova categoria
+            </button>
+          </section>
+        ) : !cat ? (
+          <section className="card cat-painel">
+            <header className="cat-painel__cab">
+              <div className="cat-painel__titulo"><h2>Todos os produtos</h2><span className="muted">{produtos.length} itens</span></div>
+            </header>
+            <div className="cat-painel__barra">
+              <label className="cat-painel__busca"><Search size={16} /><input placeholder="Buscar em todo o cardápio…" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
             </div>
-          )}
-        </section>
+            {filtrar(produtos).length === 0 ? <Vazio icone={<Search size={30} />} titulo="Nada encontrado" /> : (
+              <ul className="itens-lista">
+                {filtrar([...produtos].sort((a, b) => arvore.findIndex((c) => c.id === a.categoria_id) - arvore.findIndex((c) => c.id === b.categoria_id) || ordenarNome(a, b)))
+                  .map((p) => linhaItem(p, false, true))}
+              </ul>
+            )}
+          </section>
+        ) : (
+          <section className="card cat-painel" key={cat.id}>
+            <header className="cat-painel__cab">
+              <div className="cat-painel__titulo">
+                {pai && (
+                  <nav className="cat-painel__trilha" aria-label="Caminho">
+                    <button onClick={() => abrir(pai.id)}>{pai.emoji} {pai.nome}</button>
+                    <ChevronRight size={15} />
+                  </nav>
+                )}
+                <h2>{cat.emoji} {cat.nome}</h2>
+                {!cat.ativo && <span className="badge">Oculta no tablet</span>}
+              </div>
+              <div className="cat-painel__visivel">
+                <span>No tablet</span>
+                <Switch marcado={cat.ativo} aoMudar={(v) => void alternarCategoria(cat, v)} />
+              </div>
+              <button className="icone-btn" onClick={() => setEditCat(cat)} title="Editar categoria" aria-label={`Editar ${cat.nome}`}><Pencil size={18} /></button>
+            </header>
+
+            <div className="cat-painel__barra">
+              <button className="btn btn--contorno btn--acento" onClick={novoItem}><Plus size={17} /> Adicionar item</button>
+              <label className="cat-painel__busca"><Search size={16} /><input placeholder="Pesquisar" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
+              {!cat.pai_id && (
+                <button className="btn btn--fantasma" onClick={() => { setNovaPai(cat.id); setEditCat('nova'); }}>
+                  <FolderOpen size={17} /> Nova subcategoria
+                </button>
+              )}
+            </div>
+
+            {/* Subcategorias como pastas: clica e entra */}
+            {!cat.pai_id && filhasDe(cat.id).length > 0 && !termo && (
+              <div className="cat-painel__bloco">
+                <h3>Subcategorias</h3>
+                <ul className="subs-lista">
+                  {filhasDe(cat.id).map((f) => {
+                    const itens = itensDe(f.id);
+                    const menor = itens.length ? Math.min(...itens.map((p) => Number(p.preco))) : 0;
+                    return (
+                      <li key={f.id} className={cx('sub-linha', !f.ativo && 'item-linha--oculto', arrastoSubs.classe(f.id))} {...arrastoSubs.props(f.id)}>
+                        <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />
+                        <span className="sub-linha__icone">{f.emoji || <FolderOpen size={20} />}</span>
+                        <button className="sub-linha__nome" onClick={() => abrir(f.id)}>
+                          <strong>{f.nome}</strong>
+                          <small>{itens.length} {itens.length === 1 ? 'item' : 'itens'}{menor > 0 && ` · a partir de ${brl(menor)}`}{!f.ativo && ' · oculta'}</small>
+                        </button>
+                        <button className="btn btn--contorno btn--sm" onClick={() => abrir(f.id)}>Abrir <ChevronRight size={15} /></button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            <div className="cat-painel__bloco">
+              {!cat.pai_id && filhasDe(cat.id).length > 0 && <h3>Itens direto em {cat.nome}</h3>}
+              {filtrar(itensDe(cat.id)).length === 0 ? (
+                <div className="cat-painel__vazio">
+                  <UtensilsCrossed size={26} />
+                  <p>{termo ? 'Nenhum item com esse nome aqui.' : filhasDe(cat.id).length ? 'Os itens estão nas subcategorias acima. Você também pode pôr itens direto aqui.' : 'Nenhum item nesta categoria ainda.'}</p>
+                </div>
+              ) : (
+                <ul className="itens-lista">
+                  {filtrar(itensDe(cat.id)).map((p) => linhaItem(p, !termo))}
+                </ul>
+              )}
+              <button className="btn btn--contorno btn--acento cat-painel__mais" onClick={novoItem}><Plus size={17} /> Adicionar item</button>
+            </div>
+          </section>
+        )}
       </div>
 
       {editCat && (
@@ -248,6 +379,7 @@ export default function Cardapio() {
     </div>
   );
 }
+
 
 /** Preço editável direto na lista: clica, digita e pronto (salva ao sair do campo ou com Enter). */
 function PrecoEditavel({ produto, aoSalvar }: { produto: Produto; aoSalvar: (preco: number) => void }) {

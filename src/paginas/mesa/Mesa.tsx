@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Play, Plus, Receipt,
+  CheckCircle2, ChevronLeft, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Play, Plus, Receipt,
   ShieldCheck, ShoppingBag, Sparkles, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
@@ -319,6 +319,11 @@ export default function Mesa() {
     return true;
   }
 
+  function abrirSub(id: string) {
+    setSubAtiva(id);
+    listaRef.current?.scrollTo({ top: 0 });
+  }
+
   function escolherCategoria(id: string) {
     setCatAtiva(id);
     setSubAtiva('');
@@ -496,49 +501,80 @@ export default function Mesa() {
         </nav>
 
         <main className="mesa__lista" ref={listaRef}>
-          {secao ? (
-            <section key={secao.id} className="mesa__secao">
-              <header className="mesa__secao-cab">
-                <h2 className="titulo">
-                  <span className="mesa__secao-emoji" aria-hidden="true">{emojiCat(secao)}</span> {secao.nome}
-                </h2>
-                <span>{secao.total} {secao.total === 1 ? 'opção' : 'opções'}</span>
-              </header>
-              {secao.subs.length > 0 && (
-                <div className="mesa__chips" role="tablist" aria-label={`Tipos de ${secao.nome}`}>
-                  <button role="tab" aria-selected={!subAtiva} className={cx('mesa__chip', !subAtiva && 'ativo')} onClick={() => setSubAtiva('')}>Tudo</button>
-                  {secao.subs.map((sub) => (
-                    <button key={sub.id} role="tab" aria-selected={subAtiva === sub.id} className={cx('mesa__chip', subAtiva === sub.id && 'ativo')} onClick={() => setSubAtiva(sub.id)}>
-                      {sub.emoji} {sub.nome}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {subAtiva ? grade(produtosDe(subAtiva)) : (
-                <>
-                  {secao.diretos.length > 0 && grade(secao.diretos)}
-                  {secao.subs.map((sub) => (
-                    <div key={sub.id} className="mesa__sub">
-                      <h3 className="titulo">{sub.emoji} {sub.nome}</h3>
-                      {grade(produtosDe(sub.id))}
+          {secao ? (() => {
+            const subSel = secao.subs.find((x) => x.id === subAtiva);
+            const qtd = subSel ? produtosDe(subSel.id).length : secao.total;
+            const i = secoes.findIndex((c) => c.id === secao.id);
+            const prox = secoes[i + 1];
+            return (
+              <section key={`${secao.id}:${subSel?.id ?? ''}`} className="mesa__secao">
+                <header className="mesa__secao-cab">
+                  {subSel ? (
+                    <div className="mesa__trilha">
+                      <button className="mesa__voltar" onClick={() => abrirSub('')}>
+                        <ChevronLeft size={18} /> {secao.nome}
+                      </button>
+                      <h2 className="titulo">{subSel.emoji && <span className="mesa__secao-emoji" aria-hidden="true">{subSel.emoji}</span>} {subSel.nome}</h2>
                     </div>
-                  ))}
-                </>
-              )}
-              {/* Próxima categoria: o cliente não fica preso no fim da lista */}
-              {(() => {
-                const i = secoes.findIndex((c) => c.id === secao.id);
-                const prox = secoes[i + 1];
-                return prox ? (
+                  ) : (
+                    <h2 className="titulo">
+                      <span className="mesa__secao-emoji" aria-hidden="true">{emojiCat(secao)}</span> {secao.nome}
+                    </h2>
+                  )}
+                  <span>{qtd} {qtd === 1 ? 'opção' : 'opções'}</span>
+                </header>
+
+                {subSel ? grade(produtosDe(subSel.id)) : (
+                  <>
+                    {/* Subcategorias como cartões: toca e vê o que tem dentro, na mesma tela */}
+                    {secao.subs.length > 0 && (
+                      <div className="mesa__grade mesa__grade--subs">
+                        {secao.subs.map((sub) => {
+                          const itens = produtosDe(sub.id);
+                          const foto = itens.find((x) => x.imagem_url)?.imagem_url;
+                          const menor = Math.min(...itens.map((x) => Number(x.preco)));
+                          return (
+                            <button key={sub.id} className="subcat" onClick={() => abrirSub(sub.id)}>
+                              <div className="subcat__midia">
+                                {foto
+                                  ? <img src={foto} alt="" loading="lazy" />
+                                  : <span className="subcat__emoji" aria-hidden="true">{sub.emoji || <Layers size={40} strokeWidth={1.5} />}</span>}
+                              </div>
+                              <div className="subcat__info">
+                                <h3>{sub.nome}</h3>
+                                <p>{itens.length} {itens.length === 1 ? 'opção' : 'opções'}{menor > 0 && ` · a partir de ${brl(menor)}`}</p>
+                                <span className="subcat__ver">Ver opções <ChevronRight size={17} /></span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {secao.diretos.length > 0 && (
+                      <>
+                        {secao.subs.length > 0 && <h3 className="mesa__sub-titulo titulo">Outras opções</h3>}
+                        {grade(secao.diretos)}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {subSel ? (
+                  <button className="mesa__proxima" onClick={() => abrirSub('')}>
+                    <ChevronLeft size={20} />
+                    <strong>Voltar para {secao.nome}</strong>
+                  </button>
+                ) : prox ? (
+                  /* Próxima categoria: o cliente não fica preso no fim da lista */
                   <button className="mesa__proxima" onClick={() => escolherCategoria(prox.id)}>
                     <span>Ver a seguir</span>
                     <strong>{emojiCat(prox)} {prox.nome}</strong>
                     <ChevronRight size={20} />
                   </button>
-                ) : null;
-              })()}
-            </section>
-          ) : (
+                ) : null}
+              </section>
+            );
+          })() : (
             <p className="vazio">O cardápio ainda está sendo preparado. Chame um atendente.</p>
           )}
         </main>

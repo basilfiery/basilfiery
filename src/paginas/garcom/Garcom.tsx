@@ -291,7 +291,7 @@ function ContaMesa({ mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }:
       .channel(`impressao-${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fila_impressao', filter: `id=eq.${id}` }, () => {
         impresso = true;
-        toast(`Conta da ${mesa.nome} impressa no caixa ✓`, 'ok');
+        toast(`Conta da ${mesa.nome} impressa no caixa.`, 'ok');
         void supabase.removeChannel(canal);
       })
       .subscribe();

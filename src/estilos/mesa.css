@@ -156,7 +156,7 @@
 @keyframes pulo { 0% { transform: scale(.4); opacity: 0; } 70% { transform: scale(1.1); } }
 
 .mesa-erro { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; }
-.mesa-erro__icone { font-size: 64px; }
+.mesa-erro__icone { width: 88px; height: 88px; display: grid; place-items: center; border-radius: 26px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
 .mesa-erro h1 { margin: 0; }
 .mesa-erro p { margin: 0; }
 .mesa-erro .btn { margin-top: 16px; }
@@ -196,10 +196,13 @@
 }
 .motivo:hover:not(:disabled) { border-color: var(--acento); }
 .motivo:active:not(:disabled) { transform: scale(.97); }
-.motivo__emoji { font-size: 2.6rem; line-height: 1; }
+.motivo__icone {
+  width: 60px; height: 60px; display: grid; place-items: center; border-radius: 18px;
+  background: color-mix(in srgb, var(--acento) 14%, transparent); color: var(--acento);
+}
 .motivo strong { font-size: 1.08rem; }
 .motivo--outra { grid-column: 1 / -1; min-height: 90px; grid-auto-flow: column; justify-content: center; align-items: center; gap: 12px; }
-.motivo--outra .motivo__emoji { font-size: 2rem; }
+.motivo--outra .motivo__icone { width: 48px; height: 48px; border-radius: 14px; background: var(--surface-2); color: var(--text); }
 .input--grande-mesa { font-size: 1.15rem !important; padding: 14px 16px; }
 /* ---------- Subcategorias (ex.: Comida › Pratos, Porções) ---------- */
 .mesa__subcat {

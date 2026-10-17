@@ -1,9 +1,6 @@
 import { useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  BellRing, Boxes, Check, ChefHat, ConciergeBell, LayoutDashboard, Menu, MessageCircle,
-  Printer, ShieldCheck, Smartphone, Tablet, X,
-} from 'lucide-react';
+import { BellRing, Boxes, Check, ChefHat, ConciergeBell, Flame, LayoutDashboard, Menu, MessageCircle, Printer, ShieldCheck, Smartphone, Tablet, X } from 'lucide-react';
 import { Logo } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { SITE, linkWhatsVendas } from '../../config/site';
@@ -79,7 +76,7 @@ export default function Site() {
         {/* ---------- Hero ---------- */}
         <section className="hero">
           <div className="hero__texto">
-            <span className="etiqueta">🔥 Cardápio digital para restaurantes</span>
+            <span className="etiqueta"><Flame size={14} /> Cardápio digital para restaurantes</span>
             <h1 className="titulo">O pedido sai da mesa e chega na cozinha <em>sozinho</em>.</h1>
             <p>
               Tablet na mesa para o cliente pedir, impressão automática no caixa e aviso no celular do garçom.
@@ -102,7 +99,7 @@ export default function Site() {
                 <div className="tm-topo">
                   <span className="tm-logo">R</span>
                   <div><b>Restaurante Demo</b><small>Mesa 7</small></div>
-                  <span className="tm-btn">🔔 Chamar garçom</span>
+                  <span className="tm-btn"><ConciergeBell size={13} /> Chamar garçom</span>
                 </div>
                 <div className="tm-corpo">
                   <div className="tm-cats">

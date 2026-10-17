@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRightLeft, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
+import { ArrowRightLeft, ConciergeBell, LayoutGrid, Plus, Printer, Receipt, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
+import { SeletorPagamento } from '../../componentes/Pagamento';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
-import { FORMAS, STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
+import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 
 const linkMesa = (token: string) => `${window.location.origin}/mesa/${token}`;
@@ -90,8 +91,8 @@ export default function Mesas() {
                 {cs.length > 0 && (
                   <div className="mesa-card__alertas">
                     {cs.map((c) => (
-                      <span key={c.id} className={`badge ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
-                        {c.tipo === 'conta' ? '🧾' : '🔔'} {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}
+                      <span key={c.id} className={`badge badge--icone ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
+                        {c.tipo === 'conta' ? <Receipt size={13} /> : <ConciergeBell size={13} />} {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}
                       </span>
                     ))}
                   </div>
@@ -156,7 +157,6 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const link = linkMesa(token);
 
   async function fecharConta(forma: FormaPagamento) {
-    if (!confirm(`Receber ${brl(total)} no ${rotuloForma(forma)} e liberar a ${mesa.nome}?`)) return;
     setOcupado(true);
     const { error } = await supabase.rpc('mesa_fechar_conta', { p_mesa: mesa.id, p_forma: forma });
     setOcupado(false);
@@ -199,8 +199,8 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
       <section className="bloco">
         <h3>Conta aberta</h3>
         {chamados.map((c) => (
-          <span key={c.id} className={`badge ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
-            {c.tipo === 'conta' ? '🧾' : '🔔'} {descreverChamado(c)}
+          <span key={c.id} className={`badge badge--icone ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
+            {c.tipo === 'conta' ? <Receipt size={13} /> : <ConciergeBell size={13} />} {descreverChamado(c)}
           </span>
         ))}
         {pedidos.length === 0 ? (
@@ -232,16 +232,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
             </div>
             {podeFechar && (
               caixaAberto ? (
-                <div className="pagamento">
-                  <span className="pagamento__rotulo">Receber {brl(total)} e liberar a mesa:</span>
-                  <div className="pagamento__formas">
-                    {FORMAS.filter((f) => f.id !== 'outro').map((f) => (
-                      <button key={f.id} className="btn btn--sucesso" onClick={() => void fecharConta(f.id)} disabled={ocupado}>
-                        {f.emoji} {f.rotulo}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <SeletorPagamento total={total} ocupado={ocupado} aoReceber={(f) => void fecharConta(f)} />
               ) : (
                 <div className="pagamento pagamento--fechado">
                   <span>O caixa está fechado. Abra o caixa para receber esta conta.</span>

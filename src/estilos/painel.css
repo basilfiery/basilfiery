@@ -856,3 +856,49 @@
 }
 .passos li > div { padding-top: 3px; line-height: 1.4; }
 .passos small { display: block; margin-top: 1px; color: var(--muted); font-size: .8rem; }
+
+/* ---------- Receber pagamento da mesa ---------- */
+.pagar {
+  display: grid; gap: 12px; padding: 16px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--sombra);
+}
+.pagar__topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pagar__topo span { color: var(--muted); font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.pagar__topo strong { font-size: 1.35rem; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.pagar__formas { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pagar__forma {
+  position: relative; display: grid; justify-items: center; gap: 8px; padding: 14px 8px 12px;
+  border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text);
+  font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer;
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
+}
+.pagar__forma .icone-forma { width: 40px; height: 40px; border-radius: 12px; }
+.pagar__forma:hover:not(:disabled) { border-color: color-mix(in srgb, var(--cor) 45%, var(--line)); }
+.pagar__forma:active:not(:disabled) { transform: scale(.97); }
+.pagar__forma.ativo {
+  border-color: var(--cor); background: color-mix(in srgb, var(--cor) 6%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cor) 18%, transparent);
+}
+.pagar__marca {
+  position: absolute; top: 7px; right: 7px; width: 18px; height: 18px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--cor); color: #fff; opacity: 0; transform: scale(.6);
+  transition: opacity .15s, transform .15s;
+}
+.pagar__forma.ativo .pagar__marca { opacity: 1; transform: none; }
+.pagar__confirmar {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 16px;
+  border: 0; border-radius: 13px; cursor: pointer; font: inherit; font-size: .95rem; font-weight: 700;
+  background: #16a34a; color: #fff; box-shadow: 0 6px 16px rgba(22, 163, 74, .25);
+  transition: filter .15s, opacity .15s, transform .1s;
+}
+.pagar__confirmar:hover:not(:disabled) { filter: brightness(1.05); }
+.pagar__confirmar:active:not(:disabled) { transform: scale(.99); }
+.pagar__confirmar:disabled { background: var(--surface-2); color: var(--muted-2); box-shadow: none; cursor: not-allowed; }
+.pagar__nota { color: var(--muted); font-size: .78rem; text-align: center; }
+@media (max-width: 520px) { .pagar__formas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.linha-forma { display: inline-flex; align-items: center; gap: 8px; }
+.linha-forma .icone-forma { width: 24px; height: 24px; border-radius: 7px; }
+.aviso-ok { display: flex; align-items: flex-start; gap: 8px; }
+.aviso-ok svg { flex: none; margin-top: 1px; color: var(--ok); }
+.pedido__obs-geral svg { flex: none; vertical-align: -2px; margin-right: 2px; }

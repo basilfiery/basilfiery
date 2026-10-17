@@ -197,11 +197,11 @@ export default function Cardapio() {
                             <strong>{p.nome}</strong>
                             <small>
                               {nomeCat(p.categoria_id)}
-                              {p.video_url && ' · 🎬 vídeo'}
+                              {p.video_url && ' · vídeo'}
                               {p.controla_estoque && ` · estoque ${p.estoque}`}
-                              {p.vegetariano && ' · 🌿'}
+                              {p.vegetariano && ' · vegetariano'}
                               {!p.precisa_preparo && ' · sem preparo'}
-                              {p.picancia > 0 && ` · ${'🌶️'.repeat(p.picancia)}`}
+                              {p.picancia > 0 && ` · picância ${['', 'leve', 'média', 'forte'][p.picancia]}`}
                             </small>
                           </div>
                         </div>
@@ -610,9 +610,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
           <Campo rotulo="Picância">
             <select className="select" value={f.picancia} onChange={(e) => mudar('picancia', Number(e.target.value))}>
               <option value={0}>Não picante</option>
-              <option value={1}>🌶️ Leve</option>
-              <option value={2}>🌶️🌶️ Média</option>
-              <option value={3}>🌶️🌶️🌶️ Forte</option>
+              <option value={1}>Leve</option>
+              <option value={2}>Média</option>
+              <option value={3}>Forte</option>
             </select>
           </Campo>
           <Campo rotulo="Ordem"><input className="input" type="number" value={f.ordem} onChange={(e) => mudar('ordem', e.target.value)} /></Campo>

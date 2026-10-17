@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, ConciergeBell, Maximize, Play, Plus, Receipt, ShoppingBag, Trash2 } from 'lucide-react';
+import { CheckCircle2, Citrus, ConciergeBell, Layers, Maximize, MessageCircleMore, Play, Plus, Receipt, ShoppingBag, Sparkles, Trash2, Utensils, UtensilsCrossed } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
@@ -221,7 +221,7 @@ export default function Mesa() {
   if (erro && !dados) {
     return (
       <div className="mesa-erro">
-        <span className="mesa-erro__icone">🍽️</span>
+        <span className="mesa-erro__icone"><UtensilsCrossed size={44} strokeWidth={1.5} /></span>
         <h1 className="titulo">Ops, este tablet não está pronto</h1>
         <p>{erro}</p>
         <p className="muted">Por favor, chame um atendente.</p>
@@ -511,10 +511,10 @@ function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
 }
 
 const MOTIVOS_CHAMADO = [
-  { emoji: '🧂', rotulo: 'Sal e limão' },
-  { emoji: '🍽️', rotulo: 'Pratos ou talheres' },
-  { emoji: '🧻', rotulo: 'Guardanapos' },
-  { emoji: '🧽', rotulo: 'Limpar a mesa' },
+  { icone: Citrus, rotulo: 'Sal e limão' },
+  { icone: Utensils, rotulo: 'Pratos ou talheres' },
+  { icone: Layers, rotulo: 'Guardanapos' },
+  { icone: Sparkles, rotulo: 'Limpar a mesa' },
 ];
 
 /** Antes de chamar, a mesa diz o que precisa: o garçom já vem com a coisa certa. */
@@ -535,12 +535,12 @@ function ModalChamarGarcom({ aoFechar, aoChamar }: { aoFechar: () => void; aoCha
         <div className="motivos">
           {MOTIVOS_CHAMADO.map((m) => (
             <button key={m.rotulo} className="motivo" onClick={() => void enviar(m.rotulo)} disabled={enviando}>
-              <span className="motivo__emoji" aria-hidden="true">{m.emoji}</span>
+              <span className="motivo__icone" aria-hidden="true"><m.icone size={30} strokeWidth={1.8} /></span>
               <strong>{m.rotulo}</strong>
             </button>
           ))}
           <button className="motivo motivo--outra" onClick={() => setOutra(true)} disabled={enviando}>
-            <span className="motivo__emoji" aria-hidden="true">💬</span>
+            <span className="motivo__icone" aria-hidden="true"><MessageCircleMore size={26} strokeWidth={1.8} /></span>
             <strong>Outra coisa</strong>
           </button>
         </div>

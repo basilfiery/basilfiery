@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { FormaPagamento, Papel, StatusPedido } from './tipos';
 
-export const FORMAS: { id: FormaPagamento; rotulo: string; emoji: string }[] = [
-  { id: 'dinheiro', rotulo: 'Dinheiro', emoji: '💵' },
-  { id: 'pix', rotulo: 'Pix', emoji: '⚡' },
-  { id: 'credito', rotulo: 'Crédito', emoji: '💳' },
-  { id: 'debito', rotulo: 'Débito', emoji: '💳' },
-  { id: 'outro', rotulo: 'Outro', emoji: '🧾' },
+export const FORMAS: { id: FormaPagamento; rotulo: string }[] = [
+  { id: 'dinheiro', rotulo: 'Dinheiro' },
+  { id: 'pix', rotulo: 'Pix' },
+  { id: 'credito', rotulo: 'Crédito' },
+  { id: 'debito', rotulo: 'Débito' },
+  { id: 'outro', rotulo: 'Outro' },
 ];
 /** Texto curto do chamado da mesa: "Sal e limão", "Pediu a conta", "Chamou o garçom"... */
 export function descreverChamado(c: { tipo: string; motivo?: string | null; detalhe?: string | null }) {

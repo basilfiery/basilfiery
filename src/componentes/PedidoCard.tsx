@@ -1,4 +1,4 @@
-import { Ban, Clock, Printer } from 'lucide-react';
+import { Ban, Clock, MessageSquareText, Printer } from 'lucide-react';
 import type { Pedido, StatusPedido } from '../lib/tipos';
 import { ACAO_STATUS, PROXIMO_STATUS, STATUS_ROTULO, brl, cx, hora, minutosDesde, tempoDesde } from '../lib/util';
 
@@ -45,7 +45,7 @@ export function PedidoCard({ pedido: p, agora, aoMudar, aoImprimir, compacto }: 
         {p.pedido_itens.length === 0 && <li className="muted">Carregando itens…</li>}
       </ul>
 
-      {p.observacao && <p className="pedido__obs-geral">📝 {p.observacao}</p>}
+      {p.observacao && <p className="pedido__obs-geral"><MessageSquareText size={14} /> {p.observacao}</p>}
 
       <footer className="pedido__rodape">
         <span className="pedido__total">{brl(p.total)}</span>

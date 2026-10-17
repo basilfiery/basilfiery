@@ -7,7 +7,8 @@ import { imprimirFechamento, imprimirMovimentoCaixa } from '../../lib/impressao'
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Caixa, MovimentoCaixa, Papel, ResumoCaixa } from '../../lib/tipos';
 import { FORMAS, brl, cx, dataHora, hora, lerPreco, podeCaixa } from '../../lib/util';
-import { aplicarAtualizacao } from '../../lib/versao';
+import { aplicarAtualizacao } from '../../lib/versao';import { IconeForma } from '../../componentes/Pagamento';
+
 
 export type ModoCaixa = 'resumo' | 'fechar' | 'retirada';
 
@@ -197,7 +198,7 @@ function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado 
               <div className={cx('caixa__diferenca', diferenca !== null && (Math.abs(diferenca) < 0.005 ? 'ok' : diferenca > 0 ? 'sobra' : 'falta'))}>
                 <span>Diferença</span>
                 <strong>
-                  {diferenca === null ? '—' : Math.abs(diferenca) < 0.005 ? 'Confere ✓' : `${diferenca > 0 ? 'Sobra' : 'Falta'} ${brl(Math.abs(diferenca))}`}
+                  {diferenca === null ? '—' : Math.abs(diferenca) < 0.005 ? 'Confere' : `${diferenca > 0 ? 'Sobra' : 'Falta'} ${brl(Math.abs(diferenca))}`}
                 </strong>
               </div>
             </div>
@@ -309,7 +310,7 @@ function ResumoView({ r }: { r: ResumoCaixa }) {
         ) : (
           <ul className="linhas-conta">
             {formas.map((f) => (
-              <li key={f.id}><span>{f.emoji} {f.rotulo}</span><b>{brl(Number(r.por_forma[f.id]))}</b></li>
+              <li key={f.id}><span className="linha-forma"><IconeForma forma={f.id} tamanho={15} /> {f.rotulo}</span><b>{brl(Number(r.por_forma[f.id]))}</b></li>
             ))}
           </ul>
         )}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BellRing, Check, ConciergeBell, ImagePlus, Play, Printer, Store } from 'lucide-react';
+import { BellRing, Check, CircleCheck, ConciergeBell, ImagePlus, Play, Printer, Store } from 'lucide-react';
 import { Campo, Switch } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, programaDesktop, type ConfigImpressao } from '../../lib/impressao';
@@ -140,8 +140,8 @@ function CartaoImpressora() {
         <button className="btn btn--contorno" onClick={() => imprimirTeste(restaurante.nome)}><Printer size={18} /> Imprimir teste</button>
 
         {desktop ? (
-          <p className="muted" style={{ margin: 0, fontSize: '.88rem' }}>
-            ✅ Você está no <b>programa BasilFiery para Windows</b>: a impressão sai direto na impressora escolhida.
+          <p className="muted aviso-ok" style={{ margin: 0, fontSize: '.88rem' }}>
+            <CircleCheck size={16} /> Você está no <b>programa BasilFiery para Windows</b>: a impressão sai direto na impressora escolhida.
           </p>
         ) : (
         <details>

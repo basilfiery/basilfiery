@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Flame, Leaf, Minus, Plus, Star, UtensilsCrossed } from 'lucide-react';
 import { cx } from '../lib/util';
 
 export function Logo({ tamanho = 'md' }: { tamanho?: 'sm' | 'md' | 'lg' }) {
@@ -75,12 +75,12 @@ export function Selos({ p }: { p: { destaque?: boolean; novo?: boolean; vegetari
   if (!p.destaque && !p.novo && !p.vegetariano && !p.picancia) return null;
   return (
     <div className="selos">
-      {p.destaque && <span className="selo selo--top">★ Mais pedido</span>}
+      {p.destaque && <span className="selo selo--top"><Star size={11} fill="currentColor" /> Mais pedido</span>}
       {p.novo && <span className="selo selo--novo">Novo</span>}
-      {p.vegetariano && <span className="selo selo--veg">🌿 Vegetariano</span>}
+      {p.vegetariano && <span className="selo selo--veg"><Leaf size={11} /> Vegetariano</span>}
       {!!p.picancia && (
         <span className="selo selo--pic" title={`Picância ${p.picancia} de 3`} aria-label={`Picância ${p.picancia} de 3`}>
-          {'🌶️'.repeat(p.picancia)}
+          {Array.from({ length: p.picancia }, (_, i) => <Flame key={i} size={12} fill="currentColor" />)}
         </span>
       )}
     </div>
@@ -128,7 +128,7 @@ export function VideoCapa({ p, classe }: { p: { video_url: string; imagem_url: s
 export function FotoProduto({ p, classe }: { p: { imagem_url: string | null; emoji: string | null; nome: string }; classe?: string }) {
   return (
     <div className={cx('foto', classe)}>
-      {p.imagem_url ? <img src={p.imagem_url} alt={p.nome} loading="lazy" /> : <span aria-hidden="true">{p.emoji || '🍽️'}</span>}
+      {p.imagem_url ? <img src={p.imagem_url} alt={p.nome} loading="lazy" /> : <span aria-hidden="true">{p.emoji || <UtensilsCrossed className="foto__padrao" strokeWidth={1.5} />}</span>}
     </div>
   );
 }

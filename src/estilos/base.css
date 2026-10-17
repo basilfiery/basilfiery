@@ -187,9 +187,9 @@ h1, h2, h3 { line-height: 1.2; }
 .badge--cancelado, .badge--vermelho { background: rgba(255, 107, 107, .14); color: var(--danger); }
 
 .selos { display: flex; flex-wrap: wrap; gap: 6px; }
-.selo { font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.selo { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
 .selo--veg { color: var(--basil); background: rgba(124, 195, 84, .12); }
-.selo--pic { color: var(--fire-2); background: rgba(255, 90, 31, .14); letter-spacing: -2px; }
+.selo--pic { gap: 1px; color: var(--fire-2); background: rgba(255, 90, 31, .14); }
 .selo--top { color: #ffd166; background: rgba(255, 209, 102, .12); }
 .selo--novo { color: var(--info); background: rgba(125, 211, 252, .12); }
 
@@ -350,3 +350,13 @@ h1, h2, h3 { line-height: 1.2; }
 .qr-cartao figcaption { display: grid; justify-items: center; gap: 4px; text-align: center; color: var(--muted); font-size: .84rem; }
 .qr-cartao__baixar { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-weight: 600; font-size: .84rem; text-decoration: none; padding: 4px 8px; border-radius: 8px; }
 .qr-cartao__baixar:hover { background: var(--hover); }
+
+/* Foto padrão do produto (sem foto e sem emoji) */
+.foto__padrao { width: 38%; height: 38%; max-width: 64px; max-height: 64px; color: var(--muted-2); opacity: .7; }
+.badge--icone svg { flex: none; }
+
+/* Ícone da forma de pagamento */
+.icone-forma {
+  flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: color-mix(in srgb, var(--cor) 13%, transparent); color: var(--cor);
+}

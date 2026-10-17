@@ -8,7 +8,7 @@ html:has(.site) { scroll-behavior: smooth; }
 }
 
 .etiqueta {
-  display: inline-block;
+  display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 12px; border-radius: 999px;
   background: rgba(255, 90, 31, .12); color: var(--fire-2);
   font-size: .82rem; font-weight: 600;
@@ -74,7 +74,7 @@ html:has(.site) { scroll-behavior: smooth; }
 .tm-topo { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .tm-topo small { display: block; color: var(--muted); }
 .tm-logo { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: var(--fire); font-weight: 800; }
-.tm-btn { margin-left: auto; padding: 4px 9px; border: 1px solid var(--line-2); border-radius: 7px; }
+.tm-btn { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 4px 9px; border: 1px solid var(--line-2); border-radius: 7px; }
 .tm-corpo { display: grid; grid-template-columns: 74px 1fr 122px; min-height: 250px; }
 .tm-cats { display: grid; align-content: start; gap: 4px; padding: 8px 6px; border-right: 1px solid var(--line); }
 .tm-cats span { padding: 6px; border-radius: 7px; color: var(--muted); }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Play, Plus, Receipt,
-  ShieldCheck, ShoppingBag, Sparkles, Star, Trash2, Utensils, UtensilsCrossed, XCircle,
+  ShieldCheck, ShoppingBag, Sparkles, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -50,7 +50,8 @@ interface Conta {
 }
 
 /** Situação deste aparelho: só pede depois que a equipe libera a mesa. */
-type Acesso = 'carregando' | 'equipe' | 'liberado' | 'pendente' | 'recusado' | 'nenhum';
+type Acesso = 'carregando' | 'equipe' | 'liberado' | 'pendente' | 'recusado' | 'nenhum' | 'em_uso';
+const semAcesso = (a: Acesso) => a === 'nenhum' || a === 'em_uso';
 
 interface Secao extends CategoriaMesa { diretos: ProdutoMesa[]; subs: CategoriaMesa[]; total: number }
 
@@ -74,6 +75,7 @@ function useAlturaTela() {
 
 export default function Mesa() {
   const { token = '' } = useParams();
+  const navegar = useNavigate();
   const toast = useToast();
   const dispositivo = useMemo(idDispositivo, []);
   const [dados, setDados] = useState<DadosMesa | null>(null);
@@ -122,11 +124,21 @@ export default function Mesa() {
   const consultarAcesso = useCallback(async () => {
     const { data, error } = await supabase.rpc('mesa_acesso_status', { p_token: token, p_dispositivo: dispositivo });
     if (error) return;
+    // A equipe trocou o cliente de mesa: o cardápio (e o pedido em montagem) seguem para a mesa nova
+    if (typeof data === 'string' && data.startsWith('movido:')) {
+      const novoToken = data.slice(7);
+      ls.gravar(`bf:carrinho:${novoToken}`, carrinhoRef.current);
+      acessoRef.current = 'liberado';
+      setAcesso('liberado');
+      toast('Sua conta foi transferida para a nova mesa. Pode continuar pedindo.', 'ok');
+      navegar(`/mesa/${novoToken}`, { replace: true });
+      return;
+    }
     const novo = data as Acesso;
     const antes = acessoRef.current;
     acessoRef.current = novo;
     setAcesso(novo);
-    if (antes === 'carregando' && novo === 'nenhum') setVerAbrir(true); // boas-vindas: abrir a mesa
+    if (antes === 'carregando' && semAcesso(novo)) setVerAbrir(true); // boas-vindas: solicitar acesso
     if (antes === 'pendente' && novo === 'liberado') {
       toast('Mesa liberada! Já pode fazer seu pedido.', 'ok');
       setVerAbrir(false);
@@ -134,8 +146,8 @@ export default function Mesa() {
       acaoDepois.current = null;
       acao?.();
     }
-    if (antes === 'liberado' && novo === 'nenhum') toast('A conta desta mesa foi fechada. Obrigado pela visita!', 'info');
-  }, [token, dispositivo, toast]);
+    if (antes === 'liberado' && semAcesso(novo)) toast('A conta desta mesa foi fechada. Obrigado pela visita!', 'info');
+  }, [token, dispositivo, toast, navegar]);
 
   useEffect(() => {
     void consultarAcesso();
@@ -636,8 +648,10 @@ function FaixaAcesso({ acesso, mesa, aoAbrir }: { acesso: Acesso; mesa: string; 
       <Lock size={16} />
       <span>
         {acesso === 'recusado'
-          ? <><b>Mesa não liberada.</b> Se você está no restaurante, chame um atendente.</>
-          : <><b>Mesa fechada para pedidos.</b> Toque para abrir.</>}
+          ? <><b>Acesso não liberado.</b> Se você está no restaurante, chame um atendente.</>
+          : acesso === 'em_uso'
+            ? <><b>Mesa em uso.</b> Toque para solicitar acesso.</>
+            : <><b>Para pedir, solicite o acesso à mesa.</b> O garçom libera em instantes.</>}
       </span>
       <ChevronRight size={18} />
     </button>
@@ -658,7 +672,7 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
       {acesso === 'pendente' ? (
         <div className="abrir-mesa__conteudo">
           <span className="abrir-mesa__icone abrir-mesa__icone--espera"><Hourglass size={34} /></span>
-          <h2 className="titulo">Pedido enviado ao garçom</h2>
+          <h2 className="titulo">Acesso solicitado</h2>
           <p>Assim que ele liberar a <b>{mesa}</b>, você já pode pedir. Leva só um instante.</p>
           <div className="abrir-mesa__espera" aria-live="polite"><span /><span /><span /></div>
           <button className="btn btn--contorno btn--lg btn--bloco" onClick={aoFechar}>Escolher enquanto espero</button>
@@ -666,10 +680,21 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
       ) : acesso === 'recusado' ? (
         <div className="abrir-mesa__conteudo">
           <span className="abrir-mesa__icone abrir-mesa__icone--recusado"><XCircle size={36} /></span>
-          <h2 className="titulo">A mesa não foi liberada</h2>
+          <h2 className="titulo">O acesso não foi liberado</h2>
           <p>Se você está no restaurante, chame um atendente para liberar a <b>{mesa}</b>.</p>
           <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
-            {enviando ? 'Enviando…' : 'Pedir de novo'}
+            {enviando ? 'Enviando…' : 'Solicitar de novo'}
+          </button>
+          <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>
+        </div>
+      ) : acesso === 'em_uso' ? (
+        <div className="abrir-mesa__conteudo">
+          <span className="abrir-mesa__icone"><Users size={34} /></span>
+          <p className="abrir-mesa__sobre">{restaurante}</p>
+          <h2 className="titulo">A {mesa} já está em uso</h2>
+          <p>Se você está junto com quem abriu a mesa, solicite o acesso: o garçom libera este celular também.</p>
+          <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
+            {enviando ? 'Enviando…' : 'Solicitar acesso à mesa'}
           </button>
           <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>
         </div>
@@ -678,9 +703,9 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
           <span className="abrir-mesa__icone"><ShieldCheck size={36} /></span>
           <p className="abrir-mesa__sobre">{restaurante}</p>
           <h2 className="titulo">Bem-vindo à {mesa}!</h2>
-          <p>Para fazer pedidos, o garçom libera a sua mesa. É rapidinho e garante que só quem está aqui consegue pedir.</p>
+          <p>Para começar a fazer pedidos, solicite o acesso à mesa. O garçom confirma em instantes que você está aqui no restaurante.</p>
           <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
-            {enviando ? 'Enviando…' : 'Abrir a mesa'}
+            {enviando ? 'Enviando…' : 'Solicitar acesso à mesa'}
           </button>
           <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>
         </div>

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import {
-  Check, ChevronRight, CornerDownRight, Film, FolderOpen, GripVertical, ImagePlus, Pencil, Plus, Search, Trash2, UtensilsCrossed,
+  Ban, Check, ChevronRight, CornerDownRight, Film, FolderOpen, GripVertical, ImagePlus, Layers, Pencil, Plus, RotateCcw, Search, Trash2,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { Campo, FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
-import type { Categoria, Produto } from '../../lib/tipos';
+import type { Categoria, Grupo, Produto } from '../../lib/tipos';
 import { brl, cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
 
@@ -80,14 +81,18 @@ export default function Cardapio() {
   const [editCat, setEditCat] = useState<Categoria | 'nova' | null>(null);
   const [novaPai, setNovaPai] = useState<string | null>(null);
   const [editProd, setEditProd] = useState<Produto | 'novo' | null>(null);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [editGrupo, setEditGrupo] = useState<Grupo | 'novo' | null>(null);
   const [carregado, setCarregado] = useState(false);
 
   const carregar = useCallback(async () => {
-    const [c, p] = await Promise.all([
+    const [c, p, g] = await Promise.all([
       supabase.from('categorias').select('*').eq('restaurante_id', restaurante.id),
       supabase.from('produtos').select('*').eq('restaurante_id', restaurante.id),
+      supabase.from('grupos').select('*').eq('restaurante_id', restaurante.id),
     ]);
     if (c.error || p.error) toast(msgErro(c.error ?? p.error), 'erro');
+    setGrupos(((g.data ?? []) as Grupo[]).sort(ordenarNome));
     const cats = ((c.data ?? []) as Categoria[]).sort(ordenarNome);
     setCategorias(cats);
     setProdutos(((p.data ?? []) as Produto[]).sort(ordenarNome));
@@ -105,6 +110,16 @@ export default function Cardapio() {
       toast(msgErro(error), 'erro');
       void carregar();
     }
+  }
+
+  /** Esgotar / voltar a vender: no tablet aparece "Esgotado" e ninguém consegue pedir. */
+  async function esgotar(p: Produto, esgotado: boolean) {
+    setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, esgotado } : x)));
+    const { error } = await supabase.rpc('produto_esgotar', { p_produto: p.id, p_esgotado: esgotado });
+    if (error) {
+      toast(msgErro(error), 'erro');
+      void carregar();
+    } else toast(esgotado ? `${p.nome} esgotado.${p.grupo_id ? ' Vale para todos os tamanhos.' : ''}` : `${p.nome} voltou ao cardápio.`, esgotado ? 'info' : 'ok');
   }
 
   async function alternarCategoria(c: Categoria, ativo: boolean) {
@@ -152,9 +167,21 @@ export default function Cardapio() {
   const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
   const filhasDe = (id: string) => categorias.filter((c) => c.pai_id === id);
   const arvore = principais.flatMap((c) => [c, ...filhasDe(c.id)]);
+  const saboresDe = (grupoId: string | null) => (grupoId ? produtos.filter((p) => p.grupo_id === grupoId) : []);
   const itensDe = (id: string) => produtos.filter((p) => p.categoria_id === id);
-  const contagem = (id: string) => itensDe(id).length + filhasDe(id).reduce((s, f) => s + itensDe(f.id).length, 0);
+  const totalDe = (c: Categoria) => itensDe(c.id).length + saboresDe(c.grupo_id).length;
+  const contagem = (id: string) => {
+    const c = categorias.find((x) => x.id === id);
+    return (c ? totalDe(c) : 0) + filhasDe(id).reduce((s, f) => s + totalDe(f), 0);
+  };
+  const grupoSel = catSel.startsWith('g:') ? grupos.find((g) => g.id === catSel.slice(2)) ?? null : null;
   const cat = categorias.find((c) => c.id === catSel) ?? null;
+  const grupoDe = (id: string | null) => grupos.find((g) => g.id === id) ?? null;
+  const usamGrupo = (id: string) => categorias.filter((c) => c.grupo_id === id);
+  const nomeCompleto = (c: Categoria) => {
+    const p = categorias.find((x) => x.id === c.pai_id);
+    return p ? `${p.nome} › ${c.nome}` : c.nome;
+  };
   const pai = cat?.pai_id ? categorias.find((c) => c.id === cat.pai_id) ?? null : null;
   const principalAberta = pai ?? cat;
   const termo = busca.trim().toLowerCase();
@@ -167,7 +194,7 @@ export default function Cardapio() {
     return p ? `${p.nome} › ${c.nome}` : c.nome;
   };
   const detalhes = (p: Produto, comCategoria: boolean) => [
-    comCategoria && nomeCat(p.categoria_id),
+    comCategoria && (p.grupo_id ? `Sabor · ${grupoDe(p.grupo_id)?.nome ?? 'grupo'}` : nomeCat(p.categoria_id)),
     p.descricao && !comCategoria && p.descricao,
     p.video_url && 'vídeo',
     p.controla_estoque && `estoque ${p.estoque}`,
@@ -186,22 +213,30 @@ export default function Cardapio() {
   const linhaItem = (p: Produto, arrastavel: boolean, comCategoria = false) => (
     <li
       key={p.id}
-      className={cx('item-linha', !p.ativo && 'item-linha--oculto', arrastavel && arrastoItens.classe(p.id))}
+      className={cx('item-linha', !p.ativo && 'item-linha--oculto', p.esgotado && 'item-linha--esgotado', arrastavel && arrastoItens.classe(p.id))}
       {...(arrastavel ? arrastoItens.props(p.id) : {})}
     >
       {arrastavel && <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />}
       <FotoProduto p={p} classe="item-linha__foto" />
       <button className="item-linha__nome" onClick={() => setEditProd(p)} title="Editar item">
-        <strong>{p.nome}</strong>
+        <strong>{p.nome}{p.esgotado && <span className="selo-esgotado">Esgotado</span>}</strong>
         {detalhes(p, comCategoria) && <small>{detalhes(p, comCategoria)}</small>}
       </button>
       <div className="item-linha__preco">
         <PrecoEditavel produto={p} aoSalvar={(preco) => setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, preco } : x)))} />
+        {p.grupo_id && <small>acréscimo</small>}
       </div>
       <div className="item-linha__visivel" title={p.ativo ? 'Aparece no tablet' : 'Escondido do tablet'}>
         <span>{p.ativo ? 'No tablet' : 'Oculto'}</span>
         <Switch marcado={p.ativo} aoMudar={(v) => void alternarAtivo(p, v)} />
       </div>
+      <button
+        className={cx('btn-esgotar', p.esgotado && 'btn-esgotar--volta')}
+        onClick={() => void esgotar(p, !p.esgotado)}
+        title={p.esgotado ? 'Voltar a vender' : 'Marcar como esgotado'}
+      >
+        {p.esgotado ? <><RotateCcw size={15} /> Voltar</> : <><Ban size={15} /> Esgotar</>}
+      </button>
       <button className="icone-btn" onClick={() => setEditProd(p)} aria-label={`Editar ${p.nome}`}><Pencil size={17} /></button>
     </li>
   );
@@ -250,13 +285,31 @@ export default function Cardapio() {
                   <button key={f.id} className={cx('cat-item cat-item--sub', catSel === f.id && 'ativo-sub', !f.ativo && 'cat-item--inativa')} onClick={() => abrir(f.id)}>
                     <CornerDownRight size={14} className="cat-item__seta" aria-hidden="true" />
                     <span>{f.emoji} {f.nome}</span>
-                    <span className="contagem">{itensDe(f.id).length}</span>
+                    <span className="contagem">{totalDe(f)}</span>
                   </button>
                 ))}
               </div>
             ))}
           </div>
           {principais.length > 1 && <p className="cats-dica">Arraste pela alça <GripVertical size={13} /> para mudar a ordem no tablet.</p>}
+
+          <div className="cardapio__cats-cab cardapio__cats-cab--grupos">
+            <h2 className="card__titulo">Grupos de sabores</h2>
+            <button className="btn btn--contorno btn--sm" onClick={() => setEditGrupo('novo')}><Plus size={16} /> Novo</button>
+          </div>
+          {grupos.length === 0 ? (
+            <p className="cats-dica cats-dica--bloco">Sabores que se repetem em vários tamanhos (ex.: Pizza P, M e G). Cadastre uma vez e use em todos.</p>
+          ) : (
+            <div className="cats-lista">
+              {grupos.map((g) => (
+                <button key={g.id} className={cx('cat-item', catSel === `g:${g.id}` && 'ativo')} onClick={() => abrir(`g:${g.id}`)}>
+                  <Layers size={15} className="cat-item__seta" aria-hidden="true" />
+                  <span>{g.nome}</span>
+                  <span className="contagem">{saboresDe(g.id).length}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </aside>
 
         {/* ---------- A "guia" da categoria aberta ---------- */}
@@ -268,6 +321,38 @@ export default function Cardapio() {
             <button className="btn btn--primario" style={{ justifySelf: 'center' }} onClick={() => { setNovaPai(null); setEditCat('nova'); }}>
               <Plus size={18} /> Nova categoria
             </button>
+          </section>
+        ) : grupoSel ? (
+          <section className="card cat-painel" key={grupoSel.id}>
+            <header className="cat-painel__cab">
+              <div className="cat-painel__titulo">
+                <span className="cat-painel__tipo"><Layers size={14} /> Grupo de sabores</span>
+                <h2>{grupoSel.nome}</h2>
+              </div>
+              <button className="icone-btn" onClick={() => setEditGrupo(grupoSel)} title="Renomear ou excluir" aria-label={`Editar ${grupoSel.nome}`}><Pencil size={18} /></button>
+            </header>
+            <div className="usado-em">
+              <span>Aparece em</span>
+              {usamGrupo(grupoSel.id).length === 0 ? (
+                <em>nenhum tamanho ainda. Abra a subcategoria (ex.: Pizza P), clique no lápis e escolha “Grupo de sabores”.</em>
+              ) : usamGrupo(grupoSel.id).map((c) => (
+                <button key={c.id} className="usado-em__chip" onClick={() => abrir(c.id)}>
+                  {nomeCompleto(c)} <b>{brl(Number(c.preco_grupo ?? 0))}</b>
+                </button>
+              ))}
+            </div>
+            <div className="cat-painel__barra">
+              <button className="btn btn--contorno btn--acento" onClick={novoItem}><Plus size={17} /> Adicionar sabor</button>
+              <label className="cat-painel__busca"><Search size={16} /><input placeholder="Pesquisar sabor" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
+            </div>
+            <div className="cat-painel__bloco">
+              {filtrar(saboresDe(grupoSel.id)).length === 0 ? (
+                <div className="cat-painel__vazio"><Layers size={26} /><p>{termo ? 'Nenhum sabor com esse nome.' : 'Nenhum sabor ainda. Ex.: Calabresa, Frango com Catupiry, Portuguesa.'}</p></div>
+              ) : (
+                <ul className="itens-lista">{filtrar(saboresDe(grupoSel.id)).map((p) => linhaItem(p, !termo))}</ul>
+              )}
+              <button className="btn btn--contorno btn--acento cat-painel__mais" onClick={novoItem}><Plus size={17} /> Adicionar sabor</button>
+            </div>
           </section>
         ) : !cat ? (
           <section className="card cat-painel">
@@ -321,14 +406,18 @@ export default function Cardapio() {
                 <ul className="subs-lista">
                   {filhasDe(cat.id).map((f) => {
                     const itens = itensDe(f.id);
-                    const menor = itens.length ? Math.min(...itens.map((p) => Number(p.preco))) : 0;
+                    const g = grupoDe(f.grupo_id);
+                    const menor = g ? Number(f.preco_grupo ?? 0) : itens.length ? Math.min(...itens.map((p) => Number(p.preco))) : 0;
                     return (
                       <li key={f.id} className={cx('sub-linha', !f.ativo && 'item-linha--oculto', arrastoSubs.classe(f.id))} {...arrastoSubs.props(f.id)}>
                         <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />
                         <span className="sub-linha__icone">{f.emoji || <FolderOpen size={20} />}</span>
                         <button className="sub-linha__nome" onClick={() => abrir(f.id)}>
                           <strong>{f.nome}</strong>
-                          <small>{itens.length} {itens.length === 1 ? 'item' : 'itens'}{menor > 0 && ` · a partir de ${brl(menor)}`}{!f.ativo && ' · oculta'}</small>
+                          <small>
+                            {g ? `${g.nome} · ${saboresDe(g.id).length} sabores · ${brl(menor)}` : `${itens.length} ${itens.length === 1 ? 'item' : 'itens'}${menor > 0 ? ` · a partir de ${brl(menor)}` : ''}`}
+                            {!f.ativo && ' · oculta'}
+                          </small>
                         </button>
                         <button className="btn btn--contorno btn--sm" onClick={() => abrir(f.id)}>Abrir <ChevronRight size={15} /></button>
                       </li>
@@ -338,12 +427,28 @@ export default function Cardapio() {
               </div>
             )}
 
+            {grupoDe(cat.grupo_id) && !termo && (
+              <div className="cat-painel__bloco">
+                <div className="grupo-ligado">
+                  <span className="grupo-ligado__icone"><Layers size={20} /></span>
+                  <div>
+                    <strong>Sabores do grupo “{grupoDe(cat.grupo_id)!.nome}”</strong>
+                    <small>Preço {cat.pai_id ? 'deste tamanho' : ''}: <b>{brl(Number(cat.preco_grupo ?? 0))}</b> · {saboresDe(cat.grupo_id).length} sabores. Esgotar aqui vale para todos os tamanhos.</small>
+                  </div>
+                  <button className="btn btn--contorno btn--sm" onClick={() => setEditCat(cat)}>Alterar preço</button>
+                  <button className="btn btn--contorno btn--sm" onClick={() => abrir(`g:${cat.grupo_id}`)}>Abrir grupo <ChevronRight size={15} /></button>
+                </div>
+                <ul className="itens-lista">{saboresDe(cat.grupo_id).map((p) => linhaItem(p, false))}</ul>
+              </div>
+            )}
+
             <div className="cat-painel__bloco">
               {!cat.pai_id && filhasDe(cat.id).length > 0 && <h3>Itens direto em {cat.nome}</h3>}
+              {grupoDe(cat.grupo_id) && <h3>Itens próprios (opcional)</h3>}
               {filtrar(itensDe(cat.id)).length === 0 ? (
                 <div className="cat-painel__vazio">
                   <UtensilsCrossed size={26} />
-                  <p>{termo ? 'Nenhum item com esse nome aqui.' : filhasDe(cat.id).length ? 'Os itens estão nas subcategorias acima. Você também pode pôr itens direto aqui.' : 'Nenhum item nesta categoria ainda.'}</p>
+                  <p>{termo ? 'Nenhum item com esse nome aqui.' : grupoDe(cat.grupo_id) ? 'Esta categoria já mostra os sabores do grupo. Itens próprios são opcionais.' : filhasDe(cat.id).length ? 'Os itens estão nas subcategorias acima. Você também pode pôr itens direto aqui.' : 'Nenhum item nesta categoria ainda.'}</p>
                 </div>
               ) : (
                 <ul className="itens-lista">
@@ -361,6 +466,7 @@ export default function Cardapio() {
           restauranteId={restaurante.id}
           categoria={editCat === 'nova' ? null : editCat}
           categorias={categorias}
+          grupos={grupos}
           paiInicial={editCat === 'nova' ? novaPai : editCat.pai_id}
           aoFechar={() => setEditCat(null)}
           aoSalvar={() => { setEditCat(null); void carregar(); }}
@@ -371,15 +477,29 @@ export default function Cardapio() {
           restauranteId={restaurante.id}
           produto={editProd === 'novo' ? null : editProd}
           categorias={arvore}
-          categoriaPadrao={catSel || arvore[0]?.id}
+          categoriaPadrao={(cat?.id ?? '') || arvore[0]?.id}
+          grupo={editProd === 'novo' ? grupoSel : grupoDe((editProd as Produto).grupo_id)}
           aoFechar={() => setEditProd(null)}
           aoSalvar={() => { setEditProd(null); void carregar(); }}
+        />
+      )}
+      {editGrupo && (
+        <ModalGrupo
+          restauranteId={restaurante.id}
+          grupo={editGrupo === 'novo' ? null : editGrupo}
+          usadoEm={editGrupo === 'novo' ? [] : usamGrupo(editGrupo.id).map(nomeCompleto)}
+          aoFechar={() => setEditGrupo(null)}
+          aoSalvar={(id) => {
+            setEditGrupo(null);
+            if (id) setCatSel(`g:${id}`);
+            else setCatSel('');
+            void carregar();
+          }}
         />
       )}
     </div>
   );
 }
-
 
 /** Preço editável direto na lista: clica, digita e pronto (salva ao sair do campo ou com Enter). */
 function PrecoEditavel({ produto, aoSalvar }: { produto: Produto; aoSalvar: (preco: number) => void }) {
@@ -442,10 +562,13 @@ function PrecoEditavel({ produto, aoSalvar }: { produto: Produto; aoSalvar: (pre
   );
 }
 
-function ModalCategoria({ restauranteId, categoria, categorias, paiInicial, aoFechar, aoSalvar }: {
+const EMOJIS_SUGERIDOS = ['🍕', '🍔', '🍟', '🥗', '🍝', '🍣', '🥩', '🍗', '🍤', '🥟', '🌮', '🍰', '🍨', '☕', '🥤', '🍺', '🍷', '🍹'];
+
+function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInicial, aoFechar, aoSalvar }: {
   restauranteId: string;
   categoria: Categoria | null;
   categorias: Categoria[];
+  grupos: Grupo[];
   paiInicial: string | null;
   aoFechar: () => void;
   aoSalvar: () => void;
@@ -456,22 +579,49 @@ function ModalCategoria({ restauranteId, categoria, categorias, paiInicial, aoFe
   const [nome, setNome] = useState(categoria?.nome ?? '');
   const [emoji, setEmoji] = useState(categoria?.emoji ?? '');
   const [pai, setPai] = useState<string>(paiInicial ?? '');
-  const [ordem, setOrdem] = useState(String(categoria?.ordem ?? proximaOrdem(paiInicial)));
   const [ativo, setAtivo] = useState(categoria?.ativo ?? true);
+  const [usaGrupo, setUsaGrupo] = useState(!!categoria?.grupo_id);
+  const [grupoId, setGrupoId] = useState(categoria?.grupo_id ?? grupos[0]?.id ?? '');
+  const [precoGrupo, setPrecoGrupo] = useState(categoria?.preco_grupo != null ? precoParaTexto(categoria.preco_grupo) : '');
+  const [novoGrupo, setNovoGrupo] = useState('');
   const [salvando, setSalvando] = useState(false);
   const temFilhas = !!categoria && categorias.some((c) => c.pai_id === categoria.id);
   const opcoesPai = categorias.filter((c) => !c.pai_id && c.id !== categoria?.id);
-
-  function mudarPai(novo: string) {
-    setPai(novo);
-    // Ao mudar de lugar, vai para o fim da lista nova
-    if ((categoria?.pai_id ?? '') !== novo) setOrdem(String(proximaOrdem(novo || null)));
-    else if (categoria) setOrdem(String(categoria.ordem));
-  }
+  const ehSub = !!pai;
 
   async function salvar() {
+    let grupo: string | null = null;
+    let preco: number | null = null;
+    if (usaGrupo) {
+      preco = lerPreco(precoGrupo);
+      if (!Number.isFinite(preco) || preco < 0) return toast(`Informe o preço ${ehSub ? 'deste tamanho' : 'desta categoria'}. Ex.: 50,00`, 'erro');
+      grupo = grupoId || null;
+      setSalvando(true);
+      // Ainda não há grupo: cria agora, com o nome digitado
+      if (!grupo) {
+        if (!novoGrupo.trim()) {
+          setSalvando(false);
+          return toast('Dê um nome ao grupo de sabores. Ex.: Sabores de pizza', 'erro');
+        }
+        const { data, error } = await supabase.from('grupos').insert({ restaurante_id: restauranteId, nome: novoGrupo.trim() }).select('id').single();
+        if (error) {
+          setSalvando(false);
+          return toast(msgErro(error), 'erro');
+        }
+        grupo = data.id as string;
+      }
+    }
     setSalvando(true);
-    const dados = { nome: nome.trim(), emoji: emoji.trim() || null, ordem: Number(ordem) || 0, ativo, pai_id: pai || null };
+    const mudouDeLugar = (categoria?.pai_id ?? '') !== pai;
+    const dados = {
+      nome: nome.trim(),
+      emoji: emoji.trim() || null,
+      ativo,
+      pai_id: pai || null,
+      grupo_id: grupo,
+      preco_grupo: preco,
+      ordem: categoria && !mudouDeLugar ? categoria.ordem : proximaOrdem(pai || null),
+    };
     const { error } = categoria
       ? await supabase.from('categorias').update(dados).eq('id', categoria.id)
       : await supabase.from('categorias').insert({ ...dados, restaurante_id: restauranteId });
@@ -492,43 +642,153 @@ function ModalCategoria({ restauranteId, categoria, categorias, paiInicial, aoFe
     <Modal
       aberto
       aoFechar={aoFechar}
-      titulo={categoria ? 'Editar categoria' : pai ? 'Nova subcategoria' : 'Nova categoria'}
+      titulo={categoria ? (ehSub ? 'Editar subcategoria' : 'Editar categoria') : ehSub ? 'Nova subcategoria' : 'Nova categoria'}
+      largura={560}
       rodape={
         <>
           {categoria && <button className="btn btn--perigo" style={{ marginRight: 'auto' }} onClick={() => void excluir()}><Trash2 size={16} /> Excluir</button>}
           <button className="btn btn--contorno" onClick={aoFechar}>Cancelar</button>
-          <button className="btn btn--primario" disabled={!nome.trim() || salvando} onClick={() => void salvar()}>Salvar</button>
+          <button className="btn btn--primario" disabled={!nome.trim() || salvando} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Salvar'}</button>
         </>
       }
     >
-      <div className="form">
-        <div className="form-linha">
-          <Campo rotulo="Nome"><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={40} autoFocus /></Campo>
-          <Campo rotulo="Emoji" dica="Opcional. Ex.: 🍕"><input className="input" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} /></Campo>
+      <div className="form cat-form">
+        <div className="cat-form__nome">
+          <label className="campo">
+            <span>Ícone</span>
+            <input className="input cat-form__emoji" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} placeholder="—" aria-label="Emoji da categoria" />
+          </label>
+          <label className="campo">
+            <span>Nome</span>
+            <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={40} autoFocus placeholder={ehSub ? 'Ex.: Pizza P' : 'Ex.: Pizzas'} />
+          </label>
         </div>
+        <div className="cat-form__sugestoes" aria-label="Sugestões de ícone">
+          {EMOJIS_SUGERIDOS.map((e) => (
+            <button key={e} type="button" className={cx(emoji === e && 'ativo')} onClick={() => setEmoji(emoji === e ? '' : e)}>{e}</button>
+          ))}
+        </div>
+
         <Campo
           rotulo="Fica dentro de"
-          dica={temFilhas
-            ? 'Esta categoria já tem subcategorias, por isso fica como principal.'
-            : 'Ex.: “Pratos” e “Porções” dentro de “Comida”. No tablet aparecem agrupadas.'}
+          dica={temFilhas ? 'Esta categoria já tem subcategorias, por isso fica como principal.' : 'Ex.: “Pizza P”, “Pizza M” e “Pizza G” dentro de “Pizzas”.'}
         >
-          <select className="select" value={pai} onChange={(e) => mudarPai(e.target.value)} disabled={temFilhas}>
+          <select className="select" value={pai} onChange={(e) => setPai(e.target.value)} disabled={temFilhas}>
             <option value="">Nenhuma (categoria principal)</option>
             {opcoesPai.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.nome}</option>)}
           </select>
         </Campo>
-        <Campo rotulo="Ordem" dica={pai ? 'Ordem dentro da categoria principal' : 'Menor aparece primeiro no tablet'}><input className="input" type="number" value={ordem} onChange={(e) => setOrdem(e.target.value)} /></Campo>
+
+        <div className="cat-form__bloco">
+          <span className="cat-form__rotulo">O que aparece dentro</span>
+          <div className="segmentado segmentado--bloco" role="radiogroup" aria-label="Conteúdo">
+            <button type="button" role="radio" aria-checked={!usaGrupo} className={cx(!usaGrupo && 'ativo')} onClick={() => setUsaGrupo(false)}>
+              <UtensilsCrossed size={16} /> Itens próprios
+            </button>
+            <button type="button" role="radio" aria-checked={usaGrupo} className={cx(usaGrupo && 'ativo')} onClick={() => setUsaGrupo(true)}>
+              <Layers size={16} /> Grupo de sabores
+            </button>
+          </div>
+          {usaGrupo ? (
+            <>
+              <div className="form-linha">
+                {grupos.length > 0 ? (
+                  <Campo rotulo="Grupo de sabores">
+                    <select className="select" value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
+                      {grupos.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                      <option value="">+ Criar grupo novo…</option>
+                    </select>
+                  </Campo>
+                ) : null}
+                {!grupoId && (
+                  <Campo rotulo="Nome do grupo novo">
+                    <input className="input" value={novoGrupo} onChange={(e) => setNovoGrupo(e.target.value)} placeholder="Ex.: Sabores de pizza" maxLength={60} />
+                  </Campo>
+                )}
+                <Campo rotulo={ehSub ? 'Preço deste tamanho' : 'Preço'}>
+                  <div className="input-preco">
+                    <span>R$</span>
+                    <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(e.target.value)} placeholder="50,00" />
+                  </div>
+                </Campo>
+              </div>
+              <p className="cat-form__ajuda">
+                Os sabores do grupo aparecem aqui com este preço (mais o acréscimo do sabor, se houver). Cadastre os sabores uma vez e use o mesmo grupo na Pizza P, M e G. Esgotou um sabor? Esgota em todos os tamanhos.
+              </p>
+            </>
+          ) : (
+            <p className="cat-form__ajuda">Você cadastra os itens desta categoria, cada um com o seu preço.</p>
+          )}
+        </div>
+
         <Switch marcado={ativo} aoMudar={setAtivo}>Mostrar no tablet</Switch>
       </div>
     </Modal>
   );
 }
 
-function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoFechar, aoSalvar }: {
+/** Nome (e exclusão) de um grupo de sabores. */
+function ModalGrupo({ restauranteId, grupo, usadoEm, aoFechar, aoSalvar }: {
+  restauranteId: string;
+  grupo: Grupo | null;
+  usadoEm: string[];
+  aoFechar: () => void;
+  aoSalvar: (id?: string) => void;
+}) {
+  const toast = useToast();
+  const [nome, setNome] = useState(grupo?.nome ?? '');
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    setSalvando(true);
+    const r = grupo
+      ? await supabase.from('grupos').update({ nome: nome.trim() }).eq('id', grupo.id).select('id').single()
+      : await supabase.from('grupos').insert({ restaurante_id: restauranteId, nome: nome.trim() }).select('id').single();
+    setSalvando(false);
+    if (r.error) return toast(msgErro(r.error), 'erro');
+    aoSalvar(r.data.id as string);
+  }
+
+  async function excluir() {
+    if (!grupo || !confirm(`Excluir o grupo "${grupo.nome}" e todos os sabores dele?${usadoEm.length ? ` Ele deixa de aparecer em: ${usadoEm.join(', ')}.` : ''}`)) return;
+    const { error } = await supabase.from('grupos').delete().eq('id', grupo.id);
+    if (error) return toast(msgErro(error), 'erro');
+    aoSalvar();
+  }
+
+  return (
+    <Modal
+      aberto
+      aoFechar={aoFechar}
+      titulo={grupo ? 'Editar grupo de sabores' : 'Novo grupo de sabores'}
+      largura={480}
+      rodape={
+        <>
+          {grupo && <button className="btn btn--perigo" style={{ marginRight: 'auto' }} onClick={() => void excluir()}><Trash2 size={16} /> Excluir</button>}
+          <button className="btn btn--contorno" onClick={aoFechar}>Cancelar</button>
+          <button className="btn btn--primario" disabled={!nome.trim() || salvando} onClick={() => void salvar()}>Salvar</button>
+        </>
+      }
+    >
+      <div className="form">
+        <Campo rotulo="Nome do grupo" dica="Ex.: Sabores de pizza, Sabores de açaí, Recheios de pastel.">
+          <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} autoFocus />
+        </Campo>
+        <p className="cat-form__ajuda">
+          Depois, abra cada tamanho (ex.: Pizza P) e escolha <b>Grupo de sabores</b> em “O que aparece dentro”, com o preço do tamanho.
+        </p>
+      </div>
+    </Modal>
+  );
+}
+
+function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, grupo, aoFechar, aoSalvar }: {
   restauranteId: string;
   produto: Produto | null;
   categorias: Categoria[];
   categoriaPadrao?: string;
+  /** Novo sabor deste grupo (ou edição de um sabor) */
+  grupo?: Grupo | null;
   aoFechar: () => void;
   aoSalvar: () => void;
 }) {
@@ -561,6 +821,8 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
     estoque_minimo: String(produto?.estoque_minimo ?? 0),
     estoque_inicial: '',
   });
+  const ehSabor = !!(grupo || produto?.grupo_id);
+  const [esgotado, setEsgotado] = useState(produto?.esgotado ?? false);
   const [salvando, setSalvando] = useState(false);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [enviandoVideo, setEnviandoVideo] = useState(false);
@@ -596,7 +858,8 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
   }
 
   async function salvar() {
-    const preco = lerPreco(f.preco);
+    // Sabor: o preço é só o acréscimo (vazio = R$ 0,00)
+    const preco = ehSabor && !f.preco.trim() ? 0 : lerPreco(f.preco);
     if (!f.nome.trim()) return toast('Informe o nome.', 'erro');
     if (!Number.isFinite(preco) || preco < 0) return toast('Preço inválido. Ex.: 49,90', 'erro');
     setSalvando(true);
@@ -604,7 +867,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
       nome: f.nome.trim(),
       descricao: f.descricao.trim(),
       preco,
-      categoria_id: f.categoria_id || null,
+      categoria_id: ehSabor ? null : f.categoria_id || null,
+      grupo_id: ehSabor ? grupo?.id ?? produto?.grupo_id ?? null : null,
+      esgotado,
       emoji: f.emoji.trim() || null,
       imagem_url: f.imagem_url,
       video_url: f.video_url,
@@ -650,7 +915,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
     <Modal
       aberto
       aoFechar={aoFechar}
-      titulo={produto ? 'Editar produto' : 'Novo produto'}
+      titulo={produto ? (ehSabor ? 'Editar sabor' : 'Editar produto') : ehSabor ? `Novo sabor · ${grupo?.nome ?? ''}` : 'Novo produto'}
       largura={640}
       rodape={
         <>
@@ -720,7 +985,14 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
         <Campo rotulo="Nome"><input className="input" value={f.nome} onChange={(e) => mudar('nome', e.target.value)} maxLength={60} autoFocus={!produto} /></Campo>
         <Campo rotulo="Descrição"><textarea className="textarea" rows={2} value={f.descricao} onChange={(e) => mudar('descricao', e.target.value)} maxLength={240} /></Campo>
         <div className="form-linha">
-          <Campo rotulo="Preço (R$)"><input className="input" inputMode="decimal" value={f.preco} onChange={(e) => mudar('preco', e.target.value)} placeholder="49,90" /></Campo>
+          <Campo rotulo={ehSabor ? 'Acréscimo (opcional)' : 'Preço (R$)'} dica={ehSabor ? 'Somado ao preço do tamanho. Ex.: 5,00 para sabor especial.' : undefined}>
+            <input className="input" inputMode="decimal" value={f.preco} onChange={(e) => mudar('preco', e.target.value)} placeholder={ehSabor ? '0,00' : '49,90'} />
+          </Campo>
+          {ehSabor ? (
+            <Campo rotulo="Grupo" dica="O preço vem de cada tamanho que usa este grupo.">
+              <div className="input input--leitura"><Layers size={16} /> {grupo?.nome ?? 'Grupo de sabores'}</div>
+            </Campo>
+          ) : (
           <Campo rotulo="Categoria">
             <select
               className="select"
@@ -736,6 +1008,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
               ))}
             </select>
           </Campo>
+          )}
         </div>
         <div className="form-linha">
           <Campo rotulo="Emoji (sem foto)"><input className="input" value={f.emoji} onChange={(e) => mudar('emoji', e.target.value)} maxLength={4} placeholder="🍕" /></Campo>
@@ -751,6 +1024,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
         </div>
         <div className="form-linha">
           <Switch marcado={f.ativo} aoMudar={(v) => mudar('ativo', v)}>Mostrar no tablet</Switch>
+          <Switch marcado={esgotado} aoMudar={setEsgotado}>Esgotado</Switch>
           <Switch marcado={f.vegetariano} aoMudar={(v) => mudar('vegetariano', v)}>Vegetariano</Switch>
           <Switch marcado={f.destaque} aoMudar={(v) => mudar('destaque', v)}>Mais pedido</Switch>
           <Switch marcado={f.novo} aoMudar={(v) => mudar('novo', v)}>Novidade</Switch>

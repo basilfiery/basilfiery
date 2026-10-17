@@ -418,3 +418,7 @@
   .subcat__emoji { font-size: 44px; }
   .subcat__info { flex: 1; align-content: center; padding: 12px 14px; }
 }
+.modal-produto__tamanho {
+  display: inline-block; margin: 0 0 6px; padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--acento) 15%, transparent); color: var(--acento); font-size: .82rem; font-weight: 700;
+}

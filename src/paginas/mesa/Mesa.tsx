@@ -32,15 +32,25 @@ interface ProdutoMesa {
   novo: boolean;
   disponivel: boolean;
   estoque_max: number | null;
+  /** Sabor dentro de um tamanho (ex.: Calabresa na Pizza P): id real do sabor, id do tamanho e nome do tamanho */
+  real_id?: string;
+  tamanho_id?: string;
+  prefixo?: string;
 }
 
-interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null }
+interface SaborMesa extends ProdutoMesa { grupo_id: string }
+
+/** Nome do item no pedido: "Pizza P · Calabresa" quando é sabor de um tamanho. */
+const nomeItem = (p: ProdutoMesa) => (p.prefixo ? `${p.prefixo} · ${p.nome}` : p.nome);
+
+interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null; grupo_id?: string | null; preco_grupo?: number }
 
 interface DadosMesa {
   restaurante: { id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string };
   mesa: { id: string; nome: string };
   categorias: CategoriaMesa[];
   produtos: ProdutoMesa[];
+  sabores?: SaborMesa[];
 }
 
 interface Linha { chave: string; produto_id: string; qtd: number; obs: string }
@@ -200,7 +210,27 @@ export default function Mesa() {
   };
 
   /* ---------- Carrinho ---------- */
-  const porId = useMemo(() => new Map((dados?.produtos ?? []).map((p) => [p.id, p])), [dados]);
+  // Tamanhos ligados a um grupo mostram os sabores do grupo com o preço do tamanho (+ acréscimo do sabor)
+  const saboresPorCategoria = useMemo(() => {
+    const mapa = new Map<string, ProdutoMesa[]>();
+    for (const c of dados?.categorias ?? []) {
+      if (!c.grupo_id) continue;
+      mapa.set(c.id, (dados?.sabores ?? []).filter((x) => x.grupo_id === c.grupo_id).map((x) => ({
+        ...x,
+        id: `${c.id}:${x.id}`,
+        categoria_id: c.id,
+        preco: Number(c.preco_grupo ?? 0) + Number(x.preco),
+        real_id: x.id,
+        tamanho_id: c.id,
+        prefixo: c.nome,
+      })));
+    }
+    return mapa;
+  }, [dados]);
+  const porId = useMemo(() => new Map([
+    ...(dados?.produtos ?? []).map((p) => [p.id, p] as const),
+    ...[...saboresPorCategoria.values()].flat().map((p) => [p.id, p] as const),
+  ]), [dados, saboresPorCategoria]);
 
   // Tira do carrinho o que esgotou ou saiu do cardápio
   const carrinhoRef = useRef(carrinho);
@@ -280,7 +310,7 @@ export default function Mesa() {
         ? c.map((l) => (l.chave === chave ? { ...l, qtd: l.qtd + qtd } : l))
         : [...c, { chave, produto_id: p.id, qtd, obs }];
     });
-    toast(`${qtd}× ${p.nome} no seu pedido`, 'ok');
+    toast(`${qtd}× ${nomeItem(p)} no seu pedido`, 'ok');
   }
 
   function mudarQtd(chave: string, qtd: number) {
@@ -292,7 +322,10 @@ export default function Mesa() {
     const { data, error } = await supabase.rpc('mesa_pedido_enviar', {
       p_token: token,
       p_dispositivo: dispositivo,
-      p_itens: carrinho.map((l) => ({ produto_id: l.produto_id, qtd: l.qtd, obs: l.obs })),
+      p_itens: carrinho.map((l) => {
+        const p = porId.get(l.produto_id);
+        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs };
+      }),
       p_obs: obsPedido,
     });
     setEnviando(false);
@@ -361,7 +394,7 @@ export default function Mesa() {
   const { restaurante, mesa, categorias, produtos } = dados;
   // Categorias principais; as subcategorias (ex.: Comida › Pratos) aparecem dentro delas
   const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
-  const produtosDe = (id: string) => produtos.filter((p) => p.categoria_id === id);
+  const produtosDe = (id: string) => [...(saboresPorCategoria.get(id) ?? []), ...produtos.filter((p) => p.categoria_id === id)];
   const subsDe = (id: string) => categorias.filter((c) => c.pai_id === id && produtosDe(c.id).length > 0);
   const destaques = produtos.filter((p) => p.destaque);
   const secoes: Secao[] = [
@@ -429,7 +462,7 @@ export default function Mesa() {
               return (
                 <li key={l.chave} className="carrinho__linha">
                   <div className="carrinho__info">
-                    <strong>{p.nome}</strong>
+                    <strong>{nomeItem(p)}</strong>
                     {l.obs && <small>“{l.obs}”</small>}
                     <span>{brl(p.preco * l.qtd)}</span>
                   </div>
@@ -634,7 +667,7 @@ export default function Mesa() {
             const p = porId.get(l.produto_id);
             return p ? (
               <li key={l.chave}>
-                <span><b>{l.qtd}×</b> {p.nome}{l.obs && <small> “{l.obs}”</small>}</span>
+                <span><b>{l.qtd}×</b> {nomeItem(p)}{l.obs && <small> “{l.obs}”</small>}</span>
                 <span>{brl(p.preco * l.qtd)}</span>
               </li>
             ) : null;
@@ -799,6 +832,7 @@ function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
       ) : (
         <FotoProduto p={p} classe="modal-produto__foto" />
       )}
+      {p.prefixo && <p className="modal-produto__tamanho">{p.prefixo}</p>}
       <h2 className="titulo modal-produto__nome">{p.nome}</h2>
       <Selos p={p} />
       <p className="modal-produto__desc">{p.descricao}</p>

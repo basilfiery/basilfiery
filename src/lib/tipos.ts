@@ -39,6 +39,10 @@ export interface Categoria {
   ativo: boolean;
   /** Categoria "mãe" (subcategoria). null = categoria principal */
   pai_id: string | null;
+  /** Usa os sabores deste grupo (ex.: tamanho de pizza) */
+  grupo_id: string | null;
+  /** Preço do tamanho quando usa grupo de sabores */
+  preco_grupo: number | null;
 }
 
 export interface Produto {
@@ -64,6 +68,18 @@ export interface Produto {
   precisa_preparo: boolean;
   estoque: number;
   estoque_minimo: number;
+  /** Sabor de um grupo (ex.: "Sabores de pizza"); aí categoria_id fica vazio e o preço é o acréscimo */
+  grupo_id: string | null;
+  /** Acabou por agora: aparece "Esgotado" no tablet e não pode ser pedido */
+  esgotado: boolean;
+}
+
+/** Grupo de sabores compartilhado entre tamanhos (Pizza P, M, G…). */
+export interface Grupo {
+  id: string;
+  restaurante_id: string;
+  nome: string;
+  ordem: number;
 }
 
 export interface Mesa {

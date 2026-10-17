@@ -1061,3 +1061,69 @@
   .item-linha__visivel { margin-left: auto; }
   .cat-painel__busca { max-width: none; }
 }
+
+/* ---------- Formulário de categoria / subcategoria ---------- */
+.cat-form { gap: 16px; }
+.cat-form__nome { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: start; }
+.cat-form__emoji { text-align: center; font-size: 1.5rem !important; padding-inline: 4px !important; }
+.cat-form__sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -6px; }
+.cat-form__sugestoes button {
+  width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg-2); font-size: 1.15rem; line-height: 1;
+  transition: border-color .15s, transform .1s, background .15s;
+}
+.cat-form__sugestoes button:hover { border-color: var(--line-2); transform: translateY(-1px); }
+.cat-form__sugestoes button.ativo { border-color: var(--acento, #ff5a1f); background: color-mix(in srgb, var(--acento, #ff5a1f) 10%, var(--surface)); }
+.cat-form__bloco { display: grid; gap: 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); }
+.cat-form__rotulo { font-size: .88rem; font-weight: 600; color: var(--text); }
+.cat-form__ajuda { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.5; }
+.segmentado--bloco button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface); cursor: pointer; font: inherit; font-weight: 600; color: var(--text); }
+.input-preco { display: flex; align-items: center; gap: 8px; }
+.input-preco > span { color: var(--muted); font-weight: 600; }
+.input-preco .input { flex: 1; min-width: 0; }
+.input--leitura { display: flex; align-items: center; gap: 8px; color: var(--text); background: var(--surface-2); cursor: default; }
+.input--leitura svg { color: var(--acento, #ff5a1f); flex: none; }
+
+/* ---------- Esgotar ---------- */
+.btn-esgotar {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: inherit; font-size: .82rem; font-weight: 700;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.btn-esgotar:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, var(--surface)); }
+.btn-esgotar--volta { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); }
+.btn-esgotar--volta:hover { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--surface)); }
+.selo-esgotado {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; vertical-align: 2px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+.item-linha--esgotado { background: color-mix(in srgb, var(--danger) 3%, var(--surface)); }
+.item-linha--esgotado .item-linha__foto { filter: grayscale(1); opacity: .6; }
+.item-linha__preco { display: grid; justify-items: end; }
+.item-linha__preco > small { color: var(--muted-2); font-size: .7rem; margin-top: -2px; padding-right: 8px; }
+
+/* ---------- Grupos de sabores ---------- */
+.cardapio__cats-cab--grupos { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.cats-dica--bloco { display: block; margin: 0 4px; line-height: 1.45; }
+.cat-painel__tipo { flex-basis: 100%; display: inline-flex; align-items: center; gap: 6px; color: var(--acento, #ff5a1f); font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.usado-em { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -4px; }
+.usado-em > span { color: var(--muted); font-size: .82rem; font-weight: 600; }
+.usado-em em { color: var(--muted); font-size: .84rem; font-style: normal; }
+.usado-em__chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font: inherit; font-size: .84rem;
+}
+.usado-em__chip b { color: var(--fire-2); }
+.usado-em__chip:hover { border-color: var(--line-2); }
+.grupo-ligado {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 14px; border-radius: 14px;
+  background: color-mix(in srgb, var(--acento, #ff5a1f) 6%, var(--surface)); border: 1px solid color-mix(in srgb, var(--acento, #ff5a1f) 30%, var(--line));
+}
+.grupo-ligado > div { flex: 1 1 260px; display: grid; gap: 2px; min-width: 0; }
+.grupo-ligado small { color: var(--muted); font-size: .82rem; }
+.grupo-ligado small b { color: var(--text); }
+.grupo-ligado__icone { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--acento, #ff5a1f) 14%, transparent); color: var(--acento, #ff5a1f); flex: none; }
+@media (max-width: 640px) {
+  .btn-esgotar { padding: 0 10px; }
+}
+.cardapio__cats-cab--grupos .card__titulo { font-size: .98rem; white-space: nowrap; }

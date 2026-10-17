@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, Eye, History, LayoutGrid,
-  Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, UserCog, UserRound, Store, Sun, Users,
-  Volume2, VolumeX, Wallet,
+  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
 import { Logo, Switch } from '../../componentes/Basicos';
 import { Avatar, ModalPerfil, iniciais } from '../../componentes/Perfil';
+import { AcessosPendentes } from '../../componentes/AcessosMesa';
 import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
 import {
@@ -18,7 +17,7 @@ import {
 import { useSessao } from '../../lib/sessao';
 import { definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Chamado, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
+import type { Chamado, MesaAcesso, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
 import { PAPEL_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
@@ -29,6 +28,7 @@ export interface ContextoPainel {
   papel: Papel;
   pedidos: Pedido[];
   chamados: Chamado[];
+  acessos: MesaAcesso[];
   conectado: boolean;
   carregando: boolean;
   recarregar: () => Promise<void>;
@@ -69,6 +69,9 @@ export default function Painel() {
   const s = useSessao();
   const toast = useToast();
   const [perfilAberto, setPerfilAberto] = useState(false);
+  const [permissaoNotif, setPermissaoNotif] = useState<NotificationPermission | 'indisponivel'>(
+    () => ('Notification' in window ? Notification.permission : 'indisponivel'),
+  );
   const local = useLocation();
   const navegar = useNavigate();
   const r = s.restaurante;
@@ -102,18 +105,24 @@ export default function Painel() {
   const vivo = usePedidosAoVivo(r?.id, {
     aoNovoPedido: (p) => {
       tocarAlerta('pedido');
-      notificarLocal(`Novo pedido #${p.numero} · ${p.mesa_nome}`, `Total ${brl(p.total)}`);
+      const itens = (p.pedido_itens ?? []).map((i) => `${i.qtd}× ${i.nome}`);
+      const resumo = itens.length > 3 ? `${itens.slice(0, 3).join(', ')} e mais ${itens.length - 3}` : itens.join(', ');
+      notificarLocal(`Chegou um novo pedido! #${p.numero} · ${p.mesa_nome}`, [resumo, `Total ${brl(p.total)}`].filter(Boolean).join(' · '), `pedido-${p.id}`);
     },
     aoNovoChamado: (c) => {
       tocarChamado(r?.som_chamado);
-      notificarLocal(`${c.mesa_nome}: ${descreverChamado(c)}`);
+      notificarLocal(`${c.mesa_nome}: ${descreverChamado(c)}`, c.detalhe ?? 'Toque para ver.', `chamado-${c.id}`);
+    },
+    aoNovoAcesso: (a) => {
+      tocarChamado(r?.som_chamado);
+      notificarLocal(`${a.mesa_nome} quer fazer pedidos`, `${a.aparelho ?? 'Um aparelho'} pediu para abrir a mesa. Libere no sistema.`, `acesso-${a.id}`);
     },
   });
 
   // Chamado é obrigatório: enquanto ninguém marcar "Atendido", o toque repete a cada 30 s
   const somChamadoRef = useRef(r?.som_chamado);
   somChamadoRef.current = r?.som_chamado;
-  const haChamados = vivo.chamados.length > 0;
+  const haChamados = vivo.chamados.length > 0 || vivo.acessos.length > 0;
   useEffect(() => {
     if (!haChamados) return;
     const i = setInterval(() => tocarChamado(somChamadoRef.current), 30000);
@@ -256,6 +265,7 @@ export default function Painel() {
     papel,
     pedidos: vivo.pedidos,
     chamados: vivo.chamados,
+    acessos: vivo.acessos,
     conectado: vivo.conectado,
     carregando: vivo.carregando,
     recarregar: vivo.recarregar,
@@ -531,6 +541,15 @@ export default function Painel() {
           </div>
         </header>
 
+        <AcessosPendentes acessos={vivo.acessos} agora={agora} variante="painel" aoResponder={vivo.removerAcesso} />
+        {!desktop && permissaoNotif === 'default' && (
+          <div className="aviso-notif">
+            <BellRing size={18} />
+            <span><b>Receba os pedidos no canto da tela</b>, mesmo com o navegador minimizado.</span>
+            <button className="btn btn--sm btn--primario" onClick={() => void Notification.requestPermission().then(setPermissaoNotif)}>Ativar avisos</button>
+            <button className="icone-btn" onClick={() => setPermissaoNotif('denied')} aria-label="Agora não"><X size={16} /></button>
+          </div>
+        )}
         {vivo.chamados.length > 0 && (
           <div className="chamados">
             {vivo.chamados.map((c) => (

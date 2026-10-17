@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRightLeft, ConciergeBell, LayoutGrid, Plus, Printer, Receipt, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
+import { ArrowRightLeft, ConciergeBell, LayoutGrid, Plus, Printer, Receipt, RefreshCw, Smartphone, Tablet, Trash2, Wallet } from 'lucide-react';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { SeletorPagamento } from '../../componentes/Pagamento';
+import { iconeAparelho, responderAcesso } from '../../componentes/AcessosMesa';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Chamado, FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
+import type { Chamado, FormaPagamento, Mesa, MesaAcesso, Pedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 
 const linkMesa = (token: string) => `${window.location.origin}/mesa/${token}`;
 
 export default function Mesas() {
-  const { restaurante, papel, pedidos: aoVivo, chamados } = usePainel();
+  const { restaurante, papel, pedidos: aoVivo, chamados, acessos } = usePainel();
   const toast = useToast();
   const agora = useAgora(30000);
   const [mesas, setMesas] = useState<Mesa[]>([]);
@@ -77,6 +78,7 @@ export default function Mesas() {
             const ps = pedidosDa(m.id);
             const total = ps.reduce((s, p) => s + Number(p.total), 0);
             const cs = chamadosDa(m.id);
+            const pedindo = acessos.filter((a) => a.mesa_id === m.id).length;
             return (
               <button key={m.id} className={cx('mesa-card', ps.length > 0 && 'mesa-card--ocupada', !m.ativo && 'mesa-card--inativa')} onClick={() => setSelecionada(m)}>
                 <strong>{m.nome}</strong>
@@ -88,8 +90,11 @@ export default function Mesas() {
                 ) : (
                   <span className="mesa-card__info">{m.ativo ? 'Livre' : 'Desativada'}</span>
                 )}
-                {cs.length > 0 && (
+                {(cs.length > 0 || pedindo > 0) && (
                   <div className="mesa-card__alertas">
+                    {pedindo > 0 && (
+                      <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>
+                    )}
                     {cs.map((c) => (
                       <span key={c.id} className={`badge badge--icone ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
                         {c.tipo === 'conta' ? <Receipt size={13} /> : <ConciergeBell size={13} />} {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}
@@ -244,6 +249,8 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
         )}
       </section>
 
+      <AparelhosMesa mesa={mesa} />
+
       <section className="bloco">
         <h3>Tablet desta mesa</h3>
         <p className="muted" style={{ margin: 0, fontSize: '.9rem' }}>
@@ -347,5 +354,68 @@ function ModalNovaMesa({ restauranteId, sugestao, ordem, aoFechar, aoCriar }: {
         <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={40} autoFocus />
       </Campo>
     </Modal>
+  );
+}
+
+/** Aparelhos liberados (ou pedindo) para fazer pedidos nesta mesa. */
+function AparelhosMesa({ mesa }: { mesa: Mesa }) {
+  const toast = useToast();
+  const { acessos: pendentes } = usePainel();
+  const [lista, setLista] = useState<MesaAcesso[] | null>(null);
+
+  const carregar = useCallback(async () => {
+    const { data } = await supabase.from('mesa_acessos').select('*').eq('mesa_id', mesa.id)
+      .in('status', ['liberado', 'pendente']).order('criado_em');
+    setLista((data ?? []) as MesaAcesso[]);
+  }, [mesa.id]);
+  useEffect(() => { void carregar(); }, [carregar, pendentes]);
+
+  async function agir(a: MesaAcesso, acao: 'liberar' | 'fixo' | 'recusar' | 'desconectar') {
+    try {
+      if (acao === 'desconectar') {
+        const { error } = await supabase.rpc('mesa_acesso_encerrar', { p_acesso: a.id });
+        if (error) throw error;
+      } else {
+        await responderAcesso(a.id, acao !== 'recusar', acao === 'fixo');
+      }
+      void carregar();
+    } catch (e) {
+      toast(msgErro(e), 'erro');
+    }
+  }
+
+  return (
+    <section className="bloco">
+      <h3>Aparelhos que podem pedir</h3>
+      <p className="muted" style={{ margin: 0, fontSize: '.88rem' }}>
+        Quem abre o QR code só faz pedidos depois que alguém da equipe libera. Ao fechar a conta, os celulares perdem o acesso; o tablet fixo continua.
+      </p>
+      {lista && lista.length === 0 && <p className="aparelhos__vazio">Nenhum aparelho liberado. A mesa está fechada para pedidos.</p>}
+      {lista && lista.length > 0 && (
+        <ul className="aparelhos">
+          {lista.map((a) => (
+            <li key={a.id}>
+              <span className={cx('aparelhos__icone', a.status === 'pendente' && 'aparelhos__icone--pendente')}>{iconeAparelho(a.aparelho, 17)}</span>
+              <div className="aparelhos__texto">
+                <strong>{a.aparelho ?? 'Aparelho'}{a.fixo && <span className="badge badge--azul">Tablet fixo</span>}</strong>
+                <small>
+                  {a.status === 'pendente'
+                    ? `Pedindo para abrir · ${hora(a.criado_em)}`
+                    : `Liberado${a.respondido_por_nome ? ` por ${a.respondido_por_nome}` : ''}${a.respondido_em ? ` às ${hora(a.respondido_em)}` : ''}`}
+                </small>
+              </div>
+              {a.status === 'pendente' ? (
+                <div className="acoes-linha">
+                  <button className="btn btn--fantasma btn--sm" onClick={() => void agir(a, 'recusar')}>Recusar</button>
+                  <button className="btn btn--sucesso btn--sm" onClick={() => void agir(a, 'liberar')}>Liberar</button>
+                </div>
+              ) : (
+                <button className="btn btn--fantasma btn--sm" onClick={() => void agir(a, 'desconectar')}>Desconectar</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

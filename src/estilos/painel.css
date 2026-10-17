@@ -902,3 +902,75 @@
 .aviso-ok { display: flex; align-items: flex-start; gap: 8px; }
 .aviso-ok svg { flex: none; margin-top: 1px; color: var(--ok); }
 .pedido__obs-geral svg { flex: none; vertical-align: -2px; margin-right: 2px; }
+
+/* ---------- Mesas pedindo para abrir (liberação do garçom) ---------- */
+.acessos { display: grid; gap: 8px; }
+.acessos--painel { flex: none; padding: 0 28px 12px; }
+.acessos--garcom { margin: 12px 16px 0; }
+.acesso {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 10px 10px 10px 12px; border-radius: 14px;
+  background: color-mix(in srgb, var(--warn) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line));
+  animation: acesso-chega .35s ease-out;
+}
+@keyframes acesso-chega { from { opacity: 0; transform: translateY(-6px); } }
+.acesso__icone {
+  width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px;
+  background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn);
+}
+.acesso__texto { display: grid; gap: 1px; min-width: 0; }
+.acesso__texto strong { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acesso__texto small { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acesso__acoes { display: flex; align-items: center; gap: 6px; }
+.acesso__liberar {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: #16a34a; color: #fff; font: inherit; font-size: .88rem; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, .25);
+}
+.acesso__liberar:hover:not(:disabled) { filter: brightness(1.06); }
+.acesso__recusar {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+}
+.acesso__recusar:hover:not(:disabled) { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.acesso button:disabled { opacity: .6; cursor: progress; }
+.acesso__fixo {
+  grid-column: 1 / -1; justify-self: start; padding: 2px 0 0 50px; border: 0; background: none;
+  color: var(--muted); font: inherit; font-size: .8rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+/* No celular do garçom: botões grandes para o polegar */
+.acessos--garcom .acesso { grid-template-columns: auto minmax(0, 1fr); padding: 14px; }
+.acessos--garcom .acesso__texto strong, .acessos--garcom .acesso__texto small { white-space: normal; }
+.acessos--garcom .acesso__acoes { grid-column: 1 / -1; display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+.acessos--garcom .acesso__liberar { height: 48px; justify-content: center; font-size: 1rem; border-radius: 12px; }
+.acessos--garcom .acesso__recusar { width: 52px; height: 48px; border-radius: 12px; }
+.acessos--garcom .acesso__fixo { padding-left: 0; }
+
+/* Aviso para ativar notificações no navegador */
+.aviso-notif {
+  flex: none; display: flex; align-items: center; gap: 10px; margin: 0 28px 12px; padding: 10px 10px 10px 14px;
+  border-radius: 14px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--sombra); font-size: .9rem;
+}
+.aviso-notif > svg { flex: none; color: var(--acento, #ff5a1f); }
+.aviso-notif span { flex: 1; min-width: 0; }
+
+/* Aparelhos de uma mesa */
+.aparelhos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.aparelhos li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 10px 10px 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-2);
+}
+.aparelhos__icone { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.aparelhos__icone--pendente { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.aparelhos__texto { display: grid; min-width: 0; }
+.aparelhos__texto strong { display: flex; align-items: center; gap: 8px; font-size: .92rem; }
+.aparelhos__texto small { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aparelhos li .acoes-linha { flex-wrap: nowrap; }
+.aparelhos__vazio { margin: 0; padding: 12px; border-radius: 12px; border: 1px dashed var(--line-2); color: var(--muted); font-size: .88rem; text-align: center; }
+@media (max-width: 760px) {
+  .acessos--painel { padding: 0 16px 12px; }
+  .aviso-notif { margin: 0 16px 12px; }
+  .acessos--painel .acesso { grid-template-columns: auto minmax(0, 1fr); }
+  .acessos--painel .acesso__acoes { grid-column: 1 / -1; justify-content: flex-end; }
+}

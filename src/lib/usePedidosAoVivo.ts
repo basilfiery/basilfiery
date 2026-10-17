@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import type { Chamado, Pedido, StatusPedido } from './tipos';
+import type { Chamado, MesaAcesso, Pedido, StatusPedido } from './tipos';
 
 interface Eventos {
   aoNovoPedido?: (p: Pedido) => void;
   aoPedidoPronto?: (p: Pedido) => void;
   aoNovoChamado?: (c: Chamado) => void;
+  /** Uma mesa pediu para ser liberada (cliente quer fazer pedidos) */
+  aoNovoAcesso?: (a: MesaAcesso) => void;
 }
 
 const SELECT_PEDIDO = '*, pedido_itens(*)';
@@ -18,6 +20,7 @@ const SELECT_PEDIDO = '*, pedido_itens(*)';
 export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eventos = {}) {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [chamados, setChamados] = useState<Chamado[]>([]);
+  const [acessos, setAcessos] = useState<MesaAcesso[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [conectado, setConectado] = useState(false);
 
@@ -25,6 +28,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
   ev.current = eventos;
   const conhecidos = useRef(new Map<string, StatusPedido>());
   const chamadosConhecidos = useRef(new Set<string>());
+  const acessosConhecidos = useRef(new Set<string>());
   const semeado = useRef(false);
 
   const registrar = useCallback((lista: Pedido[], disparar: boolean) => {
@@ -40,7 +44,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
   const carregar = useCallback(async () => {
     if (!restauranteId) return;
     const desde = new Date(Date.now() - 16 * 3600e3).toISOString();
-    const [p, c] = await Promise.all([
+    const [p, c, a] = await Promise.all([
       supabase.from('pedidos').select(SELECT_PEDIDO)
         .eq('restaurante_id', restauranteId)
         .or(`criado_em.gte.${desde},status.in.(novo,preparando,pronto)`)
@@ -48,6 +52,10 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
       supabase.from('chamados').select('*')
         .eq('restaurante_id', restauranteId)
         .is('atendido_em', null)
+        .order('criado_em', { ascending: true }),
+      supabase.from('mesa_acessos').select('*')
+        .eq('restaurante_id', restauranteId)
+        .eq('status', 'pendente')
         .order('criado_em', { ascending: true }),
     ]);
     if (p.data) {
@@ -63,6 +71,14 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
       }
       setChamados(lista);
     }
+    if (a.data) {
+      const lista = a.data as MesaAcesso[];
+      for (const x of lista) {
+        if (semeado.current && !acessosConhecidos.current.has(x.id)) ev.current.aoNovoAcesso?.(x);
+        acessosConhecidos.current.add(x.id);
+      }
+      setAcessos(lista);
+    }
     semeado.current = true;
     setCarregando(false);
   }, [restauranteId, registrar]);
@@ -72,6 +88,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
     semeado.current = false;
     conhecidos.current.clear();
     chamadosConhecidos.current.clear();
+    acessosConhecidos.current.clear();
     setCarregando(true);
     void carregar();
 
@@ -106,6 +123,19 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
         const c = payload.new as Chamado;
         if (c.atendido_em) setChamados((lista) => lista.filter((x) => x.id !== c.id));
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mesa_acessos', filter: filtro }, (payload) => {
+        const a = payload.new as MesaAcesso;
+        if (a.status !== 'pendente') return;
+        if (!acessosConhecidos.current.has(a.id)) {
+          acessosConhecidos.current.add(a.id);
+          ev.current.aoNovoAcesso?.(a);
+        }
+        setAcessos((lista) => [...lista.filter((x) => x.id !== a.id), a]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mesa_acessos', filter: filtro }, (payload) => {
+        const a = payload.new as MesaAcesso;
+        if (a.status !== 'pendente') setAcessos((lista) => lista.filter((x) => x.id !== a.id));
+      })
       .subscribe((status) => {
         setConectado(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') void carregar();
@@ -135,5 +165,9 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
     setChamados((lista) => lista.filter((c) => c.id !== id));
   }, []);
 
-  return { pedidos, chamados, carregando, conectado, recarregar: carregar, atualizarPedido, removerChamado };
+  const removerAcesso = useCallback((id: string) => {
+    setAcessos((lista) => lista.filter((a) => a.id !== id));
+  }, []);
+
+  return { pedidos, chamados, acessos, carregando, conectado, recarregar: carregar, atualizarPedido, removerChamado, removerAcesso };
 }

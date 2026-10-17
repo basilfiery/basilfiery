@@ -6,6 +6,7 @@ import { Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
+import { AcessosPendentes } from '../../componentes/AcessosMesa';
 import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { PedidoCard } from '../../componentes/PedidoCard';
 import { useToast } from '../../componentes/Toast';
@@ -34,12 +35,13 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
     aoNovoPedido: () => tocarAlerta('pedido'),
     aoPedidoPronto: (p) => { tocarAlerta('pronto'); toast(`Pedido #${p.numero} pronto · ${p.mesa_nome}`, 'ok'); },
     aoNovoChamado: (c) => { tocarChamado(r?.som_chamado); toast(`${c.mesa_nome}: ${descreverChamado(c)}`, 'info'); },
+    aoNovoAcesso: (a) => { tocarChamado(r?.som_chamado); toast(`${a.mesa_nome} quer fazer pedidos. Libere a mesa.`, 'info'); },
   });
 
   // Chamado é obrigatório: o toque repete a cada 30 s até alguém marcar "Atendido"
   const somRef = useRef(r?.som_chamado);
   somRef.current = r?.som_chamado;
-  const haChamados = vivo.chamados.length > 0;
+  const haChamados = vivo.chamados.length > 0 || vivo.acessos.length > 0;
   useEffect(() => {
     if (!haChamados) return;
     const i = setInterval(() => tocarChamado(somRef.current), 30000);
@@ -141,6 +143,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
         </div>
       )}
 
+      {/* Mesas pedindo para abrir: o cliente só pede depois que o garçom libera */}
+      <AcessosPendentes acessos={vivo.acessos} agora={agora} variante="garcom" aoResponder={vivo.removerAcesso} />
       {/* Chamados ficam fixos no topo até alguém marcar "Atendido" */}
       {vivo.chamados.length > 0 && (
         <section className="garcom__chamados" aria-label="Mesas chamando">

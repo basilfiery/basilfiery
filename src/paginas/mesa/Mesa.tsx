@@ -1,10 +1,14 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, Citrus, ConciergeBell, Layers, Maximize, MessageCircleMore, Play, Plus, Receipt, ShoppingBag, Sparkles, Trash2, Utensils, UtensilsCrossed } from 'lucide-react';
+import {
+  CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Play, Plus, Receipt,
+  ShieldCheck, ShoppingBag, Sparkles, Star, Trash2, Utensils, UtensilsCrossed, XCircle,
+} from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
+import { descreverAparelho, idDispositivo } from '../../lib/dispositivo';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
@@ -29,10 +33,12 @@ interface ProdutoMesa {
   estoque_max: number | null;
 }
 
+interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null }
+
 interface DadosMesa {
   restaurante: { id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string };
   mesa: { id: string; nome: string };
-  categorias: { id: string; nome: string; emoji: string | null; pai_id?: string | null }[];
+  categorias: CategoriaMesa[];
   produtos: ProdutoMesa[];
 }
 
@@ -43,11 +49,33 @@ interface Conta {
   pedidos: { id: string; numero: number; status: StatusPedido; total: number; criado_em: string; itens: { nome: string; qtd: number; preco: number; obs: string | null }[] }[];
 }
 
+/** Situação deste aparelho: só pede depois que a equipe libera a mesa. */
+type Acesso = 'carregando' | 'equipe' | 'liberado' | 'pendente' | 'recusado' | 'nenhum';
+
+interface Secao extends CategoriaMesa { diretos: ProdutoMesa[]; subs: CategoriaMesa[]; total: number }
+
 const INATIVIDADE_MS = 5 * 60 * 1000;
+const DESTAQUES = '__destaques';
+const ehMesaFechada = (e: unknown) => /MESA_FECHADA/.test(msgErro(e));
+
+/** Altura real da tela (o 100vh dos iPhones antigos passa por baixo da barra do Safari). */
+function useAlturaTela() {
+  useEffect(() => {
+    const aplicar = () => document.documentElement.style.setProperty('--altura-tela', `${window.innerHeight}px`);
+    aplicar();
+    window.addEventListener('resize', aplicar);
+    window.addEventListener('orientationchange', aplicar);
+    return () => {
+      window.removeEventListener('resize', aplicar);
+      window.removeEventListener('orientationchange', aplicar);
+    };
+  }, []);
+}
 
 export default function Mesa() {
   const { token = '' } = useParams();
   const toast = useToast();
+  const dispositivo = useMemo(idDispositivo, []);
   const [dados, setDados] = useState<DadosMesa | null>(null);
   const [erro, setErro] = useState('');
   const [carrinho, setCarrinho] = useState<Linha[]>(() => ls.ler(`bf:carrinho:${token}`, []));
@@ -60,7 +88,16 @@ export default function Mesa() {
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState<number[] | null>(null);
   const [catAtiva, setCatAtiva] = useState('');
+  const [subAtiva, setSubAtiva] = useState('');
+  const [acesso, setAcesso] = useState<Acesso>('carregando');
+  const [verAbrir, setVerAbrir] = useState(false);
+  const [pedindoAcesso, setPedindoAcesso] = useState(false);
+  const acaoDepois = useRef<(() => void) | null>(null);
   const listaRef = useRef<HTMLDivElement>(null);
+  const catsRef = useRef<HTMLElement>(null);
+  useAlturaTela();
+
+  const podePedir = acesso === 'liberado' || acesso === 'equipe';
 
   const carregar = useCallback(async (silencioso = false) => {
     const { data, error } = await supabase.rpc('mesa_cardapio', { p_token: token });
@@ -80,6 +117,69 @@ export default function Mesa() {
 
   useEffect(() => ls.gravar(`bf:carrinho:${token}`, carrinho), [carrinho, token]);
 
+  /* ---------- Liberação da mesa ---------- */
+  const acessoRef = useRef<Acesso>('carregando');
+  const consultarAcesso = useCallback(async () => {
+    const { data, error } = await supabase.rpc('mesa_acesso_status', { p_token: token, p_dispositivo: dispositivo });
+    if (error) return;
+    const novo = data as Acesso;
+    const antes = acessoRef.current;
+    acessoRef.current = novo;
+    setAcesso(novo);
+    if (antes === 'carregando' && novo === 'nenhum') setVerAbrir(true); // boas-vindas: abrir a mesa
+    if (antes === 'pendente' && novo === 'liberado') {
+      toast('Mesa liberada! Já pode fazer seu pedido.', 'ok');
+      setVerAbrir(false);
+      const acao = acaoDepois.current;
+      acaoDepois.current = null;
+      acao?.();
+    }
+    if (antes === 'liberado' && novo === 'nenhum') toast('A conta desta mesa foi fechada. Obrigado pela visita!', 'info');
+  }, [token, dispositivo, toast]);
+
+  useEffect(() => {
+    void consultarAcesso();
+    // Esperando o garçom: confere rápido; depois, de tempos em tempos (a conta pode ter sido fechada)
+    const i = setInterval(() => void consultarAcesso(), acesso === 'pendente' ? 3000 : 20000);
+    const aoVoltar = () => document.visibilityState === 'visible' && void consultarAcesso();
+    document.addEventListener('visibilitychange', aoVoltar);
+    return () => {
+      clearInterval(i);
+      document.removeEventListener('visibilitychange', aoVoltar);
+    };
+  }, [consultarAcesso, acesso]);
+
+  async function pedirAbertura() {
+    setPedindoAcesso(true);
+    const { data, error } = await supabase.rpc('mesa_acesso_pedir', {
+      p_token: token, p_dispositivo: dispositivo, p_aparelho: descreverAparelho(),
+    });
+    setPedindoAcesso(false);
+    if (error) return toast(msgErro(error), 'erro');
+    acessoRef.current = data as Acesso;
+    setAcesso(data as Acesso);
+    if (data === 'liberado' || data === 'equipe') {
+      setVerAbrir(false);
+      const acao = acaoDepois.current;
+      acaoDepois.current = null;
+      acao?.();
+    }
+  }
+
+  /** Ações que só valem com a mesa liberada (pedir, chamar, ver a conta). */
+  function exigirMesaAberta(acao: () => void) {
+    if (podePedir) return acao();
+    acaoDepois.current = acao;
+    setVerAbrir(true);
+  }
+
+  const mesaFechou = () => {
+    acessoRef.current = 'nenhum';
+    setAcesso('nenhum');
+    setVerAbrir(true);
+  };
+
+  /* ---------- Carrinho ---------- */
   const porId = useMemo(() => new Map((dados?.produtos ?? []).map((p) => [p.id, p])), [dados]);
 
   // Tira do carrinho o que esgotou ou saiu do cardápio
@@ -119,6 +219,8 @@ export default function Mesa() {
       setVerCarrinho(false);
       setVerConta(false);
       setConfirmar(false);
+      setCatAtiva('');
+      setSubAtiva('');
       listaRef.current?.scrollTo({ top: 0 });
     }, 30000);
     return () => {
@@ -167,14 +269,19 @@ export default function Mesa() {
 
   async function enviar() {
     setEnviando(true);
-    const { data, error } = await supabase.rpc('mesa_criar_pedido', {
+    const { data, error } = await supabase.rpc('mesa_pedido_enviar', {
       p_token: token,
+      p_dispositivo: dispositivo,
       p_itens: carrinho.map((l) => ({ produto_id: l.produto_id, qtd: l.qtd, obs: l.obs })),
       p_obs: obsPedido,
     });
     setEnviando(false);
     setConfirmar(false);
     if (error) {
+      if (ehMesaFechada(error)) {
+        acaoDepois.current = () => setConfirmar(true);
+        return mesaFechou();
+      }
       toast(msgErro(error), 'erro');
       void carregar(true);
       return;
@@ -188,29 +295,24 @@ export default function Mesa() {
   }
 
   async function chamar(tipo: 'garcom' | 'conta', motivo?: string, detalhe?: string) {
-    const { error } = await supabase.rpc('mesa_chamar', { p_token: token, p_tipo: tipo, p_motivo: motivo ?? null, p_detalhe: detalhe ?? null });
+    const { error } = await supabase.rpc('mesa_chamado_enviar', {
+      p_token: token, p_dispositivo: dispositivo, p_tipo: tipo, p_motivo: motivo ?? null, p_detalhe: detalhe ?? null,
+    });
     if (error) {
-      toast(msgErro(error), 'erro');
+      if (ehMesaFechada(error)) mesaFechou();
+      else toast(msgErro(error), 'erro');
       return false;
     }
     toast(tipo === 'conta' ? 'Pedimos a sua conta! Já já alguém vem até a mesa.' : 'Garçom chamado! Já já alguém vem até você.', 'ok');
     return true;
   }
 
-  function irPara(catId: string) {
-    const lista = listaRef.current;
-    const alvo = document.getElementById(`cat-${catId}`);
-    if (lista && alvo) lista.scrollTo({ top: alvo.offsetTop - 12, behavior: 'smooth' });
-  }
-
-  function aoRolar() {
-    const lista = listaRef.current;
-    if (!lista) return;
-    const secoes = lista.querySelectorAll<HTMLElement>('[data-cat]');
-    const limite = lista.getBoundingClientRect().top + 120;
-    let atual = secoes[0]?.dataset.cat ?? '';
-    secoes.forEach((s) => { if (s.getBoundingClientRect().top <= limite) atual = s.dataset.cat!; });
-    if (atual !== catAtiva) setCatAtiva(atual);
+  function escolherCategoria(id: string) {
+    setCatAtiva(id);
+    setSubAtiva('');
+    listaRef.current?.scrollTo({ top: 0 });
+    // No celular, deixa a categoria escolhida visível na barra
+    catsRef.current?.querySelector<HTMLElement>(`[data-cat="${id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   }
 
   const telaCheia = () => {
@@ -222,7 +324,7 @@ export default function Mesa() {
     return (
       <div className="mesa-erro">
         <span className="mesa-erro__icone"><UtensilsCrossed size={44} strokeWidth={1.5} /></span>
-        <h1 className="titulo">Ops, este tablet não está pronto</h1>
+        <h1 className="titulo">Ops, este cardápio não abriu</h1>
         <p>{erro}</p>
         <p className="muted">Por favor, chame um atendente.</p>
         <button className="btn btn--primario btn--lg" onClick={() => void carregar()}>Tentar de novo</button>
@@ -236,10 +338,20 @@ export default function Mesa() {
   const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
   const produtosDe = (id: string) => produtos.filter((p) => p.categoria_id === id);
   const subsDe = (id: string) => categorias.filter((c) => c.pai_id === id && produtosDe(c.id).length > 0);
-  const secoes = principais
-    .map((c) => ({ ...c, diretos: produtosDe(c.id), subs: subsDe(c.id) }))
-    .filter((c) => c.diretos.length > 0 || c.subs.length > 0);
-  const ativa = catAtiva || secoes[0]?.id;
+  const destaques = produtos.filter((p) => p.destaque);
+  const secoes: Secao[] = [
+    ...(destaques.length ? [{ id: DESTAQUES, nome: 'Mais pedidos', emoji: null, diretos: destaques, subs: [], total: destaques.length }] : []),
+    ...principais
+      .map((c) => {
+        const subs = subsDe(c.id);
+        const diretos = produtosDe(c.id);
+        return { ...c, diretos, subs, total: diretos.length + subs.reduce((s, x) => s + produtosDe(x.id).length, 0) };
+      })
+      .filter((c) => c.total > 0),
+  ];
+  const secao = secoes.find((c) => c.id === catAtiva) ?? secoes[0];
+  const emojiCat = (c: { id: string; emoji: string | null }) =>
+    c.id === DESTAQUES ? <Star size={18} fill="currentColor" /> : c.emoji;
 
   const grade = (lista: ProdutoMesa[]) => (
     <div className="mesa__grade">
@@ -252,15 +364,17 @@ export default function Mesa() {
             disabled={!p.disponivel}
             onClick={() => setProdutoAberto(p)}
           >
-            {p.capa === 'video' && p.video_url
-              ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" />
-              : <FotoProduto p={p} classe="prod__foto" />}
-            {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={14} fill="currentColor" /> Vídeo</span>}
-            {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
-            {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
+            <div className="prod__midia">
+              {p.capa === 'video' && p.video_url
+                ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" />
+                : <FotoProduto p={p} classe="prod__foto" />}
+              {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
+              {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
+              {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
+            </div>
             <div className="prod__info">
               <h3>{p.nome}</h3>
-              <p>{p.descricao}</p>
+              {p.descricao && <p>{p.descricao}</p>}
               <Selos p={p} />
               <div className="prod__rodape">
                 <strong>{brl(p.preco)}</strong>
@@ -309,8 +423,8 @@ export default function Mesa() {
       )}
       <div className="carrinho__rodape">
         <div className="carrinho__total"><span>Total</span><strong>{brl(total)}</strong></div>
-        <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length} onClick={() => setConfirmar(true)}>
-          Enviar pedido
+        <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length} onClick={() => exigirMesaAberta(() => setConfirmar(true))}>
+          {podePedir ? 'Enviar pedido' : <><Lock size={18} /> Enviar pedido</>}
         </button>
         {carrinho.length > 0 && (
           <button className="btn btn--fantasma btn--sm btn--bloco" onClick={() => setCarrinho([])}>
@@ -321,8 +435,10 @@ export default function Mesa() {
     </div>
   );
 
+  const podeTelaCheia = typeof document !== 'undefined' && !!document.fullscreenEnabled;
+
   return (
-    <div className="mesa" style={{ '--acento': restaurante.cor } as CSSProperties}>
+    <div className={cx('mesa', qtdItens > 0 && 'mesa--com-carrinho')} style={{ '--acento': restaurante.cor } as CSSProperties}>
       <header className="mesa__topo">
         <div className="mesa__marca">
           {restaurante.logo_url
@@ -334,56 +450,85 @@ export default function Mesa() {
           </div>
         </div>
         <div className="mesa__acoes">
-          <button className="btn btn--contorno" onClick={() => setVerChamado(true)}>
+          <button className="btn btn--contorno mesa__acao" onClick={() => exigirMesaAberta(() => setVerChamado(true))} aria-label="Chamar garçom">
             <ConciergeBell size={20} /> <span className="mesa__rotulo">Chamar garçom</span>
           </button>
-          <button className="btn btn--contorno" onClick={() => setVerConta(true)}>
+          <button className="btn btn--contorno mesa__acao" onClick={() => exigirMesaAberta(() => setVerConta(true))} aria-label="Minha conta">
             <Receipt size={20} /> <span className="mesa__rotulo">Minha conta</span>
           </button>
-          <button className="icone-btn" onClick={telaCheia} aria-label="Tela cheia" title="Tela cheia">
-            <Maximize size={20} />
-          </button>
+          {podeTelaCheia && (
+            <button className="icone-btn mesa__tela-cheia" onClick={telaCheia} aria-label="Tela cheia" title="Tela cheia">
+              <Maximize size={20} />
+            </button>
+          )}
         </div>
       </header>
 
+      <FaixaAcesso acesso={acesso} mesa={mesa.nome} aoAbrir={() => setVerAbrir(true)} />
+
       <div className="mesa__corpo">
-        <nav className="mesa__cats" aria-label="Categorias">
+        <nav className="mesa__cats" aria-label="Categorias" ref={catsRef}>
           {secoes.map((c) => (
-            <Fragment key={c.id}>
-              <button className={cx('mesa__cat', ativa === c.id && 'ativa')} onClick={() => irPara(c.id)}>
-                <span className="mesa__cat-emoji">{c.emoji}</span> {c.nome}
-              </button>
-              {ativa === c.id && c.subs.map((sub) => (
-                <button key={sub.id} className="mesa__subcat" onClick={() => irPara(sub.id)}>
-                  {sub.emoji} {sub.nome}
-                </button>
-              ))}
-            </Fragment>
+            <button
+              key={c.id}
+              data-cat={c.id}
+              className={cx('mesa__cat', secao?.id === c.id && 'ativa')}
+              onClick={() => escolherCategoria(c.id)}
+              aria-current={secao?.id === c.id ? 'true' : undefined}
+            >
+              <span className="mesa__cat-emoji" aria-hidden="true">{emojiCat(c)}</span>
+              <span className="mesa__cat-nome">{c.nome}</span>
+              <span className="mesa__cat-qtd">{c.total}</span>
+            </button>
           ))}
         </nav>
 
-        <main className="mesa__lista" ref={listaRef} onScroll={aoRolar}>
-          {restaurante.slogan && <p className="mesa__slogan">{restaurante.slogan}</p>}
-          {secoes.map((c) => (
-            <section key={c.id} id={`cat-${c.id}`} data-cat={c.id} className="mesa__secao">
-              <h2 className="titulo">{c.emoji} {c.nome}</h2>
-              {c.subs.length > 0 && (
-                <div className="mesa__chips" role="navigation" aria-label={`Tipos de ${c.nome}`}>
-                  {c.subs.map((sub) => (
-                    <button key={sub.id} className="mesa__chip" onClick={() => irPara(sub.id)}>{sub.emoji} {sub.nome}</button>
+        <main className="mesa__lista" ref={listaRef}>
+          {secao ? (
+            <section key={secao.id} className="mesa__secao">
+              <header className="mesa__secao-cab">
+                <h2 className="titulo">
+                  <span className="mesa__secao-emoji" aria-hidden="true">{emojiCat(secao)}</span> {secao.nome}
+                </h2>
+                <span>{secao.total} {secao.total === 1 ? 'opção' : 'opções'}</span>
+              </header>
+              {secao.subs.length > 0 && (
+                <div className="mesa__chips" role="tablist" aria-label={`Tipos de ${secao.nome}`}>
+                  <button role="tab" aria-selected={!subAtiva} className={cx('mesa__chip', !subAtiva && 'ativo')} onClick={() => setSubAtiva('')}>Tudo</button>
+                  {secao.subs.map((sub) => (
+                    <button key={sub.id} role="tab" aria-selected={subAtiva === sub.id} className={cx('mesa__chip', subAtiva === sub.id && 'ativo')} onClick={() => setSubAtiva(sub.id)}>
+                      {sub.emoji} {sub.nome}
+                    </button>
                   ))}
                 </div>
               )}
-              {c.diretos.length > 0 && grade(c.diretos)}
-              {c.subs.map((sub) => (
-                <div key={sub.id} id={`cat-${sub.id}`} className="mesa__sub">
-                  <h3 className="titulo">{sub.emoji} {sub.nome}</h3>
-                  {grade(produtosDe(sub.id))}
-                </div>
-              ))}
+              {subAtiva ? grade(produtosDe(subAtiva)) : (
+                <>
+                  {secao.diretos.length > 0 && grade(secao.diretos)}
+                  {secao.subs.map((sub) => (
+                    <div key={sub.id} className="mesa__sub">
+                      <h3 className="titulo">{sub.emoji} {sub.nome}</h3>
+                      {grade(produtosDe(sub.id))}
+                    </div>
+                  ))}
+                </>
+              )}
+              {/* Próxima categoria: o cliente não fica preso no fim da lista */}
+              {(() => {
+                const i = secoes.findIndex((c) => c.id === secao.id);
+                const prox = secoes[i + 1];
+                return prox ? (
+                  <button className="mesa__proxima" onClick={() => escolherCategoria(prox.id)}>
+                    <span>Ver a seguir</span>
+                    <strong>{emojiCat(prox)} {prox.nome}</strong>
+                    <ChevronRight size={20} />
+                  </button>
+                ) : null;
+              })()}
             </section>
-          ))}
-          {produtos.length === 0 && <p className="vazio">O cardápio ainda está sendo preparado. Chame um atendente.</p>}
+          ) : (
+            <p className="vazio">O cardápio ainda está sendo preparado. Chame um atendente.</p>
+          )}
         </main>
 
         <aside className="mesa__carrinho">{painelCarrinho}</aside>
@@ -442,7 +587,15 @@ export default function Mesa() {
         {obsPedido && <p className="muted">Obs.: {obsPedido}</p>}
       </Modal>
 
-      {verConta && <ModalConta token={token} aoFechar={() => setVerConta(false)} aoPedirConta={() => void chamar('conta')} />}
+      {verConta && (
+        <ModalConta
+          token={token}
+          dispositivo={dispositivo}
+          aoFechar={() => setVerConta(false)}
+          aoPedirConta={() => void chamar('conta')}
+          aoMesaFechada={() => { setVerConta(false); mesaFechou(); }}
+        />
+      )}
 
       {verChamado && (
         <ModalChamarGarcom
@@ -451,8 +604,88 @@ export default function Mesa() {
         />
       )}
 
+      {verAbrir && acesso !== 'carregando' && !podePedir && (
+        <ModalAbrirMesa
+          acesso={acesso}
+          mesa={mesa.nome}
+          restaurante={restaurante.nome}
+          enviando={pedindoAcesso}
+          aoPedir={() => void pedirAbertura()}
+          aoFechar={() => { setVerAbrir(false); if (acesso !== 'pendente') acaoDepois.current = null; }}
+        />
+      )}
+
       {sucesso !== null && <TelaSucesso numeros={sucesso} aoFechar={() => setSucesso(null)} />}
     </div>
+  );
+}
+
+/** Faixa no topo enquanto a mesa não está liberada para este aparelho. */
+function FaixaAcesso({ acesso, mesa, aoAbrir }: { acesso: Acesso; mesa: string; aoAbrir: () => void }) {
+  if (acesso === 'liberado' || acesso === 'equipe' || acesso === 'carregando') return null;
+  if (acesso === 'pendente') {
+    return (
+      <button className="faixa-acesso faixa-acesso--pendente" onClick={aoAbrir}>
+        <span className="faixa-acesso__pulso" aria-hidden="true" />
+        <span><b>Aguardando o garçom liberar a {mesa}.</b> Enquanto isso, vá escolhendo.</span>
+      </button>
+    );
+  }
+  return (
+    <button className={cx('faixa-acesso', acesso === 'recusado' && 'faixa-acesso--recusado')} onClick={aoAbrir}>
+      <Lock size={16} />
+      <span>
+        {acesso === 'recusado'
+          ? <><b>Mesa não liberada.</b> Se você está no restaurante, chame um atendente.</>
+          : <><b>Mesa fechada para pedidos.</b> Toque para abrir.</>}
+      </span>
+      <ChevronRight size={18} />
+    </button>
+  );
+}
+
+/** Boas-vindas e liberação: o cliente pede, o garçom confirma que ele está mesmo no restaurante. */
+function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar }: {
+  acesso: Acesso;
+  mesa: string;
+  restaurante: string;
+  enviando: boolean;
+  aoPedir: () => void;
+  aoFechar: () => void;
+}) {
+  return (
+    <Modal aberto aoFechar={aoFechar} classe="mesa-modal abrir-mesa" largura={460}>
+      {acesso === 'pendente' ? (
+        <div className="abrir-mesa__conteudo">
+          <span className="abrir-mesa__icone abrir-mesa__icone--espera"><Hourglass size={34} /></span>
+          <h2 className="titulo">Pedido enviado ao garçom</h2>
+          <p>Assim que ele liberar a <b>{mesa}</b>, você já pode pedir. Leva só um instante.</p>
+          <div className="abrir-mesa__espera" aria-live="polite"><span /><span /><span /></div>
+          <button className="btn btn--contorno btn--lg btn--bloco" onClick={aoFechar}>Escolher enquanto espero</button>
+        </div>
+      ) : acesso === 'recusado' ? (
+        <div className="abrir-mesa__conteudo">
+          <span className="abrir-mesa__icone abrir-mesa__icone--recusado"><XCircle size={36} /></span>
+          <h2 className="titulo">A mesa não foi liberada</h2>
+          <p>Se você está no restaurante, chame um atendente para liberar a <b>{mesa}</b>.</p>
+          <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
+            {enviando ? 'Enviando…' : 'Pedir de novo'}
+          </button>
+          <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>
+        </div>
+      ) : (
+        <div className="abrir-mesa__conteudo">
+          <span className="abrir-mesa__icone"><ShieldCheck size={36} /></span>
+          <p className="abrir-mesa__sobre">{restaurante}</p>
+          <h2 className="titulo">Bem-vindo à {mesa}!</h2>
+          <p>Para fazer pedidos, o garçom libera a sua mesa. É rapidinho e garante que só quem está aqui consegue pedir.</p>
+          <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
+            {enviando ? 'Enviando…' : 'Abrir a mesa'}
+          </button>
+          <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -570,22 +803,32 @@ function ModalChamarGarcom({ aoFechar, aoChamar }: { aoFechar: () => void; aoCha
   );
 }
 
-function ModalConta({ token, aoFechar, aoPedirConta }: { token: string; aoFechar: () => void; aoPedirConta: () => void }) {
+function ModalConta({ token, dispositivo, aoFechar, aoPedirConta, aoMesaFechada }: {
+  token: string;
+  dispositivo: string;
+  aoFechar: () => void;
+  aoPedirConta: () => void;
+  aoMesaFechada: () => void;
+}) {
   const [conta, setConta] = useState<Conta | null>(null);
   const [erro, setErro] = useState('');
+  const fechadaRef = useRef(aoMesaFechada);
+  fechadaRef.current = aoMesaFechada;
 
   useEffect(() => {
     let vivo = true;
     const carregar = async () => {
-      const { data, error } = await supabase.rpc('mesa_conta', { p_token: token });
+      const { data, error } = await supabase.rpc('mesa_conta_ver', { p_token: token, p_dispositivo: dispositivo });
       if (!vivo) return;
-      if (error) setErro(msgErro(error));
-      else setConta(data as Conta);
+      if (error) {
+        if (ehMesaFechada(error)) fechadaRef.current();
+        else setErro(msgErro(error));
+      } else setConta(data as Conta);
     };
     void carregar();
     const i = setInterval(() => void carregar(), 10000);
     return () => { vivo = false; clearInterval(i); };
-  }, [token]);
+  }, [token, dispositivo]);
 
   return (
     <Modal

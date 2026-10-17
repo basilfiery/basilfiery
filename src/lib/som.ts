@@ -134,11 +134,17 @@ export function tocarChamado(som: SomChamado | string | null | undefined = 'camp
   if (!teste && 'vibrate' in navigator) navigator.vibrate?.([200, 100, 200, 100, 300]);
 }
 
-/** Notificação do sistema quando a aba está em segundo plano (PC do caixa). */
-export function notificarLocal(titulo: string, corpo = '') {
-  if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return;
+/**
+ * Notificação na área de trabalho (canto da tela do Windows).
+ * No programa BasilFiery aparece sempre, como no Anota AI; no navegador, quando a aba não está na frente.
+ */
+export function notificarLocal(titulo: string, corpo = '', tag?: string) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const desktop = !!programaDesktop();
+  if (!desktop && !document.hidden && document.hasFocus()) return;
   try {
-    const n = new Notification(titulo, { body: corpo, icon: '/icone-192.png' });
+    // silent: o próprio sistema já toca o som escolhido (evita dois sons juntos)
+    const n = new Notification(titulo, { body: corpo, icon: '/icone-192.png', tag, silent: true });
     n.onclick = () => {
       const desktop = programaDesktop();
       if (desktop) void desktop.mostrar();

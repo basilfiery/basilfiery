@@ -172,3 +172,20 @@ export interface MovimentoEstoque {
   criado_em: string;
   produto?: { nome: string } | null;
 }
+
+export type StatusAcesso = 'pendente' | 'liberado' | 'recusado' | 'encerrado';
+
+/** Aparelho (celular/tablet do cliente) pedindo ou com acesso para pedir numa mesa. */
+export interface MesaAcesso {
+  id: string;
+  restaurante_id: string;
+  mesa_id: string;
+  mesa_nome: string;
+  dispositivo: string;
+  aparelho: string | null;
+  status: StatusAcesso;
+  fixo: boolean;
+  criado_em: string;
+  respondido_em: string | null;
+  respondido_por_nome: string | null;
+}

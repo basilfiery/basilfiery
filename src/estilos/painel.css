@@ -404,7 +404,7 @@
 .mesa-card__info { color: var(--muted); font-size: .82rem; }
 .mesa-card__alertas { display: flex; flex-wrap: wrap; gap: 4px; }
 
-.bloco { display: grid; gap: 10px; padding: 16px 0; border-top: 1px solid var(--line); }
+.bloco { display: grid; gap: 10px; min-width: 0; padding: 16px 0; border-top: 1px solid var(--line); }
 .bloco:first-child { border-top: 0; padding-top: 0; }
 .bloco h3 { margin: 0; font-size: .95rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
 .linhas-conta { list-style: none; margin: 0; padding: 0; }
@@ -417,7 +417,7 @@
 .dica-mesas { display: flex; align-items: center; gap: 8px; margin: -6px 0 0; color: var(--muted); font-size: .9rem; }
 .dica-mesas svg { flex: none; color: var(--acento); }
 .lista-links { list-style: none; margin: 0; padding: 0; }
-.lista-links li { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.lista-links li { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .lista-links li:last-child { border-bottom: 0; }
 .lista-links strong { min-width: 80px; }
 .lista-links code { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--line); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -842,3 +842,17 @@
 .troca-mesa--ocupada small { color: var(--warn); }
 .troca-mesa:hover:not(:disabled) { border-color: var(--acento, #ff5a1f); }
 .troca-mesa:disabled { opacity: .6; cursor: progress; }
+
+/* Card do app do garçom */
+.garcons__acesso { gap: 18px; }
+.garcons__acesso-cab { display: grid; gap: 4px; }
+.garcons__acesso-cab .card__titulo { margin: 0; }
+.garcons__acesso-cab p { margin: 0; color: var(--muted); font-size: .86rem; }
+.passos { list-style: none; margin: 0; padding: 14px 0 0; display: grid; gap: 12px; border-top: 1px solid var(--line); }
+.passos li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; font-size: .9rem; }
+.passos li > span {
+  width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--surface-2); color: var(--text); font-size: .78rem; font-weight: 700;
+}
+.passos li > div { padding-top: 3px; line-height: 1.4; }
+.passos small { display: block; margin-top: 1px; color: var(--muted); font-size: .8rem; }

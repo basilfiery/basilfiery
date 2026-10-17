@@ -1,8 +1,8 @@
 {
   "name": "BasilFiery",
   "short_name": "BasilFiery",
-  "description": "Pedidos da mesa direto no seu celular.",
-  "start_url": "/garcom",
+  "description": "Gestão de pedidos do restaurante.",
+  "start_url": "/painel",
   "scope": "/",
   "display": "standalone",
   "background_color": "#121010",

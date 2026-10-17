@@ -16,6 +16,8 @@ const Site = tela(() => import('./paginas/site/Site'));
 const Login = tela(() => import('./paginas/Login'));
 const Mesa = tela(() => import('./paginas/mesa/Mesa'));
 const Garcom = tela(() => import('./paginas/garcom/Garcom'));
+const AppGarcom = tela(() => import('./paginas/garcom/AppGarcom'));
+const AppGarcomInicio = tela(() => import('./paginas/garcom/AppGarcom').then((m) => ({ default: m.AppGarcomInicio })));
 const Plataforma = tela(() => import('./paginas/plataforma/Plataforma'));
 const Painel = tela(() => import('./paginas/painel/Painel'));
 const Pedidos = tela(() => import('./paginas/painel/Pedidos'));
@@ -34,6 +36,8 @@ export default function App() {
         <Route path="/" element={<Site />} />
         <Route path="/login" element={<Login />} />
         <Route path="/mesa/:token" element={<Mesa />} />
+        <Route path="/g" element={<AppGarcomInicio />} />
+        <Route path="/g/:codigo" element={<AppGarcom />} />
         <Route path="/garcom" element={<ExigeLogin><Garcom /></ExigeLogin>} />
         <Route path="/plataforma" element={<Plataforma />} />
         <Route path="/painel" element={<ExigeLogin><Painel /></ExigeLogin>}>

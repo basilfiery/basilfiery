@@ -1,0 +1,102 @@
+/* ---------- App do garçom: tela de entrada (link próprio /g/<código>) ---------- */
+.app-g {
+  --acento: var(--fire);
+  position: relative; isolation: isolate;
+  min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  background: #0f0d0c; color: #f6efe8; overflow: hidden;
+}
+/* Brilho suave na cor do restaurante */
+.app-g::before {
+  content: ''; position: absolute; z-index: -1; inset: -30% -20% auto; height: 70%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--acento) 34%, transparent), transparent);
+  filter: blur(10px); opacity: .9;
+}
+.app-g::after {
+  content: ''; position: absolute; z-index: -1; inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, #000, transparent 70%);
+}
+
+.app-g__cartao {
+  width: 100%; max-width: 400px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 32px 22px 24px; border-radius: 28px;
+  background: linear-gradient(180deg, rgba(36, 31, 28, .88), rgba(24, 20, 18, .92));
+  border: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .06);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  animation: app-g-entra .5s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes app-g-entra { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+
+.app-g__marca {
+  width: 84px; height: 84px; margin-bottom: 16px; border-radius: 24px; overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--acento); color: #fff; font: 700 2.2rem/1 var(--titulo);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--acento) 40%, transparent), 0 0 0 4px rgba(255, 255, 255, .06);
+}
+.app-g__marca img { width: 100%; height: 100%; object-fit: cover; background: #fff; }
+
+.app-g__selo {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
+  background: color-mix(in srgb, var(--acento) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento) 40%, transparent);
+  color: color-mix(in srgb, var(--acento) 55%, #fff);
+  font-size: .78rem; font-weight: 700; letter-spacing: .02em;
+}
+.app-g h1 { margin: 12px 0 6px; font: 600 1.7rem/1.15 var(--titulo); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.app-g__sub { margin: 0 0 22px; color: #b3a69b; font-size: .95rem; line-height: 1.5; }
+.app-g__sub b { color: #f6efe8; }
+
+.app-g__form { width: 100%; display: grid; gap: 14px; text-align: left; }
+.app-g__campo { display: grid; gap: 7px; }
+.app-g__campo > span { font-size: .82rem; font-weight: 600; color: #cfc3b8; }
+.app-g__entrada {
+  display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 6px 0 14px; border-radius: 15px;
+  background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 255, 255, .1); color: #8a7e74;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.app-g__entrada:focus-within {
+  border-color: var(--acento); background: rgba(0, 0, 0, .36);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--acento) 22%, transparent);
+  color: color-mix(in srgb, var(--acento) 60%, #fff);
+}
+.app-g__entrada svg { flex: none; }
+.app-g__entrada input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
+  color: #f6efe8; font: inherit; font-size: 1rem;
+}
+.app-g__entrada input::placeholder { color: #6f645b; }
+.app-g__olho {
+  flex: none; width: 42px; height: 42px; display: grid; place-items: center; border: 0; border-radius: 11px;
+  background: transparent; color: #8a7e74; cursor: pointer;
+}
+.app-g__olho:hover { background: rgba(255, 255, 255, .06); color: #f6efe8; }
+
+.app-g__erro {
+  margin: 0; padding: 10px 12px; border-radius: 12px; font-size: .88rem;
+  background: rgba(255, 107, 107, .1); border: 1px solid rgba(255, 107, 107, .3); color: #ff9d9d;
+}
+.app-g__botao {
+  width: 100%; height: 56px; margin-top: 4px; border: 0; border-radius: 16px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--acento); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 700;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--acento) 38%, transparent), inset 0 1px 0 rgba(255, 255, 255, .2);
+  transition: transform .12s, filter .15s, opacity .15s;
+}
+.app-g__botao:hover { filter: brightness(1.06); }
+.app-g__botao:active { transform: scale(.98); }
+.app-g__botao:disabled { opacity: .7; cursor: progress; }
+.app-g__botao--secundario {
+  margin-top: 12px; height: 50px; font-size: .95rem; box-shadow: none;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); color: #f6efe8;
+}
+.app-g__ajuda { margin: 18px 0 0; color: #8a7e74; font-size: .85rem; }
+.app-g__rodape { margin-top: 22px; color: #5f554d; font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+
+@media (max-width: 380px) {
+  .app-g__cartao { padding: 26px 16px 20px; border-radius: 24px; }
+  .app-g h1 { font-size: 1.5rem; }
+}

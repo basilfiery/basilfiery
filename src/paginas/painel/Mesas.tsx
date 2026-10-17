@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import QRCode from 'qrcode';
-import { ArrowRightLeft, Copy, ExternalLink, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
+import { ArrowRightLeft, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
+import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
@@ -147,7 +147,6 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const toast = useToast();
   const { caixa, abrirCaixa, recarregarCaixa } = usePainel();
   const caixaAberto = !!caixa;
-  const [qr, setQr] = useState('');
   const [nome, setNome] = useState(mesa.nome);
   const [token, setToken] = useState(mesa.token);
   const [ativo, setAtivo] = useState(mesa.ativo);
@@ -155,10 +154,6 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const [trocando, setTrocando] = useState(false);
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
   const link = linkMesa(token);
-
-  useEffect(() => {
-    void QRCode.toDataURL(link, { width: 360, margin: 1 }).then(setQr);
-  }, [link]);
 
   async function fecharConta(forma: FormaPagamento) {
     if (!confirm(`Receber ${brl(total)} no ${rotuloForma(forma)} e liberar a ${mesa.nome}?`)) return;
@@ -198,15 +193,6 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
     aoMudar();
     aoFechar();
   }
-
-  const copiar = async () => {
-    try {
-      await navigator.clipboard.writeText(link);
-      toast('Link copiado!', 'ok');
-    } catch {
-      toast('Não foi possível copiar. Selecione o link manualmente.', 'erro');
-    }
-  };
 
   return (
     <Modal aberto aoFechar={aoFechar} titulo={mesa.nome} largura={560}>
@@ -272,12 +258,8 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
         <p className="muted" style={{ margin: 0, fontSize: '.9rem' }}>
           Abra este link no tablet da mesa (ou leia o QR code com a câmera dele) e deixe a tela aberta.
         </p>
-        <div className="link-mesa">
-          <code title={link}>{link}</code>
-          <button className="icone-btn" onClick={() => void copiar()} title="Copiar" aria-label="Copiar link"><Copy size={18} /></button>
-          <a className="icone-btn" href={link} target="_blank" rel="noopener" title="Abrir" aria-label="Abrir cardápio da mesa"><ExternalLink size={18} /></a>
-        </div>
-        {qr && <img className="qr" src={qr} alt={`QR code do cardápio da ${mesa.nome}`} />}
+        <LinkCopiavel link={link} />
+        <QrCartao link={link} legenda={`Cardápio da ${mesa.nome}`} arquivo={`qr-${mesa.nome.toLowerCase().replace(/\s+/g, '-')}`} />
       </section>
 
       {gestor && (
@@ -320,16 +302,6 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
 }
 
 function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }) {
-  const toast = useToast();
-  const copiar = async (m: Mesa) => {
-    try {
-      await navigator.clipboard.writeText(linkMesa(m.token));
-      toast(`Link da ${m.nome} copiado!`, 'ok');
-    } catch {
-      toast('Não foi possível copiar. Selecione o link manualmente.', 'erro');
-    }
-  };
-
   return (
     <Modal aberto aoFechar={aoFechar} titulo="Links dos tablets" largura={640}>
       <p className="muted" style={{ marginTop: 0 }}>
@@ -340,9 +312,7 @@ function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }
         {mesas.map((m) => (
           <li key={m.id}>
             <strong>{m.nome}</strong>
-            <code title={linkMesa(m.token)}>{linkMesa(m.token)}</code>
-            <button className="icone-btn" onClick={() => void copiar(m)} title="Copiar" aria-label={`Copiar link da ${m.nome}`}><Copy size={18} /></button>
-            <a className="icone-btn" href={linkMesa(m.token)} target="_blank" rel="noopener" title="Abrir" aria-label={`Abrir cardápio da ${m.nome}`}><ExternalLink size={18} /></a>
+            <LinkCopiavel link={linkMesa(m.token)} compacto />
           </li>
         ))}
       </ul>

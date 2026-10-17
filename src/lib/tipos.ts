@@ -12,6 +12,8 @@ export interface Restaurante {
   plano: string;
   ativo: boolean;
   criado_em: string;
+  /** Código curto do link do app do garçom (/g/<codigo>) */
+  codigo: string;
 }
 
 export interface RestauranteComPapel extends Restaurante {

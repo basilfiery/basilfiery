@@ -221,7 +221,7 @@ h1, h2, h3 { line-height: 1.2; }
 }
 .modal__topo { display: flex; align-items: center; gap: 12px; padding: 14px 16px 14px 20px; border-bottom: 1px solid var(--line); }
 .modal__topo h2 { flex: 1; margin: 0; font-family: var(--titulo); font-weight: 600; font-size: 1.25rem; }
-.modal__corpo { flex: 1; min-height: 0; overflow-y: auto; padding: 20px; }
+.modal__corpo { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 20px; }
 .modal__rodape {
   display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;
   padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
@@ -301,3 +301,52 @@ h1, h2, h3 { line-height: 1.2; }
 .erro-geral p { margin: 0 0 8px; color: var(--muted); max-width: 420px; }
 .erro-geral details { margin-top: 10px; color: var(--muted-2); font-size: .8rem; max-width: 520px; }
 .erro-geral code { display: block; margin-top: 6px; white-space: pre-wrap; word-break: break-word; }
+/* ---------- Link para copiar + QR code ---------- */
+.link-copiavel {
+  display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%;
+  padding: 5px 5px 5px 12px; border-radius: 12px;
+  background: var(--bg-2); border: 1px solid var(--line);
+  transition: border-color .15s, box-shadow .15s;
+}
+.link-copiavel:hover { border-color: var(--line-2); }
+.link-copiavel__icone { flex: none; display: grid; place-items: center; color: var(--muted-2); }
+.link-copiavel__texto {
+  flex: 1; min-width: 0; display: flex; align-items: baseline;
+  font: 500 .86rem/1.2 ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  white-space: nowrap; overflow: hidden; user-select: all;
+}
+.link-copiavel__dominio { flex: 0 100000 auto; min-width: 2.2ch; overflow: hidden; text-overflow: ellipsis; color: var(--muted-2); }
+.link-copiavel__caminho { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.link-copiavel__abrir {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px;
+  color: var(--muted); transition: background .15s, color .15s;
+}
+.link-copiavel__abrir:hover { background: var(--hover); color: var(--text); }
+.btn-copiar {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; min-width: 96px; padding: 0 12px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  font: inherit; font-size: .84rem; font-weight: 600; box-shadow: var(--sombra);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn-copiar:hover { border-color: var(--line-2); }
+.btn-copiar--ok, .btn-copiar--ok:hover { background: color-mix(in srgb, var(--ok) 14%, transparent); border-color: color-mix(in srgb, var(--ok) 45%, transparent); color: var(--ok); }
+.link-copiavel--compacto { padding: 3px 3px 3px 10px; }
+.link-copiavel--compacto .link-copiavel__icone { display: none; }
+.link-copiavel--compacto .btn-copiar { min-width: 0; height: 30px; padding: 0 10px; }
+.link-copiavel--compacto .link-copiavel__abrir { width: 30px; height: 30px; }
+@media (max-width: 480px) {
+  .link-copiavel .btn-copiar { min-width: 0; padding: 0 10px; }
+  .link-copiavel--compacto .btn-copiar span { display: none; }
+}
+
+.qr-cartao { margin: 0; display: grid; justify-items: center; gap: 10px; }
+.qr-cartao__moldura {
+  width: 196px; aspect-ratio: 1; padding: 12px; border-radius: 18px;
+  background: #fff; border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(16, 24, 40, .08);
+}
+.qr-cartao__moldura img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.qr-cartao__vazio { display: block; width: 100%; height: 100%; border-radius: 8px; background: #f2f2f4; }
+.qr-cartao figcaption { display: grid; justify-items: center; gap: 4px; text-align: center; color: var(--muted); font-size: .84rem; }
+.qr-cartao__baixar { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-weight: 600; font-size: .84rem; text-decoration: none; padding: 4px 8px; border-radius: 8px; }
+.qr-cartao__baixar:hover { background: var(--hover); }

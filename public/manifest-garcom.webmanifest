@@ -1,0 +1,17 @@
+{
+  "id": "/g",
+  "name": "Garçom · BasilFiery",
+  "short_name": "Garçom",
+  "description": "Pedidos e chamados das mesas direto no seu celular.",
+  "start_url": "/g",
+  "scope": "/g",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121010",
+  "theme_color": "#121010",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

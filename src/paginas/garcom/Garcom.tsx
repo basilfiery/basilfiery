@@ -20,7 +20,7 @@ import '../../estilos/painel.css';
 
 type Aba = 'levar' | 'cozinha' | 'mesas';
 
-export default function Garcom() {
+export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   const s = useSessao();
   const toast = useToast();
   const r = s.restaurante;
@@ -109,7 +109,7 @@ export default function Garcom() {
         <button className="icone-btn" onClick={() => { const v = !som; setSom(v); definirSom(v); if (v) tocarAlerta('pronto'); }} aria-label={som ? 'Desligar som' : 'Ligar som'}>
           {som ? <Volume2 size={20} /> : <VolumeX size={20} />}
         </button>
-        {r.papel !== 'garcom' && <Link to="/painel" className="icone-btn" aria-label="Abrir painel"><LayoutDashboard size={20} /></Link>}
+        {!modoApp && r.papel !== 'garcom' && <Link to="/painel" className="icone-btn" aria-label="Abrir painel"><LayoutDashboard size={20} /></Link>}
         <button className="icone-btn" onClick={() => void s.sair()} aria-label="Sair"><LogOut size={20} /></button>
       </header>
       {perfilAberto && <ModalPerfil aoFechar={() => setPerfilAberto(false)} />}

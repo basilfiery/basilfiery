@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import QRCode from 'qrcode';
 import { Copy, KeyRound, MessageCircle, Plus, Send, Trash2, UserRound, Wand2 } from 'lucide-react';
 import { Campo, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { Avatar } from '../../componentes/Perfil';
+import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { useToast } from '../../componentes/Toast';
 import { gestao, msgErro, supabase } from '../../lib/supabase';
 import type { Membro } from '../../lib/tipos';
@@ -11,7 +11,9 @@ import { usePainel } from './Painel';
 
 interface Acesso { nome: string; email: string; senha?: string; telefone?: string; jaTinhaConta?: boolean }
 
-const linkLogin = (email?: string) => `${window.location.origin}/login${email ? `?email=${encodeURIComponent(email)}` : ''}`;
+/** Link do app do garçom: separado do sistema (não passa pela tela de login do caixa). */
+const linkApp = (codigo: string, email?: string) =>
+  `${window.location.origin}/g/${codigo}${email ? `?email=${encodeURIComponent(email)}` : ''}`;
 
 /** Senha fácil de ditar/digitar no celular (sem letras confusas como l/1, O/0). */
 function gerarSenha() {
@@ -30,7 +32,6 @@ export default function Garcons() {
   const [cadastrando, setCadastrando] = useState(false);
   const [acesso, setAcesso] = useState<Acesso | null>(null);
   const [trocandoSenha, setTrocandoSenha] = useState<Membro | null>(null);
-  const [qr, setQr] = useState('');
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.from('membros').select('*')
@@ -40,7 +41,6 @@ export default function Garcons() {
   }, [restaurante.id, toast]);
 
   useEffect(() => { void carregar(); }, [carregar]);
-  useEffect(() => { void QRCode.toDataURL(linkLogin(), { width: 320, margin: 1 }).then(setQr); }, []);
 
   async function remover(m: Membro) {
     if (!confirm(`Remover ${m.nome}? A pessoa perde o acesso a este restaurante.`)) return;
@@ -89,17 +89,17 @@ export default function Garcons() {
         </section>
 
         <aside className="card garcons__acesso">
-          <h2 className="card__titulo">Link de acesso dos garçons</h2>
-          <div className="link-mesa">
-            <code title={linkLogin()}>{linkLogin()}</code>
-            <button className="icone-btn" onClick={() => void copiar(linkLogin()).then(() => toast('Link copiado!', 'ok'))} aria-label="Copiar link"><Copy size={18} /></button>
+          <div className="garcons__acesso-cab">
+            <h2 className="card__titulo">App do garçom</h2>
+            <p>Link exclusivo da equipe de salão, separado do sistema do caixa.</p>
           </div>
-          {qr && <img className="qr" src={qr} alt="QR code do acesso dos garçons" />}
-          <ol className="passos-lista">
-            <li>O garçom abre o link no celular (ou lê o QR code com a câmera).</li>
-            <li>Entra com o e-mail e a senha que você cadastrou.</li>
-            <li>Toca em <b>Ativar notificações</b> para receber pedidos e chamados.</li>
-            <li>Em <b>Meu perfil</b>, coloca a foto e confere o nome.</li>
+          <LinkCopiavel link={linkApp(restaurante.codigo)} />
+          <QrCartao link={linkApp(restaurante.codigo)} legenda="Aponte a câmera do celular" arquivo="qr-app-garcom" />
+          <ol className="passos">
+            <li><span>1</span><div>Abra o link no celular <small>ou leia o QR code com a câmera</small></div></li>
+            <li><span>2</span><div>Entre com e-mail e senha <small>os que você cadastrou aqui</small></div></li>
+            <li><span>3</span><div>Toque em <b>Ativar notificações</b> <small>para receber pedidos e chamados</small></div></li>
+            <li><span>4</span><div>Coloque a foto em <b>Meu perfil</b> <small>tocando na bolinha no topo</small></div></li>
           </ol>
         </aside>
       </div>
@@ -118,7 +118,7 @@ export default function Garcons() {
           aoSalvar={(senha) => { setAcesso({ nome: trocandoSenha.nome, email: trocandoSenha.email ?? '', senha }); setTrocandoSenha(null); }}
         />
       )}
-      {acesso && <ModalEnviarAcesso acesso={acesso} restaurante={restaurante.nome} aoFechar={() => setAcesso(null)} />}
+      {acesso && <ModalEnviarAcesso acesso={acesso} restaurante={restaurante.nome} codigo={restaurante.codigo} aoFechar={() => setAcesso(null)} />}
     </div>
   );
 }
@@ -216,16 +216,16 @@ function ModalNovaSenha({ membro, aoFechar, aoSalvar }: { membro: Membro; aoFech
   );
 }
 
-function ModalEnviarAcesso({ acesso, restaurante, aoFechar }: { acesso: Acesso; restaurante: string; aoFechar: () => void }) {
+function ModalEnviarAcesso({ acesso, restaurante, codigo, aoFechar }: { acesso: Acesso; restaurante: string; codigo: string; aoFechar: () => void }) {
   const toast = useToast();
   const mensagem = [
-    `Olá, ${acesso.nome.split(' ')[0]}! Seu acesso ao BasilFiery (${restaurante}):`,
+    `Olá, ${acesso.nome.split(' ')[0]}! Seu acesso ao app do garçom do ${restaurante}:`,
     '',
-    `🔗 ${linkLogin(acesso.email)}`,
+    `🔗 ${linkApp(codigo, acesso.email)}`,
     `📧 E-mail: ${acesso.email}`,
     acesso.senha ? `🔑 Senha: ${acesso.senha}` : '🔑 Senha: a mesma que você já usa',
     '',
-    'Abra o link no celular, entre e toque em “Ativar notificações” para receber os pedidos e os chamados das mesas. Em “Meu perfil” você coloca sua foto.',
+    'Abra o link no celular, entre e toque em “Ativar notificações” para receber os pedidos e os chamados das mesas. Toque na bolinha do topo para colocar sua foto.',
   ].join('\n');
   const numero = (acesso.telefone ?? '').replace(/\D/g, '');
   const destino = numero ? (numero.length <= 11 ? `55${numero}` : numero) : '';

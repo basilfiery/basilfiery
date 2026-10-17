@@ -21,7 +21,9 @@ self.addEventListener('push', (e) => {
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || '/garcom';
+  // O app do garçom fica em /g (volta sozinho para o restaurante usado por último)
+  const pedida = (e.notification.data && e.notification.data.url) || '/g';
+  const url = pedida === '/garcom' ? '/g' : pedida;
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((janelas) => {
       for (const j of janelas) {

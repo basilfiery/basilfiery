@@ -18,6 +18,7 @@ import type { Chamado, Mesa, Pedido, StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import '../../estilos/painel.css';
+import { confirmar } from '../../componentes/Confirmar';
 
 type Aba = 'levar' | 'cozinha' | 'mesas';
 
@@ -67,7 +68,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   }
 
   async function mudar(p: Pedido, status: StatusPedido) {
-    if (status === 'cancelado' && !confirm(`Cancelar o pedido #${p.numero}?`)) return;
+    if (status === 'cancelado' && !(await confirmar(`Cancelar o pedido #${p.numero}?`, { sim: 'Cancelar pedido', perigo: true }))) return;
     const antes = p.status;
     vivo.atualizarPedido(p.id, { status });
     const { error } = await supabase.rpc('pedido_mudar_status', { p_pedido: p.id, p_status: status });

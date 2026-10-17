@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Flame, Leaf, Minus, Plus, Star, UtensilsCrossed } from 'lucide-react';
+import { Flame, Leaf, Minus, Plus, Star } from 'lucide-react';
 import { cx } from '../lib/util';
 
 export function Logo({ tamanho = 'md' }: { tamanho?: 'sm' | 'md' | 'lg' }) {
@@ -125,10 +125,24 @@ export function VideoCapa({ p, classe }: { p: { video_url: string; imagem_url: s
   );
 }
 
+/** Desenho de comida (bandeja com tampa) para quando o item ainda não tem foto. */
+export function ImagemComida({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 44a20 20 0 0 1 40 0" />
+      <path d="M8 44h48" />
+      <path d="M14 49h36" />
+      <path d="M32 24v-3" />
+      <circle cx="32" cy="18.5" r="2.5" />
+      <path d="M21 38c1.2-4 4-7 8-8.5" />
+    </svg>
+  );
+}
+
 export function FotoProduto({ p, classe }: { p: { imagem_url: string | null; emoji: string | null; nome: string }; classe?: string }) {
   return (
     <div className={cx('foto', classe)}>
-      {p.imagem_url ? <img src={p.imagem_url} alt={p.nome} loading="lazy" /> : <span aria-hidden="true">{p.emoji || <UtensilsCrossed className="foto__padrao" strokeWidth={1.5} />}</span>}
+      {p.imagem_url ? <img src={p.imagem_url} alt={p.nome} loading="lazy" /> : <span aria-hidden="true">{p.emoji || <ImagemComida className="foto__padrao" />}</span>}
     </div>
   );
 }

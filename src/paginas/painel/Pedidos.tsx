@@ -13,6 +13,7 @@ import { msgErro, supabase } from '../../lib/supabase';
 import type { Mesa, Pedido, StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, hora, minutosDesde, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
+import { confirmar } from '../../componentes/Confirmar';
 
 type Coluna = 'novo' | 'preparando' | 'pronto' | 'entregue';
 type Aba = 'todos' | Coluna | 'finalizados';
@@ -35,7 +36,7 @@ function useMudarStatus() {
   const { atualizarPedido } = usePainel();
   const toast = useToast();
   return async (p: Pedido, status: StatusPedido) => {
-    if (status === 'cancelado' && !confirm(`Cancelar o pedido #${p.numero} (${p.mesa_nome})? Os itens voltam para o estoque.`)) return;
+    if (status === 'cancelado' && !(await confirmar(`Cancelar o pedido #${p.numero} (${p.mesa_nome})?\n\nOs itens voltam para o estoque.`, { sim: 'Cancelar pedido', perigo: true }))) return;
     const antes = p.status;
     atualizarPedido(p.id, { status, atualizado_em: new Date().toISOString() });
     const { error } = await supabase.rpc('pedido_mudar_status', { p_pedido: p.id, p_status: status });

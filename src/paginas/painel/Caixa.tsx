@@ -8,6 +8,7 @@ import { msgErro, supabase } from '../../lib/supabase';
 import type { Caixa, MovimentoCaixa, Papel, ResumoCaixa } from '../../lib/tipos';
 import { FORMAS, brl, cx, dataHora, hora, lerPreco, podeCaixa } from '../../lib/util';
 import { aplicarAtualizacao } from '../../lib/versao';import { IconeForma } from '../../componentes/Pagamento';
+import { confirmar } from '../../componentes/Confirmar';
 
 
 export type ModoCaixa = 'resumo' | 'fechar' | 'retirada';
@@ -161,7 +162,7 @@ function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado 
     const avisoAberto = r.em_aberto.total > 0
       ? `\n\nAtenção: ainda há ${brl(r.em_aberto.total)} em aberto em ${r.em_aberto.mesas} mesa(s). Essas contas poderão ser fechadas no próximo caixa.`
       : '';
-    if (!confirm(`Fechar o caixa agora?${avisoAberto}`)) return;
+    if (!(await confirmar(`Fechar o caixa agora?${avisoAberto}`, { sim: 'Fechar caixa' }))) return;
     setOcupado(true);
     const { data, error } = await supabase.rpc('caixa_fechar', { p_caixa: r.caixa_id, p_valor_contado: valorContado, p_obs: obs });
     setOcupado(false);

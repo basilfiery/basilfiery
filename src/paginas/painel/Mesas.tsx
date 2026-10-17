@@ -12,6 +12,7 @@ import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, FormaPagamento, Mesa, MesaAcesso, Pedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
+import { confirmar } from '../../componentes/Confirmar';
 
 const linkMesa = (token: string) => `${window.location.origin}/mesa/${token}`;
 
@@ -128,7 +129,8 @@ export default function Mesas() {
       {criando && (
         <ModalNovaMesa
           restauranteId={restaurante.id}
-          sugestao={`Mesa ${mesas.length + 1}`}
+          sugestao={proximoNome(mesas)}
+          nomesUsados={mesas.map((m) => m.nome.trim().toLowerCase())}
           ordem={Math.max(0, ...mesas.map((m) => m.ordem)) + 1}
           aoFechar={() => setCriando(false)}
           aoCriar={() => { setCriando(false); void carregar(); }}
@@ -183,7 +185,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   }
 
   async function novoLink() {
-    if (!confirm('Gerar um novo link? O tablet atual desta mesa deixará de funcionar até você abrir o novo link nele.')) return;
+    if (!(await confirmar('Gerar um novo link?\n\nO tablet atual desta mesa deixará de funcionar até você abrir o novo link nele.', { sim: 'Gerar novo link' }))) return;
     const novo = crypto.randomUUID().replace(/-/g, '');
     if (await salvar({ token: novo })) {
       setToken(novo);
@@ -192,7 +194,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   }
 
   async function excluir() {
-    if (!confirm(`Excluir a ${mesa.nome}? O histórico de pedidos é mantido.`)) return;
+    if (!(await confirmar(`Excluir a ${mesa.nome}?\n\nO histórico de pedidos é mantido.`, { sim: 'Excluir mesa', perigo: true }))) return;
     const { error } = await supabase.from('mesas').delete().eq('id', mesa.id);
     if (error) return toast(msgErro(error), 'erro');
     aoMudar();
@@ -318,9 +320,18 @@ function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }
   );
 }
 
-function ModalNovaMesa({ restauranteId, sugestao, ordem, aoFechar, aoCriar }: {
+/** Primeiro número livre: se faltar a Mesa 1, sugere ela; senão, a próxima depois da última. */
+function proximoNome(mesas: Mesa[]) {
+  const usados = new Set(mesas.map((m) => /^mesa\s+(\d+)$/i.exec(m.nome.trim())?.[1]).filter(Boolean).map(Number));
+  let n = 1;
+  while (usados.has(n)) n++;
+  return `Mesa ${n}`;
+}
+
+function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, aoFechar, aoCriar }: {
   restauranteId: string;
   sugestao: string;
+  nomesUsados: string[];
   ordem: number;
   aoFechar: () => void;
   aoCriar: () => void;
@@ -329,9 +340,14 @@ function ModalNovaMesa({ restauranteId, sugestao, ordem, aoFechar, aoCriar }: {
   const [nome, setNome] = useState(sugestao);
   const [salvando, setSalvando] = useState(false);
 
+  const repetido = nomesUsados.includes(nome.trim().toLowerCase());
+
   async function criar() {
+    if (repetido) return toast(`Já existe uma mesa chamada "${nome.trim()}".`, 'erro');
     setSalvando(true);
-    const { error } = await supabase.from('mesas').insert({ restaurante_id: restauranteId, nome: nome.trim(), ordem });
+    // "Mesa 1" entra na posição 1 da lista (não no fim)
+    const numero = /^mesa\s+(\d+)$/i.exec(nome.trim())?.[1];
+    const { error } = await supabase.from('mesas').insert({ restaurante_id: restauranteId, nome: nome.trim(), ordem: numero ? Number(numero) : ordem });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
     toast('Mesa criada.', 'ok');
@@ -350,7 +366,7 @@ function ModalNovaMesa({ restauranteId, sugestao, ordem, aoFechar, aoCriar }: {
         </>
       }
     >
-      <Campo rotulo="Nome" dica="Ex.: Mesa 12, Varanda 3, Balcão">
+      <Campo rotulo="Nome" dica={repetido ? 'Já existe uma mesa com esse nome.' : 'Ex.: Mesa 12, Varanda 3, Balcão'}>
         <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={40} autoFocus />
       </Campo>
     </Modal>

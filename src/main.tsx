@@ -5,6 +5,7 @@ import App from './App';
 import { ErroGeral } from './componentes/ErroGeral';
 import { ProvedorSessao } from './lib/sessao';
 import { ProvedorToast } from './componentes/Toast';
+import { ProvedorConfirmar } from './componentes/Confirmar';
 import { destravarSom } from './lib/som';
 import { limparParametroDeRecarga, recarregarUmaVez } from './lib/carregamento';
 import './estilos/base.css';
@@ -25,7 +26,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <ProvedorToast>
           <ProvedorSessao>
-            <App />
+            <ProvedorConfirmar>
+              <App />
+            </ProvedorConfirmar>
           </ProvedorSessao>
         </ProvedorToast>
       </BrowserRouter>

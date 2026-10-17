@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import { msgErro, supabase } from '../lib/supabase';
 import type { Mesa } from '../lib/tipos';
 import { brl, cx } from '../lib/util';
+import { confirmar } from './Confirmar';
 
 /**
  * O cliente mudou de mesa: leva a conta aberta (pedidos e chamados) para a mesa nova.
@@ -29,7 +30,7 @@ export function ModalTrocarMesa({ origem, mesas, totalDa, aoFechar, aoTrocar }: 
     const pergunta = juntar
       ? `A ${destino.nome} já tem conta aberta (${brl(totalDa(destino.id))}). Juntar a conta da ${origem.nome} com ela?`
       : `Passar a conta da ${origem.nome} para a ${destino.nome}?`;
-    if (!confirm(pergunta)) return;
+    if (!(await confirmar(pergunta, { sim: juntar ? 'Juntar contas' : 'Trocar de mesa' }))) return;
     setEnviando(true);
     const { error } = await supabase.rpc('mesa_trocar', { p_origem: origem.id, p_destino: destino.id });
     setEnviando(false);

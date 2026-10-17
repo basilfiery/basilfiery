@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  Ban, Check, ChevronRight, CornerDownRight, Film, FolderOpen, GripVertical, ImagePlus, Layers, Pencil, Plus, RotateCcw, Search, Trash2,
+  Check, ChevronRight, CornerDownRight, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
-import { Campo, FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
+import { Campo, FotoProduto, ImagemComida, Switch, Vazio } from '../../componentes/Basicos';
+import { Suspenso } from '../../componentes/Suspenso';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
 import type { Categoria, Grupo, Produto } from '../../lib/tipos';
 import { brl, cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
+import { confirmar } from '../../componentes/Confirmar';
 
 type Alvo = { id: string; depois: boolean } | null;
 
@@ -122,6 +124,26 @@ export default function Cardapio() {
     } else toast(esgotado ? `${p.nome} esgotado.${p.grupo_id ? ' Vale para todos os tamanhos.' : ''}` : `${p.nome} voltou ao cardápio.`, esgotado ? 'info' : 'ok');
   }
 
+  async function excluirProduto(p: Produto) {
+    if (!(await confirmar(`Excluir "${p.nome}"?\n\nSe for só por um tempo, use Esgotar.`, { sim: 'Excluir', perigo: true }))) return;
+    const { error } = await supabase.from('produtos').delete().eq('id', p.id);
+    if (error) return toast(msgErro(error), 'erro');
+    setProdutos((l) => l.filter((x) => x.id !== p.id));
+    toast(`${p.nome} excluído.`, 'ok');
+  }
+
+  /** Esgota (ou volta) todos os itens de uma lista de uma vez: o "Esgotar" do topo da categoria. */
+  async function esgotarTodos(lista: Produto[], esgotado: boolean) {
+    if (!lista.length) return;
+    const ids = new Set(lista.map((p) => p.id));
+    setProdutos((l) => l.map((x) => (ids.has(x.id) ? { ...x, esgotado } : x)));
+    const r = await Promise.all(lista.map((p) => supabase.rpc('produto_esgotar', { p_produto: p.id, p_esgotado: esgotado })));
+    if (r.some((x) => x.error)) {
+      toast('Não deu para esgotar todos. Tente de novo.', 'erro');
+      void carregar();
+    } else toast(esgotado ? `${lista.length} ${lista.length === 1 ? 'item esgotado' : 'itens esgotados'}.` : 'Itens de volta ao cardápio.', esgotado ? 'info' : 'ok');
+  }
+
   async function alternarCategoria(c: Categoria, ativo: boolean) {
     setCategorias((l) => l.map((x) => (x.id === c.id ? { ...x, ativo } : x)));
     const { error } = await supabase.from('categorias').update({ ativo }).eq('id', c.id);
@@ -209,7 +231,7 @@ export default function Cardapio() {
     setEditProd('novo');
   }
 
-  /** Linha de um item (produto), igual nas duas telas. */
+  /** Linha de um item: Esgotar, preço, menu e abrir (como no gestor do Anota AI). */
   const linhaItem = (p: Produto, arrastavel: boolean, comCategoria = false) => (
     <li
       key={p.id}
@@ -219,27 +241,66 @@ export default function Cardapio() {
       {arrastavel && <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />}
       <FotoProduto p={p} classe="item-linha__foto" />
       <button className="item-linha__nome" onClick={() => setEditProd(p)} title="Editar item">
-        <strong>{p.nome}{p.esgotado && <span className="selo-esgotado">Esgotado</span>}</strong>
+        <strong>
+          {p.nome}
+          {p.esgotado && <span className="selo-esgotado">Esgotado</span>}
+          {!p.ativo && <span className="selo-oculto">Fora do tablet</span>}
+        </strong>
         {detalhes(p, comCategoria) && <small>{detalhes(p, comCategoria)}</small>}
       </button>
-      <div className="item-linha__preco">
-        <PrecoEditavel produto={p} aoSalvar={(preco) => setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, preco } : x)))} />
-        {p.grupo_id && <small>acréscimo</small>}
+      <div className="item-linha__controles">
+        <div className="chave-esgotar" title={p.esgotado ? 'Esgotado: no tablet aparece como esgotado' : 'Marcar como esgotado'}>
+          <span>Esgotar</span>
+          <Switch marcado={p.esgotado} aoMudar={(v) => void esgotar(p, v)} />
+        </div>
+        <div className="item-linha__preco">
+          <PrecoEditavel produto={p} aoSalvar={(preco) => setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, preco } : x)))} />
+          {p.grupo_id && <small>acréscimo</small>}
+        </div>
+        <Suspenso
+          largura={220}
+          gatilho={(aberto, alternar) => (
+            <button className={cx('btn-quadrado', aberto && 'ativo')} onClick={alternar} aria-label={`Mais opções de ${p.nome}`}><MoreVertical size={18} /></button>
+          )}
+        >
+          {(fechar) => (
+            <>
+              <button className="menu-item" onClick={() => { fechar(); setEditProd(p); }}><Pencil size={17} /> Editar</button>
+              <button className="menu-item" onClick={() => { fechar(); void alternarAtivo(p, !p.ativo); }}>
+                {p.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
+              </button>
+              <div className="menu-sep" />
+              <button className="menu-item menu-item--perigo" onClick={() => { fechar(); void excluirProduto(p); }}><Trash2 size={17} /> Excluir</button>
+            </>
+          )}
+        </Suspenso>
+        <button className="btn-quadrado" onClick={() => setEditProd(p)} aria-label={`Abrir ${p.nome}`}><ChevronRight size={18} /></button>
       </div>
-      <div className="item-linha__visivel" title={p.ativo ? 'Aparece no tablet' : 'Escondido do tablet'}>
-        <span>{p.ativo ? 'No tablet' : 'Oculto'}</span>
-        <Switch marcado={p.ativo} aoMudar={(v) => void alternarAtivo(p, v)} />
-      </div>
-      <button
-        className={cx('btn-esgotar', p.esgotado && 'btn-esgotar--volta')}
-        onClick={() => void esgotar(p, !p.esgotado)}
-        title={p.esgotado ? 'Voltar a vender' : 'Marcar como esgotado'}
-      >
-        {p.esgotado ? <><RotateCcw size={15} /> Voltar</> : <><Ban size={15} /> Esgotar</>}
-      </button>
-      <button className="icone-btn" onClick={() => setEditProd(p)} aria-label={`Editar ${p.nome}`}><Pencil size={17} /></button>
     </li>
   );
+
+  /** "Esgotar" do topo + menu ⋮ da categoria (ou do grupo). */
+  const topoAcoes = (lista: Produto[], menu: (fechar: () => void) => ReactNode) => {
+    const todosEsgotados = lista.length > 0 && lista.every((p) => p.esgotado);
+    return (
+      <div className="cat-painel__acoes">
+        {lista.length > 0 && (
+          <div className="chave-esgotar" title="Esgota (ou volta) todos os itens desta lista">
+            <span>Esgotar</span>
+            <Switch marcado={todosEsgotados} aoMudar={(v) => void esgotarTodos(lista, v)} />
+          </div>
+        )}
+        <Suspenso
+          largura={230}
+          gatilho={(aberto, alternar) => (
+            <button className={cx('btn-quadrado btn-quadrado--cheio', aberto && 'ativo')} onClick={alternar} aria-label="Mais opções"><MoreVertical size={18} /></button>
+          )}
+        >
+          {menu}
+        </Suspenso>
+      </div>
+    );
+  };
 
   return (
     <div className="pagina">
@@ -329,7 +390,12 @@ export default function Cardapio() {
                 <span className="cat-painel__tipo"><Layers size={14} /> Grupo de sabores</span>
                 <h2>{grupoSel.nome}</h2>
               </div>
-              <button className="icone-btn" onClick={() => setEditGrupo(grupoSel)} title="Renomear ou excluir" aria-label={`Editar ${grupoSel.nome}`}><Pencil size={18} /></button>
+              {topoAcoes(saboresDe(grupoSel.id), (fechar) => (
+                <>
+                  <button className="menu-item" onClick={() => { fechar(); setEditGrupo(grupoSel); }}><Pencil size={17} /> Renomear ou excluir grupo</button>
+                  <button className="menu-item" onClick={() => { fechar(); novoItem(); }}><Plus size={17} /> Adicionar sabor</button>
+                </>
+              ))}
             </header>
             <div className="usado-em">
               <span>Aparece em</span>
@@ -382,11 +448,17 @@ export default function Cardapio() {
                 <h2>{cat.emoji} {cat.nome}</h2>
                 {!cat.ativo && <span className="badge">Oculta no tablet</span>}
               </div>
-              <div className="cat-painel__visivel">
-                <span>No tablet</span>
-                <Switch marcado={cat.ativo} aoMudar={(v) => void alternarCategoria(cat, v)} />
-              </div>
-              <button className="icone-btn" onClick={() => setEditCat(cat)} title="Editar categoria" aria-label={`Editar ${cat.nome}`}><Pencil size={18} /></button>
+              {topoAcoes(itensDe(cat.id), (fechar) => (
+                <>
+                  <button className="menu-item" onClick={() => { fechar(); setEditCat(cat); }}><Pencil size={17} /> Editar {cat.pai_id ? 'subcategoria' : 'categoria'}</button>
+                  <button className="menu-item" onClick={() => { fechar(); void alternarCategoria(cat, !cat.ativo); }}>
+                    {cat.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
+                  </button>
+                  {!cat.pai_id && (
+                    <button className="menu-item" onClick={() => { fechar(); setNovaPai(cat.id); setEditCat('nova'); }}><Plus size={17} /> Nova subcategoria</button>
+                  )}
+                </>
+              ))}
             </header>
 
             <div className="cat-painel__barra">
@@ -394,7 +466,7 @@ export default function Cardapio() {
               <label className="cat-painel__busca"><Search size={16} /><input placeholder="Pesquisar" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
               {!cat.pai_id && (
                 <button className="btn btn--fantasma" onClick={() => { setNovaPai(cat.id); setEditCat('nova'); }}>
-                  <FolderOpen size={17} /> Nova subcategoria
+                  <Plus size={17} /> Nova subcategoria
                 </button>
               )}
             </div>
@@ -411,7 +483,7 @@ export default function Cardapio() {
                     return (
                       <li key={f.id} className={cx('sub-linha', !f.ativo && 'item-linha--oculto', arrastoSubs.classe(f.id))} {...arrastoSubs.props(f.id)}>
                         <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />
-                        <span className="sub-linha__icone">{f.emoji || <FolderOpen size={20} />}</span>
+                        <span className={cx('sub-linha__icone', !f.emoji && 'sub-linha__icone--vazia')}>{f.emoji || <ImagemComida />}</span>
                         <button className="sub-linha__nome" onClick={() => abrir(f.id)}>
                           <strong>{f.nome}</strong>
                           <small>
@@ -419,7 +491,7 @@ export default function Cardapio() {
                             {!f.ativo && ' · oculta'}
                           </small>
                         </button>
-                        <button className="btn btn--contorno btn--sm" onClick={() => abrir(f.id)}>Abrir <ChevronRight size={15} /></button>
+                        <button className="btn-quadrado" onClick={() => abrir(f.id)} aria-label={`Abrir ${f.nome}`}><ChevronRight size={18} /></button>
                       </li>
                     );
                   })}
@@ -632,7 +704,7 @@ function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInici
 
   async function excluir() {
     const aviso = temFilhas ? ' As subcategorias dela viram categorias principais.' : '';
-    if (!categoria || !confirm(`Excluir a categoria "${categoria.nome}"? Os produtos dela ficam sem categoria e somem do tablet até você movê-los.${aviso}`)) return;
+    if (!categoria || !(await confirmar(`Excluir a categoria "${categoria.nome}"?\n\nOs produtos dela ficam sem categoria e somem do tablet até você movê-los.${aviso}`, { sim: 'Excluir', perigo: true }))) return;
     const { error } = await supabase.from('categorias').delete().eq('id', categoria.id);
     if (error) return toast(msgErro(error), 'erro');
     aoSalvar();
@@ -750,7 +822,7 @@ function ModalGrupo({ restauranteId, grupo, usadoEm, aoFechar, aoSalvar }: {
   }
 
   async function excluir() {
-    if (!grupo || !confirm(`Excluir o grupo "${grupo.nome}" e todos os sabores dele?${usadoEm.length ? ` Ele deixa de aparecer em: ${usadoEm.join(', ')}.` : ''}`)) return;
+    if (!grupo || !(await confirmar(`Excluir o grupo "${grupo.nome}" e todos os sabores dele?${usadoEm.length ? `\n\nEle deixa de aparecer em: ${usadoEm.join(', ')}.` : ''}`, { sim: 'Excluir', perigo: true }))) return;
     const { error } = await supabase.from('grupos').delete().eq('id', grupo.id);
     if (error) return toast(msgErro(error), 'erro');
     aoSalvar();
@@ -905,7 +977,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
   }
 
   async function excluir() {
-    if (!produto || !confirm(`Excluir "${produto.nome}"? Se quiser só tirar do tablet, desligue "Mostrar no tablet".`)) return;
+    if (!produto || !(await confirmar(`Excluir "${produto.nome}"?\n\nSe quiser só tirar do tablet por um tempo, use Esgotar ou desligue "Mostrar no tablet".`, { sim: 'Excluir', perigo: true }))) return;
     const { error } = await supabase.from('produtos').delete().eq('id', produto.id);
     if (error) return toast(msgErro(error), 'erro');
     aoSalvar();

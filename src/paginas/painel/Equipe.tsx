@@ -8,6 +8,7 @@ import { gestao, msgErro, supabase } from '../../lib/supabase';
 import type { Membro, Papel } from '../../lib/tipos';
 import { PAPEL_ROTULO } from '../../lib/util';
 import { usePainel } from './Painel';
+import { confirmar } from '../../componentes/Confirmar';
 
 const DESCRICAO_PAPEL: Record<Papel, string> = {
   dono: 'Acesso total, inclusive equipe.',
@@ -40,7 +41,7 @@ export default function Equipe() {
   }
 
   async function remover(m: Membro) {
-    if (!confirm(`Remover ${m.nome} da equipe? A pessoa perde o acesso a este restaurante.`)) return;
+    if (!(await confirmar(`Remover ${m.nome} da equipe?\n\nA pessoa perde o acesso a este restaurante.`, { sim: 'Remover', perigo: true }))) return;
     const { error } = await supabase.from('membros').delete()
       .eq('restaurante_id', m.restaurante_id).eq('user_id', m.user_id);
     if (error) return toast(msgErro(error), 'erro');

@@ -8,6 +8,7 @@ import { useToast } from '../../componentes/Toast';
 import { gestao, msgErro, supabase } from '../../lib/supabase';
 import type { Membro } from '../../lib/tipos';
 import { usePainel } from './Painel';
+import { confirmar } from '../../componentes/Confirmar';
 
 interface Acesso { nome: string; email: string; senha?: string; telefone?: string; jaTinhaConta?: boolean }
 
@@ -43,7 +44,7 @@ export default function Garcons() {
   useEffect(() => { void carregar(); }, [carregar]);
 
   async function remover(m: Membro) {
-    if (!confirm(`Remover ${m.nome}? A pessoa perde o acesso a este restaurante.`)) return;
+    if (!(await confirmar(`Remover ${m.nome}?\n\nA pessoa perde o acesso a este restaurante.`, { sim: 'Remover', perigo: true }))) return;
     const { error } = await supabase.from('membros').delete().eq('restaurante_id', m.restaurante_id).eq('user_id', m.user_id);
     if (error) return toast(msgErro(error), 'erro');
     toast(`${m.nome} removido(a).`, 'ok');

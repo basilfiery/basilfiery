@@ -1127,3 +1127,36 @@
   .btn-esgotar { padding: 0 10px; }
 }
 .cardapio__cats-cab--grupos .card__titulo { font-size: .98rem; white-space: nowrap; }
+
+/* ---------- Linha de item no estilo do gestor do Anota AI ---------- */
+.item-linha__controles { flex: none; display: flex; align-items: center; gap: 10px; }
+.chave-esgotar { display: grid; justify-items: center; gap: 3px; min-width: 56px; }
+.chave-esgotar > span { font-size: .7rem; font-weight: 600; color: var(--muted); line-height: 1; }
+.chave-esgotar .switch input:checked { background: var(--danger); }
+.item-linha .preco-editavel {
+  border-color: var(--line); background: var(--surface); padding: 6px 8px 6px 10px; border-radius: 10px; min-height: 40px;
+}
+.item-linha .preco-editavel:hover { border-color: var(--line-2); }
+.item-linha .preco-editavel input { width: 64px; }
+.btn-quadrado {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--acento, #ff5a1f) 55%, var(--line)); background: var(--surface); color: var(--acento, #ff5a1f);
+  transition: background .15s, border-color .15s;
+}
+.btn-quadrado:hover, .btn-quadrado.ativo { background: color-mix(in srgb, var(--acento, #ff5a1f) 9%, var(--surface)); border-color: var(--acento, #ff5a1f); }
+.btn-quadrado--cheio { background: var(--acento, #ff5a1f); color: #fff; border-color: var(--acento, #ff5a1f); }
+.btn-quadrado--cheio:hover, .btn-quadrado--cheio.ativo { background: var(--acento, #ff5a1f); filter: brightness(1.06); }
+.cat-painel__acoes { flex: none; display: flex; align-items: center; gap: 12px; }
+.selo-oculto {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; vertical-align: 2px;
+  background: var(--surface-2); color: var(--muted); font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+/* Sem foto: fundo claro com desenho de comida (no lugar do ícone de pasta) */
+.sub-linha__icone--vazia { background: #fff; border: 1px solid var(--line); color: var(--muted-2); }
+.sub-linha__icone--vazia svg, .sub-linha__icone svg { width: 30px; height: 30px; }
+.foto__padrao { stroke-width: 2.4; }
+@media (max-width: 760px) {
+  .item-linha { flex-wrap: wrap; }
+  .item-linha__controles { width: 100%; justify-content: flex-end; padding-left: 76px; }
+  .item-linha__preco { margin-left: 0; }
+}

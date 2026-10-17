@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  CheckCircle2, ChevronLeft, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Play, Plus, Receipt,
-  ShieldCheck, ShoppingBag, Sparkles, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
+  CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Play, Plus, Receipt,
+  ShieldCheck, ShoppingBag, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -68,6 +68,7 @@ interface Secao extends CategoriaMesa { diretos: ProdutoMesa[]; subs: CategoriaM
 
 const INATIVIDADE_MS = 5 * 60 * 1000;
 const DESTAQUES = '__destaques';
+const OUTRAS = '__outras';
 const ehMesaFechada = (e: unknown) => /MESA_FECHADA/.test(msgErro(e));
 
 /** Altura real da tela (o 100vh dos iPhones antigos passa por baixo da barra do Safari). */
@@ -365,9 +366,9 @@ export default function Mesa() {
     listaRef.current?.scrollTo({ top: 0 });
   }
 
-  function escolherCategoria(id: string) {
+  function escolherCategoria(id: string, sub = '') {
     setCatAtiva(id);
-    setSubAtiva('');
+    setSubAtiva(sub);
     listaRef.current?.scrollTo({ top: 0 });
     // No celular, deixa a categoria escolhida visível na barra
     catsRef.current?.querySelector<HTMLElement>(`[data-cat="${id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
@@ -408,6 +409,17 @@ export default function Mesa() {
       .filter((c) => c.total > 0),
   ];
   const secao = secoes.find((c) => c.id === catAtiva) ?? secoes[0];
+  const abas = secao ? [
+    ...secao.subs.map((sub) => {
+      const itens = produtosDe(sub.id);
+      const precos = itens.map((x) => Number(x.preco));
+      const menor = precos.length ? Math.min(...precos) : 0;
+      return { id: sub.id, nome: sub.nome, emoji: sub.emoji, preco: menor, aPartir: precos.some((x) => x !== menor) };
+    }),
+    ...(secao.subs.length && secao.diretos.length ? [{ id: OUTRAS, nome: 'Outras opções', emoji: null, preco: 0, aPartir: false }] : []),
+  ] : [];
+  // Ao abrir a categoria, a primeira subcategoria já aparece (um toque só)
+  const abaAtual = abas.some((a) => a.id === subAtiva) ? subAtiva : abas[0]?.id ?? '';
   const emojiCat = (c: { id: string; emoji: string | null }) =>
     c.id === DESTAQUES ? <Star size={18} fill="currentColor" /> : c.emoji;
 
@@ -527,83 +539,66 @@ export default function Mesa() {
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias" ref={catsRef}>
           {secoes.map((c) => (
-            <button
-              key={c.id}
-              data-cat={c.id}
-              className={cx('mesa__cat', secao?.id === c.id && 'ativa')}
-              onClick={() => escolherCategoria(c.id)}
-              aria-current={secao?.id === c.id ? 'true' : undefined}
-            >
-              <span className="mesa__cat-emoji" aria-hidden="true">{emojiCat(c)}</span>
-              <span className="mesa__cat-nome">{c.nome}</span>
-              <span className="mesa__cat-qtd">{c.total}</span>
-            </button>
+            <Fragment key={c.id}>
+              <button
+                data-cat={c.id}
+                className={cx('mesa__cat', secao?.id === c.id && 'ativa')}
+                onClick={() => escolherCategoria(c.id)}
+                aria-current={secao?.id === c.id ? 'true' : undefined}
+              >
+                <span className="mesa__cat-emoji" aria-hidden="true">{emojiCat(c)}</span>
+                <span className="mesa__cat-nome">{c.nome}</span>
+                <span className="mesa__cat-qtd">{c.total}</span>
+              </button>
+              {/* Tamanhos/subcategorias logo abaixo, como as demais: um toque e já vê */}
+              {c.subs.map((sub) => (
+                <button
+                  key={sub.id}
+                  className={cx('mesa__subcat', secao?.id === c.id && abaAtual === sub.id && 'ativa')}
+                  onClick={() => escolherCategoria(c.id, sub.id)}
+                >
+                  {sub.emoji} {sub.nome}
+                </button>
+              ))}
+            </Fragment>
           ))}
         </nav>
 
         <main className="mesa__lista" ref={listaRef}>
           {secao ? (() => {
-            const subSel = secao.subs.find((x) => x.id === subAtiva);
-            const qtd = subSel ? produtosDe(subSel.id).length : secao.total;
+            const lista = abaAtual === OUTRAS || !secao.subs.length ? secao.diretos : produtosDe(abaAtual);
+            const iAba = abas.findIndex((a) => a.id === abaAtual);
+            const proximaAba = iAba >= 0 ? abas[iAba + 1] : undefined;
             const i = secoes.findIndex((c) => c.id === secao.id);
             const prox = secoes[i + 1];
             return (
-              <section key={`${secao.id}:${subSel?.id ?? ''}`} className="mesa__secao">
+              <section key={`${secao.id}:${abaAtual}`} className="mesa__secao">
                 <header className="mesa__secao-cab">
-                  {subSel ? (
-                    <div className="mesa__trilha">
-                      <button className="mesa__voltar" onClick={() => abrirSub('')}>
-                        <ChevronLeft size={18} /> {secao.nome}
-                      </button>
-                      <h2 className="titulo">{subSel.emoji && <span className="mesa__secao-emoji" aria-hidden="true">{subSel.emoji}</span>} {subSel.nome}</h2>
-                    </div>
-                  ) : (
-                    <h2 className="titulo">
-                      <span className="mesa__secao-emoji" aria-hidden="true">{emojiCat(secao)}</span> {secao.nome}
-                    </h2>
-                  )}
-                  <span>{qtd} {qtd === 1 ? 'opção' : 'opções'}</span>
+                  <h2 className="titulo">
+                    <span className="mesa__secao-emoji" aria-hidden="true">{emojiCat(secao)}</span> {secao.nome}
+                  </h2>
+                  <span>{lista.length} {lista.length === 1 ? 'opção' : 'opções'}</span>
                 </header>
 
-                {subSel ? grade(produtosDe(subSel.id)) : (
-                  <>
-                    {/* Subcategorias como cartões: toca e vê o que tem dentro, na mesma tela */}
-                    {secao.subs.length > 0 && (
-                      <div className="mesa__grade mesa__grade--subs">
-                        {secao.subs.map((sub) => {
-                          const itens = produtosDe(sub.id);
-                          const foto = itens.find((x) => x.imagem_url)?.imagem_url;
-                          const menor = Math.min(...itens.map((x) => Number(x.preco)));
-                          return (
-                            <button key={sub.id} className="subcat" onClick={() => abrirSub(sub.id)}>
-                              <div className="subcat__midia">
-                                {foto
-                                  ? <img src={foto} alt="" loading="lazy" />
-                                  : <span className="subcat__emoji" aria-hidden="true">{sub.emoji || <Layers size={40} strokeWidth={1.5} />}</span>}
-                              </div>
-                              <div className="subcat__info">
-                                <h3>{sub.nome}</h3>
-                                <p>{itens.length} {itens.length === 1 ? 'opção' : 'opções'}{menor > 0 && ` · a partir de ${brl(menor)}`}</p>
-                                <span className="subcat__ver">Ver opções <ChevronRight size={17} /></span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {secao.diretos.length > 0 && (
-                      <>
-                        {secao.subs.length > 0 && <h3 className="mesa__sub-titulo titulo">Outras opções</h3>}
-                        {grade(secao.diretos)}
-                      </>
-                    )}
-                  </>
+                {/* Subcategorias lado a lado (ex.: Pizza P | Pizza M | Pizza G) */}
+                {abas.length > 1 && (
+                  <div className="mesa__abas" role="tablist" aria-label={`Opções de ${secao.nome}`}>
+                    {abas.map((a) => (
+                      <button key={a.id} role="tab" aria-selected={abaAtual === a.id} className={cx('mesa__aba', abaAtual === a.id && 'ativa')} onClick={() => abrirSub(a.id)}>
+                        <span>{a.emoji} {a.nome}</span>
+                        {a.preco > 0 && <small>{brl(a.preco)}</small>}
+                      </button>
+                    ))}
+                  </div>
                 )}
 
-                {subSel ? (
-                  <button className="mesa__proxima" onClick={() => abrirSub('')}>
-                    <ChevronLeft size={20} />
-                    <strong>Voltar para {secao.nome}</strong>
+                {grade(lista)}
+
+                {proximaAba ? (
+                  <button className="mesa__proxima" onClick={() => abrirSub(proximaAba.id)}>
+                    <span>Ver a seguir</span>
+                    <strong>{proximaAba.emoji} {proximaAba.nome}</strong>
+                    <ChevronRight size={20} />
                   </button>
                 ) : prox ? (
                   /* Próxima categoria: o cliente não fica preso no fim da lista */
@@ -846,18 +841,64 @@ function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
   );
 }
 
-const MOTIVOS_CHAMADO = [
-  { icone: Citrus, rotulo: 'Sal e limão' },
-  { icone: Utensils, rotulo: 'Pratos ou talheres' },
-  { icone: Layers, rotulo: 'Guardanapos' },
-  { icone: Sparkles, rotulo: 'Limpar a mesa' },
+/** Mesa com brilho de limpeza (não existe um ícone pronto que diga "limpar a mesa"). */
+function IconeLimparMesa({ size = 24, strokeWidth = 2 }: { size?: number; strokeWidth?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* tampo e pés da mesa */}
+      <path d="M2.5 14h19" />
+      <path d="M5 14v7" />
+      <path d="M19 14v7" />
+      <path d="M8.5 17.5h7" />
+      {/* brilhos de limpo */}
+      <path d="M11 3.5 12.1 6.4 15 7.5 12.1 8.6 11 11.5 9.9 8.6 7 7.5 9.9 6.4Z" />
+      <path d="M18 3v3" />
+      <path d="M16.5 4.5h3" />
+    </svg>
+  );
+}
+
+type IconeMotivo = (p: { size?: number; strokeWidth?: number }) => ReactElement;
+
+const MOTIVOS_CHAMADO: { icone: IconeMotivo; rotulo: string; quantidades?: boolean }[] = [
+  { icone: (p) => <Citrus {...p} />, rotulo: 'Sal e limão' },
+  { icone: (p) => <Utensils {...p} />, rotulo: 'Pratos e talheres', quantidades: true },
+  { icone: (p) => <Layers {...p} />, rotulo: 'Guardanapos' },
+  { icone: (p) => <IconeLimparMesa {...p} />, rotulo: 'Limpar a mesa' },
 ];
+
+/** O que dá para pedir em "Pratos e talheres", com a quantidade de cada um. */
+const ITENS_MESA = [
+  { id: 'pratos', um: 'prato', varios: 'pratos', rotulo: 'Pratos', icone: <IconePrato /> },
+  { id: 'talheres', um: 'garfo e faca', varios: 'garfos e facas', rotulo: 'Garfo e faca', icone: <Utensils size={24} strokeWidth={1.8} /> },
+  { id: 'colheres', um: 'colher', varios: 'colheres', rotulo: 'Colher', icone: <IconeColher /> },
+] as const;
+
+function IconePrato() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+    </svg>
+  );
+}
+
+function IconeColher() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <ellipse cx="12" cy="7" rx="3.5" ry="4.5" />
+      <path d="M12 11.5V21" />
+    </svg>
+  );
+}
 
 /** Antes de chamar, a mesa diz o que precisa: o garçom já vem com a coisa certa. */
 function ModalChamarGarcom({ aoFechar, aoChamar }: { aoFechar: () => void; aoChamar: (motivo: string, detalhe?: string) => Promise<void> }) {
-  const [outra, setOutra] = useState(false);
+  const [etapa, setEtapa] = useState<'motivos' | 'talheres' | 'outra'>('motivos');
   const [texto, setTexto] = useState('');
+  const [qtd, setQtd] = useState<Record<string, number>>({ pratos: 0, talheres: 0, colheres: 0 });
   const [enviando, setEnviando] = useState(false);
+  const totalItens = Object.values(qtd).reduce((s, n) => s + n, 0);
 
   async function enviar(motivo: string, detalhe?: string) {
     setEnviando(true);
@@ -865,22 +906,61 @@ function ModalChamarGarcom({ aoFechar, aoChamar }: { aoFechar: () => void; aoCha
     setEnviando(false);
   }
 
+  // "2 pratos, 2 garfos e facas e 1 colher": o garçom já sabe o que levar
+  const resumo = () => {
+    const partes = ITENS_MESA.filter((i) => qtd[i.id] > 0).map((i) => `${qtd[i.id]} ${qtd[i.id] === 1 ? i.um : i.varios}`);
+    return partes.length > 1 ? `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}` : partes[0] ?? '';
+  };
+
+  const titulo = etapa === 'talheres' ? 'Pratos e talheres' : etapa === 'outra' ? 'Outra coisa' : 'Do que você precisa?';
+
   return (
-    <Modal aberto aoFechar={aoFechar} titulo="Do que você precisa?" classe="mesa-modal" largura={620}>
-      {!outra ? (
+    <Modal aberto aoFechar={aoFechar} titulo={titulo} classe="mesa-modal" largura={620}>
+      {etapa === 'motivos' && (
         <div className="motivos">
           {MOTIVOS_CHAMADO.map((m) => (
-            <button key={m.rotulo} className="motivo" onClick={() => void enviar(m.rotulo)} disabled={enviando}>
+            <button
+              key={m.rotulo}
+              className="motivo"
+              onClick={() => (m.quantidades ? setEtapa('talheres') : void enviar(m.rotulo))}
+              disabled={enviando}
+            >
               <span className="motivo__icone" aria-hidden="true"><m.icone size={30} strokeWidth={1.8} /></span>
               <strong>{m.rotulo}</strong>
             </button>
           ))}
-          <button className="motivo motivo--outra" onClick={() => setOutra(true)} disabled={enviando}>
+          <button className="motivo motivo--outra" onClick={() => setEtapa('outra')} disabled={enviando}>
             <span className="motivo__icone" aria-hidden="true"><MessageCircleMore size={26} strokeWidth={1.8} /></span>
             <strong>Outra coisa</strong>
           </button>
         </div>
-      ) : (
+      )}
+
+      {etapa === 'talheres' && (
+        <div className="form">
+          <p className="muted" style={{ margin: 0 }}>Escolha quantos de cada um:</p>
+          <ul className="itens-mesa">
+            {ITENS_MESA.map((i) => (
+              <li key={i.id} className={cx(qtd[i.id] > 0 && 'ativo')}>
+                <span className="itens-mesa__icone">{i.icone}</span>
+                <strong>{i.rotulo}</strong>
+                <Stepper valor={qtd[i.id]} min={0} max={20} aoMudar={(v) => setQtd((x) => ({ ...x, [i.id]: v }))} />
+              </li>
+            ))}
+          </ul>
+          <p className={cx('itens-mesa__resumo', totalItens > 0 && 'ativo')}>
+            {totalItens ? <>O garçom vai trazer: <b>{resumo()}</b></> : 'Toque no + para escolher a quantidade.'}
+          </p>
+          <div className="acoes-modal">
+            <button className="btn btn--contorno btn--lg" onClick={() => setEtapa('motivos')} disabled={enviando}>Voltar</button>
+            <button className="btn btn--primario btn--lg" onClick={() => void enviar('Pratos e talheres', resumo())} disabled={enviando || totalItens === 0}>
+              <ConciergeBell size={20} /> {enviando ? 'Chamando…' : 'Chamar garçom'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {etapa === 'outra' && (
         <div className="form">
           <label className="campo">
             <span>Conte rapidinho (opcional)</span>
@@ -895,7 +975,7 @@ function ModalChamarGarcom({ aoFechar, aoChamar }: { aoFechar: () => void; aoCha
             />
           </label>
           <div className="acoes-linha">
-            <button className="btn btn--contorno btn--lg" onClick={() => setOutra(false)} disabled={enviando}>Voltar</button>
+            <button className="btn btn--contorno btn--lg" onClick={() => setEtapa('motivos')} disabled={enviando}>Voltar</button>
             <button className="btn btn--primario btn--lg" style={{ flex: 1 }} onClick={() => void enviar('Outra coisa', texto.trim() || undefined)} disabled={enviando}>
               <ConciergeBell size={20} /> {enviando ? 'Chamando…' : 'Chamar garçom'}
             </button>

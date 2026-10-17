@@ -8,7 +8,7 @@ import { PedidoCard } from '../../componentes/PedidoCard';
 import { useToast } from '../../componentes/Toast';
 import { ativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
-import { definirSom, somLigado, tocarAlerta } from '../../lib/som';
+import { definirSom, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Pedido, StatusPedido } from '../../lib/tipos';
 import { cx, tempoDesde, useAgora } from '../../lib/util';
@@ -30,7 +30,7 @@ export default function Garcom() {
   const vivo = usePedidosAoVivo(r?.id, {
     aoNovoPedido: () => tocarAlerta('pedido'),
     aoPedidoPronto: (p) => { tocarAlerta('pronto'); toast(`Pedido #${p.numero} pronto · ${p.mesa_nome}`, 'ok'); },
-    aoNovoChamado: (c) => { tocarAlerta('chamado'); toast(`${c.mesa_nome} ${c.tipo === 'conta' ? 'pediu a conta' : 'chamou o garçom'}`, 'info'); },
+    aoNovoChamado: (c) => { tocarChamado(r?.som_chamado); toast(`${c.mesa_nome} ${c.tipo === 'conta' ? 'pediu a conta' : 'chamou o garçom'}`, 'info'); },
   });
 
   useEffect(() => { void estadoPush().then(setPush); }, []);

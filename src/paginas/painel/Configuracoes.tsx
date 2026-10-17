@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { BellRing, ImagePlus, Printer, Store } from 'lucide-react';
+import { BellRing, Check, ConciergeBell, ImagePlus, Play, Printer, Store } from 'lucide-react';
 import { Campo, Switch } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, programaDesktop, type ConfigImpressao } from '../../lib/impressao';
 import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
-import { definirSom, somLigado, tocarAlerta } from '../../lib/som';
+import { SONS_CHAMADO, definirSom, somLigado, tocarAlerta, tocarChamado, type SomChamado } from '../../lib/som';
 import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../lib/supabase';
 import { cx, ehGestor } from '../../lib/util';
 import { VERSAO_CURTA } from '../../lib/versao';
@@ -22,6 +22,7 @@ export default function Configuracoes() {
         {ehGestor(papel) && <CartaoRestaurante key={restaurante.id} />}
         <CartaoImpressora />
         <CartaoNotificacoes />
+        <CartaoSomChamado />
       </div>
       <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>
         Versão do sistema: <b>{VERSAO_CURTA}</b> · as atualizações são verificadas a cada minuto.
@@ -157,6 +158,60 @@ function CartaoImpressora() {
         </details>
         )}
       </div>
+    </section>
+  );
+}
+
+function CartaoSomChamado() {
+  const { restaurante, papel } = usePainel();
+  const s = useSessao();
+  const toast = useToast();
+  const [atual, setAtual] = useState<SomChamado>(restaurante.som_chamado ?? 'campainha');
+  const gestor = ehGestor(papel);
+
+  async function escolher(id: SomChamado) {
+    tocarChamado(id, true);
+    if (!gestor || id === atual) return;
+    const antes = atual;
+    setAtual(id);
+    const { error } = await supabase.from('restaurantes').update({ som_chamado: id }).eq('id', restaurante.id);
+    if (error) {
+      setAtual(antes);
+      return toast(msgErro(error), 'erro');
+    }
+    toast('Toque salvo. Vale para o painel e para os celulares dos garçons.', 'ok');
+    void s.recarregar();
+  }
+
+  return (
+    <section className="card">
+      <h2 className="card__titulo"><ConciergeBell size={20} /> Toque do “chamar garçom”</h2>
+      <p className="muted" style={{ margin: '0 0 12px', fontSize: '.9rem' }}>
+        Toca no painel do caixa e no celular dos garçons quando uma mesa chama.{' '}
+        {gestor ? 'Clique numa opção para ouvir e escolher.' : 'Clique para ouvir; só o dono ou gerente pode trocar.'}
+      </p>
+      <div className="sons" role="radiogroup" aria-label="Toque do chamado">
+        {SONS_CHAMADO.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            role="radio"
+            aria-checked={atual === o.id}
+            className={cx('som-opcao', atual === o.id && 'ativo')}
+            onClick={() => void escolher(o.id)}
+          >
+            <span className="som-opcao__play"><Play size={14} fill="currentColor" /></span>
+            <span className="som-opcao__texto">
+              <strong>{o.nome}</strong>
+              <small>{o.descricao}</small>
+            </span>
+            {atual === o.id && <Check size={18} className="som-opcao__ok" />}
+          </button>
+        ))}
+      </div>
+      <p className="muted" style={{ margin: '12px 0 0', fontSize: '.82rem' }}>
+        Com o celular bloqueado, a notificação usa o toque padrão do aparelho (o navegador não permite trocar).
+      </p>
     </section>
   );
 }

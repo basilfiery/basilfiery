@@ -7,6 +7,8 @@ export interface Restaurante {
   slogan: string | null;
   logo_url: string | null;
   cor: string;
+  /** Toque do "chamar garçom" (painel e celulares) */
+  som_chamado: 'campainha' | 'sino' | 'alerta' | 'marimba';
   plano: string;
   ativo: boolean;
   criado_em: string;

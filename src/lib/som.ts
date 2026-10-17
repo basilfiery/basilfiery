@@ -44,6 +44,58 @@ export function tocarAlerta(tipo: keyof typeof MELODIAS = 'pedido') {
   if ('vibrate' in navigator) navigator.vibrate?.([200, 100, 200]);
 }
 
+/* ---------- Toques do "chamar garçom" (escolhidos pelo restaurante) ---------- */
+export type SomChamado = 'campainha' | 'sino' | 'alerta' | 'marimba';
+
+export const SONS_CHAMADO: { id: SomChamado; nome: string; descricao: string }[] = [
+  { id: 'campainha', nome: 'Campainha de balcão', descricao: 'Dois toques metálicos, “din-din”' },
+  { id: 'sino', nome: 'Sino suave', descricao: 'Três notas que sobem, discreto' },
+  { id: 'alerta', nome: 'Alerta duplo', descricao: 'Bipes fortes, bom para ambiente barulhento' },
+  { id: 'marimba', nome: 'Marimba', descricao: 'Melodia curta e alegre' },
+];
+
+/** Uma nota com envelope curto (ataque rápido, decaimento natural) e harmônicos opcionais. */
+function nota(c: AudioContext, inicio: number, freq: number, dur: number, tipo: OscillatorType, vol: number, harmonicos: [number, number][] = []) {
+  for (const [mult, v] of [[1, vol] as [number, number], ...harmonicos]) {
+    const osc = c.createOscillator();
+    const ganho = c.createGain();
+    osc.type = tipo;
+    osc.frequency.value = freq * mult;
+    ganho.gain.setValueAtTime(0.0001, inicio);
+    ganho.gain.exponentialRampToValueAtTime(v, inicio + 0.008);
+    ganho.gain.exponentialRampToValueAtTime(0.0001, inicio + dur);
+    osc.connect(ganho).connect(c.destination);
+    osc.start(inicio);
+    osc.stop(inicio + dur + 0.02);
+  }
+}
+
+/**
+ * Toca o som do chamado da mesa. `teste` toca mesmo com o som desligado
+ * (para ouvir a opção nas Configurações).
+ */
+export function tocarChamado(som: SomChamado | string | null | undefined = 'campainha', teste = false) {
+  if (!teste && !somLigado()) return;
+  destravarSom();
+  if (!ctx) return;
+  const c = ctx;
+  const t = c.currentTime + 0.02;
+  switch (som) {
+    case 'sino':
+      [1046.5, 1318.5, 1568].forEach((f, i) => nota(c, t + i * 0.18, f, 1.3, 'triangle', 0.5));
+      break;
+    case 'alerta':
+      [0, 0.16, 0.42, 0.58].forEach((d, i) => nota(c, t + d, i % 2 ? 784 : 988, 0.13, 'square', 0.16));
+      break;
+    case 'marimba':
+      [784, 1046.5, 1318.5, 1568].forEach((f, i) => nota(c, t + i * 0.12, f, 0.4, 'sine', 0.55, [[4, 0.08]]));
+      break;
+    default: // campainha de balcão: dois "din" metálicos
+      [0, 0.32].forEach((d) => nota(c, t + d, 2350, 1.1, 'sine', 0.45, [[2.76, 0.15], [5.4, 0.05]]));
+  }
+  if (!teste && 'vibrate' in navigator) navigator.vibrate?.([200, 100, 200, 100, 300]);
+}
+
 /** Notificação do sistema quando a aba está em segundo plano (PC do caixa). */
 export function notificarLocal(titulo: string, corpo = '') {
   if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return;

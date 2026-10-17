@@ -729,3 +729,18 @@
 .capa-escolha { display: grid; gap: 8px; }
 .capa-escolha .segmentado button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .capa-escolha small { font-size: .82rem; }
+/* Toques do chamado */
+.sons { display: grid; gap: 8px; }
+.som-opcao {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.som-opcao:hover { border-color: var(--line-2); background: var(--bg-2); }
+.som-opcao.ativo { border-color: var(--acento); box-shadow: inset 0 0 0 1px var(--acento); }
+.som-opcao__play { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--text); }
+.som-opcao.ativo .som-opcao__play { background: var(--acento); color: #fff; }
+.som-opcao__texto { flex: 1; min-width: 0; display: grid; }
+.som-opcao__texto strong { font-size: .92rem; }
+.som-opcao__texto small { color: var(--muted); font-size: .8rem; }
+.som-opcao__ok { color: var(--acento); flex: none; }

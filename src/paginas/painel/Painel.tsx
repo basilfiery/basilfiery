@@ -15,7 +15,7 @@ import {
   lerConfigImpressao, programaDesktop,
 } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
-import { definirSom, notificarLocal, somLigado, tocarAlerta } from '../../lib/som';
+import { definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
 import { PAPEL_ROTULO, brl, cx, ehGestor, hora, ls, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
@@ -104,7 +104,7 @@ export default function Painel() {
       notificarLocal(`Novo pedido #${p.numero} · ${p.mesa_nome}`, `Total ${brl(p.total)}`);
     },
     aoNovoChamado: (c) => {
-      tocarAlerta('chamado');
+      tocarChamado(r?.som_chamado);
       notificarLocal(c.tipo === 'conta' ? `${c.mesa_nome} pediu a conta` : `${c.mesa_nome} chamou o garçom`);
     },
   });

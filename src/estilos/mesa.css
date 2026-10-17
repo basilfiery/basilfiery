@@ -201,3 +201,23 @@
 .motivo--outra { grid-column: 1 / -1; min-height: 90px; grid-auto-flow: column; justify-content: center; align-items: center; gap: 12px; }
 .motivo--outra .motivo__emoji { font-size: 2rem; }
 .input--grande-mesa { font-size: 1.15rem !important; padding: 14px 16px; }
+/* ---------- Subcategorias (ex.: Comida › Pratos, Porções) ---------- */
+.mesa__subcat {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; margin-left: 18px; padding: 8px 12px;
+  border: 0; border-left: 2px solid var(--line); border-radius: 0 10px 10px 0;
+  background: transparent; color: var(--muted); font-size: .92rem; font-weight: 600; text-align: left;
+}
+.mesa__subcat:active { background: var(--surface); color: var(--text); }
+.mesa__chips { display: flex; gap: 8px; flex-wrap: wrap; margin: -4px 0 16px; }
+.mesa__chip {
+  min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text); font-size: .95rem; font-weight: 600;
+}
+.mesa__chip:active { background: var(--acento); border-color: var(--acento); color: #fff; }
+.mesa__sub { padding-top: 14px; }
+.mesa__sub h3 { font-size: 1.3rem; margin: 0 0 12px; color: var(--muted); }
+@media (max-width: 720px) {
+  .mesa__subcat { display: none; }
+  .mesa__chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -12px; padding-right: 12px; }
+  .mesa__chip { flex: none; }
+}

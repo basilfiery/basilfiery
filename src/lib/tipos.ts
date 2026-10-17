@@ -35,6 +35,8 @@ export interface Categoria {
   emoji: string | null;
   ordem: number;
   ativo: boolean;
+  /** Categoria "mãe" (subcategoria). null = categoria principal */
+  pai_id: string | null;
 }
 
 export interface Produto {

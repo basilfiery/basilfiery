@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Film, GripVertical, ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
+import { Check, CornerDownRight, Film, GripVertical, ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
 import { Campo, FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
@@ -16,6 +16,7 @@ export default function Cardapio() {
   const [catSel, setCatSel] = useState<string>('');
   const [busca, setBusca] = useState('');
   const [editCat, setEditCat] = useState<Categoria | 'nova' | null>(null);
+  const [novaPai, setNovaPai] = useState<string | null>(null);
   const [editProd, setEditProd] = useState<Produto | 'novo' | null>(null);
 
   const carregar = useCallback(async () => {
@@ -54,14 +55,16 @@ export default function Cardapio() {
 
   async function moverCategoria(origemId: string, destinoId: string, depois: boolean) {
     if (origemId === destinoId) return;
-    const lista = categorias.filter((c) => c.id !== origemId);
     const origem = categorias.find((c) => c.id === origemId);
+    if (!origem) return;
+    // A ordem vale entre "irmãs": principais entre si, subcategorias dentro da mesma mãe
+    const lista = categorias.filter((c) => c.id !== origemId && c.pai_id === origem.pai_id);
     const idx = lista.findIndex((c) => c.id === destinoId);
-    if (!origem || idx < 0) return;
+    if (idx < 0) return;
     lista.splice(depois ? idx + 1 : idx, 0, origem);
     const novas = lista.map((c, i) => ({ ...c, ordem: i + 1 }));
     const mudaram = novas.filter((c) => categorias.find((x) => x.id === c.id)?.ordem !== c.ordem);
-    setCategorias(novas);
+    setCategorias((todas) => todas.map((c) => novas.find((n) => n.id === c.id) ?? c).sort(ordenarNome));
     const resultados = await Promise.all(mudaram.map((c) => supabase.from('categorias').update({ ordem: c.ordem }).eq('id', c.id)));
     const falha = resultados.find((r) => r.error);
     if (falha) {
@@ -73,12 +76,25 @@ export default function Cardapio() {
   }
 
   const termo = busca.trim().toLowerCase();
-  const ordemCat = new Map(categorias.map((c, i) => [c.id, i]));
+  // Árvore: principais na ordem, cada uma seguida das suas subcategorias
+  const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
+  const filhasDe = (id: string) => categorias.filter((c) => c.pai_id === id);
+  const arvore = principais.flatMap((c) => [c, ...filhasDe(c.id)]);
+  const ordemCat = new Map(arvore.map((c, i) => [c.id, i]));
+  const idsDe = (id: string) => [id, ...filhasDe(id).map((c) => c.id)];
+  const contagem = (id: string) => produtos.filter((p) => p.categoria_id && idsDe(id).includes(p.categoria_id)).length;
+  const selecionadas = catSel ? idsDe(catSel) : [];
+  const catSelecionada = categorias.find((c) => c.id === catSel);
   const visiveis = produtos
-    .filter((p) => (!catSel || p.categoria_id === catSel) && (!termo || p.nome.toLowerCase().includes(termo)))
+    .filter((p) => (!catSel || selecionadas.includes(p.categoria_id ?? '')) && (!termo || p.nome.toLowerCase().includes(termo)))
     // Em "Todos os produtos", segue a ordem das categorias (como no tablet)
     .sort((a, b) => (ordemCat.get(a.categoria_id ?? '') ?? 999) - (ordemCat.get(b.categoria_id ?? '') ?? 999) || ordenarNome(a, b));
-  const nomeCat = (id: string | null) => categorias.find((c) => c.id === id)?.nome ?? 'Sem categoria';
+  const nomeCat = (id: string | null) => {
+    const c = categorias.find((x) => x.id === id);
+    if (!c) return 'Sem categoria';
+    const pai = categorias.find((x) => x.id === c.pai_id);
+    return pai ? `${pai.nome} › ${c.nome}` : c.nome;
+  };
 
   return (
     <div className="pagina">
@@ -99,11 +115,11 @@ export default function Cardapio() {
             <button className={cx('cat-item', !catSel && 'ativo')} onClick={() => setCatSel('')}>
               <span>Todos os produtos</span><span className="contagem">{produtos.length}</span>
             </button>
-            {categorias.map((c) => (
+            {arvore.map((c) => (
               <div
                 key={c.id}
                 className={cx(
-                  'cat-item', catSel === c.id && 'ativo', !c.ativo && 'cat-item--inativa',
+                  'cat-item', c.pai_id && 'cat-item--sub', catSel === c.id && 'ativo', !c.ativo && 'cat-item--inativa',
                   arrastando === c.id && 'arrastando',
                   alvo?.id === c.id && arrastando !== c.id && (alvo.depois ? 'alvo-depois' : 'alvo-antes'),
                 )}
@@ -120,6 +136,8 @@ export default function Cardapio() {
                 }}
                 onDragOver={(e) => {
                   if (!arrastandoRef.current) return;
+                  // Só reordena entre irmãs (não muda a categoria de lugar na árvore)
+                  if (categorias.find((x) => x.id === arrastandoRef.current)?.pai_id !== c.pai_id) return;
                   e.preventDefault();
                   const r = e.currentTarget.getBoundingClientRect();
                   const novo = { id: c.id, depois: e.clientY > r.top + r.height / 2 };
@@ -137,8 +155,9 @@ export default function Cardapio() {
                 title="Arraste para mudar a ordem"
               >
                 <GripVertical size={16} className="cat-item__alca" aria-hidden="true" />
+                {c.pai_id && <CornerDownRight size={14} className="cat-item__seta" aria-hidden="true" />}
                 <span>{c.emoji} {c.nome}</span>
-                <span className="contagem">{produtos.filter((p) => p.categoria_id === c.id).length}</span>
+                <span className="contagem">{contagem(c.id)}</span>
                 <button className="icone-btn" style={{ width: 30, height: 30 }} onClick={(e) => { e.stopPropagation(); setEditCat(c); }} aria-label={`Editar ${c.nome}`}>
                   <Pencil size={14} />
                 </button>
@@ -146,9 +165,14 @@ export default function Cardapio() {
             ))}
           </div>
           {categorias.length > 1 && <p className="cats-dica">Arraste pela alça <GripVertical size={13} /> para mudar a ordem no tablet.</p>}
-          <button className="btn btn--contorno btn--sm btn--bloco" style={{ marginTop: 12 }} onClick={() => setEditCat('nova')}>
+          <button className="btn btn--contorno btn--sm btn--bloco" style={{ marginTop: 12 }} onClick={() => { setNovaPai(null); setEditCat('nova'); }}>
             <Plus size={16} /> Nova categoria
           </button>
+          {catSelecionada && !catSelecionada.pai_id && (
+            <button className="btn btn--fantasma btn--sm btn--bloco" style={{ marginTop: 6 }} onClick={() => { setNovaPai(catSelecionada.id); setEditCat('nova'); }}>
+              <CornerDownRight size={16} /> Subcategoria em {catSelecionada.nome}
+            </button>
+          )}
         </aside>
 
         <section className="pagina" style={{ gap: 12 }}>
@@ -205,7 +229,8 @@ export default function Cardapio() {
         <ModalCategoria
           restauranteId={restaurante.id}
           categoria={editCat === 'nova' ? null : editCat}
-          proximaOrdem={Math.max(0, ...categorias.map((c) => c.ordem)) + 1}
+          categorias={categorias}
+          paiInicial={editCat === 'nova' ? novaPai : editCat.pai_id}
           aoFechar={() => setEditCat(null)}
           aoSalvar={() => { setEditCat(null); void carregar(); }}
         />
@@ -214,8 +239,8 @@ export default function Cardapio() {
         <ModalProduto
           restauranteId={restaurante.id}
           produto={editProd === 'novo' ? null : editProd}
-          categorias={categorias}
-          categoriaPadrao={catSel || categorias[0]?.id}
+          categorias={arvore}
+          categoriaPadrao={catSel || arvore[0]?.id}
           aoFechar={() => setEditProd(null)}
           aoSalvar={() => { setEditProd(null); void carregar(); }}
         />
@@ -285,23 +310,36 @@ function PrecoEditavel({ produto, aoSalvar }: { produto: Produto; aoSalvar: (pre
   );
 }
 
-function ModalCategoria({ restauranteId, categoria, proximaOrdem, aoFechar, aoSalvar }: {
+function ModalCategoria({ restauranteId, categoria, categorias, paiInicial, aoFechar, aoSalvar }: {
   restauranteId: string;
   categoria: Categoria | null;
-  proximaOrdem: number;
+  categorias: Categoria[];
+  paiInicial: string | null;
   aoFechar: () => void;
   aoSalvar: () => void;
 }) {
   const toast = useToast();
+  const proximaOrdem = (pai: string | null) =>
+    Math.max(0, ...categorias.filter((c) => c.pai_id === pai && c.id !== categoria?.id).map((c) => c.ordem)) + 1;
   const [nome, setNome] = useState(categoria?.nome ?? '');
   const [emoji, setEmoji] = useState(categoria?.emoji ?? '');
-  const [ordem, setOrdem] = useState(String(categoria?.ordem ?? proximaOrdem));
+  const [pai, setPai] = useState<string>(paiInicial ?? '');
+  const [ordem, setOrdem] = useState(String(categoria?.ordem ?? proximaOrdem(paiInicial)));
   const [ativo, setAtivo] = useState(categoria?.ativo ?? true);
   const [salvando, setSalvando] = useState(false);
+  const temFilhas = !!categoria && categorias.some((c) => c.pai_id === categoria.id);
+  const opcoesPai = categorias.filter((c) => !c.pai_id && c.id !== categoria?.id);
+
+  function mudarPai(novo: string) {
+    setPai(novo);
+    // Ao mudar de lugar, vai para o fim da lista nova
+    if ((categoria?.pai_id ?? '') !== novo) setOrdem(String(proximaOrdem(novo || null)));
+    else if (categoria) setOrdem(String(categoria.ordem));
+  }
 
   async function salvar() {
     setSalvando(true);
-    const dados = { nome: nome.trim(), emoji: emoji.trim() || null, ordem: Number(ordem) || 0, ativo };
+    const dados = { nome: nome.trim(), emoji: emoji.trim() || null, ordem: Number(ordem) || 0, ativo, pai_id: pai || null };
     const { error } = categoria
       ? await supabase.from('categorias').update(dados).eq('id', categoria.id)
       : await supabase.from('categorias').insert({ ...dados, restaurante_id: restauranteId });
@@ -311,7 +349,8 @@ function ModalCategoria({ restauranteId, categoria, proximaOrdem, aoFechar, aoSa
   }
 
   async function excluir() {
-    if (!categoria || !confirm(`Excluir a categoria "${categoria.nome}"? Os produtos dela ficam sem categoria e somem do tablet até você movê-los.`)) return;
+    const aviso = temFilhas ? ' As subcategorias dela viram categorias principais.' : '';
+    if (!categoria || !confirm(`Excluir a categoria "${categoria.nome}"? Os produtos dela ficam sem categoria e somem do tablet até você movê-los.${aviso}`)) return;
     const { error } = await supabase.from('categorias').delete().eq('id', categoria.id);
     if (error) return toast(msgErro(error), 'erro');
     aoSalvar();
@@ -321,7 +360,7 @@ function ModalCategoria({ restauranteId, categoria, proximaOrdem, aoFechar, aoSa
     <Modal
       aberto
       aoFechar={aoFechar}
-      titulo={categoria ? 'Editar categoria' : 'Nova categoria'}
+      titulo={categoria ? 'Editar categoria' : pai ? 'Nova subcategoria' : 'Nova categoria'}
       rodape={
         <>
           {categoria && <button className="btn btn--perigo" style={{ marginRight: 'auto' }} onClick={() => void excluir()}><Trash2 size={16} /> Excluir</button>}
@@ -335,7 +374,18 @@ function ModalCategoria({ restauranteId, categoria, proximaOrdem, aoFechar, aoSa
           <Campo rotulo="Nome"><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={40} autoFocus /></Campo>
           <Campo rotulo="Emoji" dica="Opcional. Ex.: 🍕"><input className="input" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} /></Campo>
         </div>
-        <Campo rotulo="Ordem" dica="Menor aparece primeiro no tablet"><input className="input" type="number" value={ordem} onChange={(e) => setOrdem(e.target.value)} /></Campo>
+        <Campo
+          rotulo="Fica dentro de"
+          dica={temFilhas
+            ? 'Esta categoria já tem subcategorias, por isso fica como principal.'
+            : 'Ex.: “Pratos” e “Porções” dentro de “Comida”. No tablet aparecem agrupadas.'}
+        >
+          <select className="select" value={pai} onChange={(e) => mudarPai(e.target.value)} disabled={temFilhas}>
+            <option value="">Nenhuma (categoria principal)</option>
+            {opcoesPai.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.nome}</option>)}
+          </select>
+        </Campo>
+        <Campo rotulo="Ordem" dica={pai ? 'Ordem dentro da categoria principal' : 'Menor aparece primeiro no tablet'}><input className="input" type="number" value={ordem} onChange={(e) => setOrdem(e.target.value)} /></Campo>
         <Switch marcado={ativo} aoMudar={setAtivo}>Mostrar no tablet</Switch>
       </div>
     </Modal>
@@ -354,8 +404,11 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
   const arquivoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   // Produto novo em categoria de bebidas já começa "sem preparo"
-  const ehBebida = (catId: string) =>
-    /bebida|drink|refri|cerveja|suco|vinho|dose/i.test(categorias.find((c) => c.id === catId)?.nome ?? '');
+  const ehBebida = (catId: string) => {
+    const c = categorias.find((x) => x.id === catId);
+    const pai = categorias.find((x) => x.id === c?.pai_id);
+    return /bebida|drink|refri|cerveja|suco|vinho|dose/i.test(`${c?.nome ?? ''} ${pai?.nome ?? ''}`);
+  };
   const [f, setF] = useState({
     precisa_preparo: produto?.precisa_preparo ?? !ehBebida(produto?.categoria_id ?? categoriaPadrao ?? ''),
     nome: produto?.nome ?? '',
@@ -546,7 +599,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, aoF
                 setF((x) => ({ ...x, categoria_id: cat, precisa_preparo: produto ? x.precisa_preparo : !ehBebida(cat) }));
               }}
             >
-              {categorias.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.nome}</option>)}
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>{c.pai_id ? '\u00a0\u00a0\u00a0↳ ' : ''}{c.emoji} {c.nome}</option>
+              ))}
             </select>
           </Campo>
         </div>

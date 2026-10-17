@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle2, ConciergeBell, Maximize, Play, Plus, Receipt, ShoppingBag, Trash2 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
@@ -32,7 +32,7 @@ interface ProdutoMesa {
 interface DadosMesa {
   restaurante: { id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string };
   mesa: { id: string; nome: string };
-  categorias: { id: string; nome: string; emoji: string | null }[];
+  categorias: { id: string; nome: string; emoji: string | null; pai_id?: string | null }[];
   produtos: ProdutoMesa[];
 }
 
@@ -232,7 +232,46 @@ export default function Mesa() {
   if (!dados) return <Carregando texto="Carregando cardápio…" />;
 
   const { restaurante, mesa, categorias, produtos } = dados;
-  const ativa = catAtiva || categorias[0]?.id;
+  // Categorias principais; as subcategorias (ex.: Comida › Pratos) aparecem dentro delas
+  const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
+  const produtosDe = (id: string) => produtos.filter((p) => p.categoria_id === id);
+  const subsDe = (id: string) => categorias.filter((c) => c.pai_id === id && produtosDe(c.id).length > 0);
+  const secoes = principais
+    .map((c) => ({ ...c, diretos: produtosDe(c.id), subs: subsDe(c.id) }))
+    .filter((c) => c.diretos.length > 0 || c.subs.length > 0);
+  const ativa = catAtiva || secoes[0]?.id;
+
+  const grade = (lista: ProdutoMesa[]) => (
+    <div className="mesa__grade">
+      {lista.map((p) => {
+        const noCarrinho = qtdDoProduto(p.id);
+        return (
+          <button
+            key={p.id}
+            className={cx('prod', !p.disponivel && 'prod--esgotado')}
+            disabled={!p.disponivel}
+            onClick={() => setProdutoAberto(p)}
+          >
+            {p.capa === 'video' && p.video_url
+              ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" />
+              : <FotoProduto p={p} classe="prod__foto" />}
+            {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={14} fill="currentColor" /> Vídeo</span>}
+            {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
+            {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
+            <div className="prod__info">
+              <h3>{p.nome}</h3>
+              <p>{p.descricao}</p>
+              <Selos p={p} />
+              <div className="prod__rodape">
+                <strong>{brl(p.preco)}</strong>
+                {p.disponivel && <span className="prod__mais" aria-hidden="true"><Plus size={20} /></span>}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   const painelCarrinho = (
     <div className="carrinho">
@@ -309,53 +348,41 @@ export default function Mesa() {
 
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias">
-          {categorias.map((c) => (
-            <button key={c.id} className={cx('mesa__cat', ativa === c.id && 'ativa')} onClick={() => irPara(c.id)}>
-              <span className="mesa__cat-emoji">{c.emoji}</span> {c.nome}
-            </button>
+          {secoes.map((c) => (
+            <Fragment key={c.id}>
+              <button className={cx('mesa__cat', ativa === c.id && 'ativa')} onClick={() => irPara(c.id)}>
+                <span className="mesa__cat-emoji">{c.emoji}</span> {c.nome}
+              </button>
+              {ativa === c.id && c.subs.map((sub) => (
+                <button key={sub.id} className="mesa__subcat" onClick={() => irPara(sub.id)}>
+                  {sub.emoji} {sub.nome}
+                </button>
+              ))}
+            </Fragment>
           ))}
         </nav>
 
         <main className="mesa__lista" ref={listaRef} onScroll={aoRolar}>
           {restaurante.slogan && <p className="mesa__slogan">{restaurante.slogan}</p>}
-          {categorias.map((c) => {
-            const lista = produtos.filter((p) => p.categoria_id === c.id);
-            if (!lista.length) return null;
-            return (
-              <section key={c.id} id={`cat-${c.id}`} data-cat={c.id} className="mesa__secao">
-                <h2 className="titulo">{c.emoji} {c.nome}</h2>
-                <div className="mesa__grade">
-                  {lista.map((p) => {
-                    const noCarrinho = qtdDoProduto(p.id);
-                    return (
-                      <button
-                        key={p.id}
-                        className={cx('prod', !p.disponivel && 'prod--esgotado')}
-                        disabled={!p.disponivel}
-                        onClick={() => setProdutoAberto(p)}
-                      >
-                        {p.capa === 'video' && p.video_url
-                          ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" />
-                          : <FotoProduto p={p} classe="prod__foto" />}
-                        {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={14} fill="currentColor" /> Vídeo</span>}
-                        {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
-                        {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
-                        <div className="prod__info">
-                          <h3>{p.nome}</h3>
-                          <p>{p.descricao}</p>
-                          <Selos p={p} />
-                          <div className="prod__rodape">
-                            <strong>{brl(p.preco)}</strong>
-                            {p.disponivel && <span className="prod__mais" aria-hidden="true"><Plus size={20} /></span>}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
+          {secoes.map((c) => (
+            <section key={c.id} id={`cat-${c.id}`} data-cat={c.id} className="mesa__secao">
+              <h2 className="titulo">{c.emoji} {c.nome}</h2>
+              {c.subs.length > 0 && (
+                <div className="mesa__chips" role="navigation" aria-label={`Tipos de ${c.nome}`}>
+                  {c.subs.map((sub) => (
+                    <button key={sub.id} className="mesa__chip" onClick={() => irPara(sub.id)}>{sub.emoji} {sub.nome}</button>
+                  ))}
                 </div>
-              </section>
-            );
-          })}
+              )}
+              {c.diretos.length > 0 && grade(c.diretos)}
+              {c.subs.map((sub) => (
+                <div key={sub.id} id={`cat-${sub.id}`} className="mesa__sub">
+                  <h3 className="titulo">{sub.emoji} {sub.nome}</h3>
+                  {grade(produtosDe(sub.id))}
+                </div>
+              ))}
+            </section>
+          ))}
           {produtos.length === 0 && <p className="vazio">O cardápio ainda está sendo preparado. Chame um atendente.</p>}
         </main>
 

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Copy, ExternalLink, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
+import { ArrowRightLeft, Copy, ExternalLink, LayoutGrid, Plus, Printer, RefreshCw, Tablet, Trash2, Wallet } from 'lucide-react';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
+import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
@@ -41,6 +42,7 @@ export default function Mesas() {
   useEffect(() => { void carregar(); }, [carregar, aoVivo]);
 
   const pedidosDa = (mesaId: string) => abertos.filter((p) => p.mesa_id === mesaId);
+  const totalDa = (mesaId: string) => pedidosDa(mesaId).reduce((s, p) => s + Number(p.total), 0);
   const chamadosDa = (mesaId: string) => chamados.filter((c) => c.mesa_id === mesaId);
   const ocupadas = mesas.filter((m) => pedidosDa(m.id).length > 0).length;
   const emAberto = abertos.reduce((s, p) => s + Number(p.total), 0);
@@ -108,6 +110,8 @@ export default function Mesas() {
           restauranteNome={restaurante.nome}
           podeFechar={podeCaixa(papel)}
           gestor={gestor}
+          mesas={mesas}
+          totalDa={totalDa}
           aoFechar={() => setSelecionada(null)}
           aoMudar={() => void carregar()}
         />
@@ -128,13 +132,15 @@ export default function Mesas() {
   );
 }
 
-function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, aoFechar, aoMudar }: {
+function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, mesas, totalDa, aoFechar, aoMudar }: {
   mesa: Mesa;
   pedidos: Pedido[];
   chamados: Chamado[];
   restauranteNome: string;
   podeFechar: boolean;
   gestor: boolean;
+  mesas: Mesa[];
+  totalDa: (mesaId: string) => number;
   aoFechar: () => void;
   aoMudar: () => void;
 }) {
@@ -146,6 +152,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const [token, setToken] = useState(mesa.token);
   const [ativo, setAtivo] = useState(mesa.ativo);
   const [ocupado, setOcupado] = useState(false);
+  const [trocando, setTrocando] = useState(false);
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
   const link = linkMesa(token);
 
@@ -233,6 +240,9 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
               <button className="btn btn--contorno" onClick={() => imprimirConta(mesa.nome, restauranteNome, pedidos)}>
                 <Printer size={18} /> Imprimir conta
               </button>
+              <button className="btn btn--contorno" onClick={() => setTrocando(true)}>
+                <ArrowRightLeft size={18} /> Trocar de mesa
+              </button>
             </div>
             {podeFechar && (
               caixaAberto ? (
@@ -295,6 +305,15 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
             <button className="btn btn--perigo btn--sm" onClick={() => void excluir()}><Trash2 size={16} /> Excluir mesa</button>
           </div>
         </section>
+      )}
+      {trocando && (
+        <ModalTrocarMesa
+          origem={mesa}
+          mesas={mesas}
+          totalDa={totalDa}
+          aoFechar={() => setTrocando(false)}
+          aoTrocar={() => { setTrocando(false); aoMudar(); aoFechar(); }}
+        />
       )}
     </Modal>
   );

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, BellOff, Check, ExternalLink, LayoutDashboard, LogOut, Printer, Receipt, RefreshCw, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Check, ExternalLink, LayoutDashboard, LogOut, Printer, Receipt, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
+import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
 import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { PedidoCard } from '../../componentes/PedidoCard';
 import { useToast } from '../../componentes/Toast';
@@ -213,6 +214,7 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
   if (!mesas.length) return <Vazio titulo="Nenhuma mesa cadastrada" />;
 
   const pedidosDa = (id: string) => abertos.filter((p) => p.mesa_id === id);
+  const totalDa = (id: string) => pedidosDa(id).reduce((s, p) => s + Number(p.total), 0);
 
   return (
     <div className="garcom__mesas">
@@ -234,14 +236,33 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
         );
       })}
 
-      {sel && <ContaMesa mesa={sel} pedidos={pedidosDa(sel.id)} agora={agora} aoFechar={() => setSel(null)} />}
+      {sel && (
+        <ContaMesa
+          mesa={sel}
+          pedidos={pedidosDa(sel.id)}
+          agora={agora}
+          mesas={mesas}
+          totalDa={totalDa}
+          aoFechar={() => setSel(null)}
+          aoTrocar={() => { setSel(null); void carregar(); }}
+        />
+      )}
     </div>
   );
 }
 
-function ContaMesa({ mesa, pedidos, agora, aoFechar }: { mesa: Mesa; pedidos: Pedido[]; agora: number; aoFechar: () => void }) {
+function ContaMesa({ mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }: {
+  mesa: Mesa;
+  pedidos: Pedido[];
+  agora: number;
+  mesas: Mesa[];
+  totalDa: (id: string) => number;
+  aoFechar: () => void;
+  aoTrocar: () => void;
+}) {
   const toast = useToast();
   const [enviando, setEnviando] = useState(false);
+  const [trocando, setTrocando] = useState(false);
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
 
   // Agrupa itens iguais para a conferência
@@ -307,8 +328,14 @@ function ContaMesa({ mesa, pedidos, agora, aoFechar }: { mesa: Mesa; pedidos: Pe
               <span key={p.id} className={`badge badge--${p.status}`}>#{p.numero} · {STATUS_ROTULO[p.status]} · {tempoDesde(p.criado_em, agora)}</span>
             ))}
           </div>
+          <button className="btn btn--contorno btn--bloco" onClick={() => setTrocando(true)}>
+            <ArrowRightLeft size={18} /> Cliente trocou de mesa
+          </button>
           <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>O pagamento é registrado pelo caixa, no computador.</p>
         </div>
+      )}
+      {trocando && (
+        <ModalTrocarMesa origem={mesa} mesas={mesas} totalDa={totalDa} aoFechar={() => setTrocando(false)} aoTrocar={aoTrocar} />
       )}
     </Modal>
   );

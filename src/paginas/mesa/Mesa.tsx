@@ -13,6 +13,7 @@ import { msgErro, supabase } from '../../lib/supabase';
 import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
 import { useNovaVersao } from '../../lib/versao';
+import { useAppInstalavel } from '../../lib/manifesto';
 import '../../estilos/mesa.css';
 
 interface ProdutoMesa {
@@ -98,6 +99,13 @@ export default function Mesa() {
   const listaRef = useRef<HTMLDivElement>(null);
   const catsRef = useRef<HTMLElement>(null);
   useAlturaTela();
+  // "Adicionar à tela de início" guarda esta mesa (e não o painel do sistema)
+  useAppInstalavel(dados ? {
+    nome: `${dados.mesa.nome} · ${dados.restaurante.nome}`,
+    curto: dados.mesa.nome,
+    inicio: `/mesa/${token}`,
+    escopo: `/mesa/${token}`,
+  } : null);
 
   const podePedir = acesso === 'liberado' || acesso === 'equipe';
 

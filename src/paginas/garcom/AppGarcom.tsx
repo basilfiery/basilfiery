@@ -5,6 +5,7 @@ import { Carregando } from '../../componentes/Carregando';
 import { useSessao } from '../../lib/sessao';
 import { msgErro, supabase } from '../../lib/supabase';
 import { ls } from '../../lib/util';
+import { useAppInstalavel } from '../../lib/manifesto';
 import Garcom from './Garcom';
 import '../../estilos/garcom-app.css';
 
@@ -51,7 +52,8 @@ export default function AppGarcom() {
   const { codigo = '' } = useParams();
   const s = useSessao();
   const [info, setInfo] = useState<Info | null | undefined>(undefined);
-  useManifestoGarcom(info?.nome);
+  // Na tela de início do celular, o atalho abre direto este restaurante (no iPhone o app não vê os dados do Safari)
+  useAppInstalavel(info ? { nome: `Garçom · ${info.nome}`, curto: 'Garçom', inicio: `/g/${codigo.toLowerCase()}`, escopo: '/g/' } : null);
 
   useEffect(() => {
     let vivo = true;

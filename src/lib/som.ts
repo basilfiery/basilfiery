@@ -48,7 +48,7 @@ export function tocarAlerta(tipo: keyof typeof MELODIAS = 'pedido') {
 export type SomChamado = 'campainha' | 'sino' | 'alerta' | 'marimba';
 
 export const SONS_CHAMADO: { id: SomChamado; nome: string; descricao: string }[] = [
-  { id: 'campainha', nome: 'Sino de garçom', descricao: 'O clássico “ding-ding” da campainha de balcão de restaurante' },
+  { id: 'campainha', nome: 'Sino de garçom', descricao: 'O clássico “ding” da campainha de balcão de restaurante' },
   { id: 'sino', nome: 'Sino suave', descricao: 'Três notas que sobem, discreto' },
   { id: 'alerta', nome: 'Alerta duplo', descricao: 'Bipes fortes, bom para ambiente barulhento' },
   { id: 'marimba', nome: 'Marimba', descricao: 'Melodia curta e alegre' },
@@ -128,8 +128,8 @@ export function tocarChamado(som: SomChamado | string | null | undefined = 'camp
     case 'marimba':
       [784, 1046.5, 1318.5, 1568].forEach((f, i) => nota(c, t + i * 0.12, f, 0.4, 'sine', 0.55, [[4, 0.08]]));
       break;
-    default: // sino de garçom (campainha de balcão): "ding-ding"
-      [0, 0.42].forEach((d, i) => sinoDeBalcao(c, t + d, i === 0 ? 1 : 0.8));
+    default: // sino de garçom (campainha de balcão): um "ding"
+      sinoDeBalcao(c, t, 1);
   }
   if (!teste && 'vibrate' in navigator) navigator.vibrate?.([200, 100, 200, 100, 300]);
 }

@@ -100,6 +100,16 @@ export async function enviarImagem(restauranteId: string, arquivo: File, pasta: 
   return subir(`${restauranteId}/${pasta}/${crypto.randomUUID()}.${ext}`, blob, tipo);
 }
 
+/** Foto de perfil da própria pessoa (fica em avatars/<id da pessoa>/). */
+export async function enviarFotoPerfil(userId: string, arquivo: File): Promise<string> {
+  if (!ehImagem(arquivo)) throw new Error('Escolha uma foto.');
+  const blob = await prepararImagem(arquivo);
+  if (blob.size > 15 * 1024 * 1024) throw new Error('Foto muito grande (máximo 15 MB).');
+  const tipo = blob.type || 'image/jpeg';
+  const ext = tipo.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+  return subir(`avatars/${userId}/${crypto.randomUUID()}.${ext}`, blob, tipo);
+}
+
 /** Envia um vídeo (MP4, MOV, WEBM…) e devolve a URL pública. */
 export async function enviarVideo(restauranteId: string, arquivo: File, pasta: string): Promise<string> {
   if (!ehVideo(arquivo)) throw new Error('Escolha um arquivo de vídeo.');

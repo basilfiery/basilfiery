@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Banknote, BarChart3, Bell, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, Eye, History, LayoutGrid,
-  Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, Users,
+  Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, UserCog, UserRound, Store, Sun, Users,
   Volume2, VolumeX, Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
 import { Logo, Switch } from '../../componentes/Basicos';
+import { Avatar, ModalPerfil, iniciais } from '../../componentes/Perfil';
 import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
 import {
@@ -49,6 +50,7 @@ const MENU: { para: string; icone: LucideIcon; rotulo: string; papeis: Papel[]; 
   { para: '/painel/cardapio', icone: BookOpen, rotulo: 'Cardápio', papeis: ['dono', 'gerente'] },
   { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: ['dono', 'gerente', 'caixa'] },
   { para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: ['dono', 'gerente', 'caixa'] },
+  { para: '/painel/garcons', icone: UserRound, rotulo: 'Garçons', papeis: ['dono', 'gerente'] },
   { para: '/painel/equipe', icone: Users, rotulo: 'Equipe', papeis: ['dono', 'gerente'] },
   { para: '/painel/config', icone: Settings, rotulo: 'Configurações', papeis: TODOS },
 ];
@@ -62,12 +64,11 @@ const PLANO_ROTULO: Record<string, string> = {
 
 type Tema = 'claro' | 'escuro';
 
-const iniciais = (nome: string) =>
-  nome.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
 
 export default function Painel() {
   const s = useSessao();
   const toast = useToast();
+  const [perfilAberto, setPerfilAberto] = useState(false);
   const local = useLocation();
   const navegar = useNavigate();
   const r = s.restaurante;
@@ -297,7 +298,7 @@ export default function Painel() {
             largura={240}
             gatilho={(_, alternar) => (
               <button className="usuario-btn" onClick={alternar} aria-label="Menu da conta">
-                <span className="avatar">{iniciais(s.nome || 'Usuário')}</span>
+                <Avatar nome={s.nome || 'Usuário'} foto={s.foto} />
                 <div>
                   <strong>{s.nome || 'Usuário'}</strong>
                   <small>{PAPEL_ROTULO[papel]}</small>
@@ -309,10 +310,11 @@ export default function Painel() {
             {(fechar) => (
               <>
                 <div className="menu-cab">
-                  <span className="avatar">{iniciais(s.nome || 'Usuário')}</span>
+                  <Avatar nome={s.nome || 'Usuário'} foto={s.foto} />
                   <div><strong>{s.nome || 'Usuário'}</strong><small>{s.usuario?.email}</small></div>
                 </div>
                 <div className="menu-sep" />
+                <button className="menu-item" onClick={() => { fechar(); setPerfilAberto(true); }}><UserCog size={18} /> Meu perfil</button>
                 <Link className="menu-item" to="/garcom" onClick={fechar}><Smartphone size={18} /> Tela do garçom</Link>
                 {s.ehAdmin && <Link className="menu-item" to="/plataforma" onClick={fechar}><ShieldCheck size={18} /> Plataforma</Link>}
                 <div className="menu-sep" />
@@ -322,6 +324,7 @@ export default function Painel() {
           </Suspenso>
         </div>
       </aside>
+      {perfilAberto && <ModalPerfil aoFechar={() => setPerfilAberto(false)} />}
 
       {/* ================= Área principal ================= */}
       <div className="painel__principal">

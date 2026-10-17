@@ -24,6 +24,7 @@ export interface Membro {
   papel: Papel;
   nome: string;
   email: string | null;
+  foto_url: string | null;
   criado_em: string;
 }
 

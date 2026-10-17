@@ -23,6 +23,7 @@ const Mesas = tela(() => import('./paginas/painel/Mesas'));
 const Cardapio = tela(() => import('./paginas/painel/Cardapio'));
 const Estoque = tela(() => import('./paginas/painel/Estoque'));
 const Equipe = tela(() => import('./paginas/painel/Equipe'));
+const Garcons = tela(() => import('./paginas/painel/Garcons'));
 const Configuracoes = tela(() => import('./paginas/painel/Configuracoes'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
 
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="cardapio" element={<Cardapio />} />
           <Route path="estoque" element={<Estoque />} />
+          <Route path="garcons" element={<Garcons />} />
           <Route path="equipe" element={<Equipe />} />
           <Route path="config" element={<Configuracoes />} />
         </Route>

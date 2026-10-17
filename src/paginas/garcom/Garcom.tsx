@@ -5,6 +5,7 @@ import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
+import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { PedidoCard } from '../../componentes/PedidoCard';
 import { useToast } from '../../componentes/Toast';
 import { ativarPush, estadoPush, type EstadoPush } from '../../lib/push';
@@ -45,6 +46,7 @@ export default function Garcom() {
   }, [haChamados]);
 
   useEffect(() => { void estadoPush().then(setPush); }, []);
+  const [perfilAberto, setPerfilAberto] = useState(false);
 
   if (s.carregando) return <Carregando />;
   if (!r) {
@@ -95,8 +97,12 @@ export default function Garcom() {
   return (
     <div className="garcom" style={{ '--acento': r.cor } as CSSProperties}>
       <header className="garcom__topo">
+        <button className="garcom__perfil" onClick={() => setPerfilAberto(true)} aria-label="Meu perfil" title="Meu perfil">
+          <Avatar nome={s.nome || 'Garçom'} foto={s.foto} tamanho={40} />
+        </button>
         <div>
-          <strong>{r.nome}</strong>
+          <strong>{s.nome || r.nome}</strong>
+          <small className="garcom__rest">{r.nome}</small>
           <span className={cx('ao-vivo', vivo.conectado && 'on')}>{vivo.conectado ? 'Ao vivo' : 'Reconectando…'}</span>
         </div>
         <button className="icone-btn" onClick={() => { const v = !som; setSom(v); definirSom(v); if (v) tocarAlerta('pronto'); }} aria-label={som ? 'Desligar som' : 'Ligar som'}>
@@ -105,6 +111,12 @@ export default function Garcom() {
         {r.papel !== 'garcom' && <Link to="/painel" className="icone-btn" aria-label="Abrir painel"><LayoutDashboard size={20} /></Link>}
         <button className="icone-btn" onClick={() => void s.sair()} aria-label="Sair"><LogOut size={20} /></button>
       </header>
+      {perfilAberto && <ModalPerfil aoFechar={() => setPerfilAberto(false)} />}
+      {!s.foto && (
+        <button className="garcom__dica-foto" onClick={() => setPerfilAberto(true)}>
+          Coloque sua foto e confira seu nome em <b>Meu perfil</b>
+        </button>
+      )}
 
       {novaVersao && (
         <div className="garcom__aviso garcom__aviso--versao">

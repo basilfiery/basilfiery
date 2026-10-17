@@ -14,7 +14,7 @@ export default function Login() {
   const [modo, setModo] = useState<Modo>(() => (new URLSearchParams(local.search).get('criar') !== null ? 'criar' : 'entrar'));
   const [nome, setNome] = useState('');
   const [restaurante, setRestaurante] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => new URLSearchParams(local.search).get('email') ?? '');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);

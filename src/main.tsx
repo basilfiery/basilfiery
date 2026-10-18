@@ -6,6 +6,7 @@ import { ErroGeral } from './componentes/ErroGeral';
 import { ProvedorSessao } from './lib/sessao';
 import { ProvedorToast } from './componentes/Toast';
 import { ProvedorConfirmar } from './componentes/Confirmar';
+import { ProvedorCancelar } from './componentes/CancelarPedido';
 import { destravarSom } from './lib/som';
 import { limparParametroDeRecarga, recarregarUmaVez } from './lib/carregamento';
 import './estilos/base.css';
@@ -27,7 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <ProvedorToast>
           <ProvedorSessao>
             <ProvedorConfirmar>
-              <App />
+              <ProvedorCancelar>
+                <App />
+              </ProvedorCancelar>
             </ProvedorConfirmar>
           </ProvedorSessao>
         </ProvedorToast>

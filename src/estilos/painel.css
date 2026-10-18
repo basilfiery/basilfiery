@@ -2080,3 +2080,38 @@
 .compra__zap { display: inline-flex; align-items: center; gap: 3px; color: var(--ok); font-weight: 600; text-decoration: none; }
 .compra__zap:hover { text-decoration: underline; }
 @media (max-width: 760px) { .colab-novo__form { grid-template-columns: minmax(0, 1fr); } }
+
+/* =====================================================================
+   Cancelar pedido ou item, com motivo (a mesa recebe o aviso)
+   ===================================================================== */
+.cancelar { display: grid; gap: 18px; }
+.cancelar__bloco { display: grid; gap: 10px; }
+.cancelar h3 { margin: 0; font-size: .95rem; font-weight: 700; }
+.cancelar__cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cancelar__itens { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.cancelar__item {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 12px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font: inherit;
+  transition: border-color .15s, background .15s;
+}
+.cancelar__item:hover { border-color: var(--line-2); }
+.cancelar__item.ativo { border-color: color-mix(in srgb, var(--danger) 55%, transparent); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+.cancelar__check { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 2px solid var(--line-2); border-radius: 7px; color: #fff; transition: background .15s, border-color .15s; }
+.cancelar__item.ativo .cancelar__check { border-color: var(--danger); background: var(--danger); }
+.cancelar__nome { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: .94rem; overflow-wrap: anywhere; }
+.cancelar__nome small { color: var(--muted); font-size: .8rem; }
+.cancelar__valor { flex: none; color: var(--muted); font-size: .88rem; font-variant-numeric: tabular-nums; }
+.cancelar__motivos { display: flex; flex-wrap: wrap; gap: 8px; }
+.cancelar__motivo {
+  height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+  color: var(--text); font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s;
+}
+.cancelar__motivo:hover { border-color: var(--line-2); }
+.cancelar__motivo.ativo { border-color: var(--text); background: var(--text); color: var(--bg); }
+.cancelar__alerta { margin: 0; padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); font-size: .86rem; font-weight: 600; }
+.cancelar__previa {
+  display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 12px;
+  background: var(--bg-2); border: 1px dashed var(--line-2); color: var(--muted); font-size: .88rem; line-height: 1.5;
+}
+.cancelar__previa svg { flex: none; margin-top: 2px; color: var(--acento, var(--fire-2)); }
+.cancelar__previa b { color: var(--text); font-weight: 600; }

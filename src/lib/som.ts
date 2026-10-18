@@ -55,6 +55,17 @@ export function tocarEnviado() {
   if ('vibrate' in navigator) navigator.vibrate?.(35);
 }
 
+/** Aviso ao cliente (ex.: item cancelado): duas notas descendo, suaves, chamam a atenção sem assustar. */
+export function tocarAviso() {
+  destravarSom();
+  if (!ctx) return;
+  const c = ctx;
+  const t = c.currentTime + 0.02;
+  nota(c, t, 1318.5, 0.4, 'sine', 0.22, [[2, 0.03]]);
+  nota(c, t + 0.16, 987.8, 0.6, 'sine', 0.2, [[2, 0.025]]);
+  if ('vibrate' in navigator) navigator.vibrate?.([120, 80, 120]);
+}
+
 /* ---------- Toques do "chamar garçom" (escolhidos pelo restaurante) ---------- */
 export type SomChamado = 'campainha' | 'sino' | 'alerta' | 'marimba';
 

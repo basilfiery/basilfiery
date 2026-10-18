@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactElement } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  AtSign, BadgePercent, Banknote, Bike, Gift, House, ReceiptText, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
+  AtSign, BadgePercent, Ban, Banknote, Bike, Gift, House, Info, ReceiptText, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -13,6 +13,7 @@ import { brl, cx, hora, lerPreco, ls, mascaraPreco } from '../../lib/util';
 import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
 import { destravarSom, tocarEnviado } from '../../lib/som';
+import { fraseCancelamento } from '../../lib/cancelamento';
 import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaRaio, type Ponto } from '../../lib/mapa';
 import '../../estilos/mesa.css';
 import '../../estilos/loja.css';
@@ -146,6 +147,7 @@ export default function LojaCardapio() {
   const navegar = useNavigate();
   const toast = useToast();
   useAlturaTela();
+  const [verSobre, setVerSobre] = useState(false);
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState('');
   const [carrinho, setCarrinho] = useState<Linha[]>(() => ls.ler(`bf:loja:carrinho:${codigo}`, []));
@@ -155,7 +157,6 @@ export default function LojaCardapio() {
   const [verCarrinho, setVerCarrinho] = useState(false);
   const [finalizar, setFinalizar] = useState(false);
   const listaRef = useRef<HTMLElement>(null);
-  const [capaRecolhida, setCapaRecolhida] = useState(false);
   const [params, setParams] = useSearchParams();
   const abaLoja = (ABAS_LOJA.some((a) => a.id === params.get('aba')) ? params.get('aba') : 'inicio') as AbaLoja;
   const irAba = (id: AbaLoja) => { setParams(id === 'inicio' ? {} : { aba: id }); window.scrollTo({ top: 0 }); };
@@ -324,6 +325,18 @@ export default function LojaCardapio() {
             <span className={cx('loja-status', loja.aberto ? 'aberta' : 'fechada')}>{loja.aberto ? 'Aberto agora' : 'Fechado agora'}</span>
           </div>
         </div>
+        <div className="mesa__acoes">
+          {loja.instagram && (
+            <a className="btn btn--contorno mesa__acao" href={`https://instagram.com/${loja.instagram.replace(/^@/, '')}`} target="_blank" rel="noopener" aria-label="Instagram da loja">
+              <AtSign size={20} /> <span className="mesa__rotulo">Instagram</span>
+            </a>
+          )}
+          {(loja.endereco || loja.horarios || loja.rodape) && (
+            <button type="button" className="btn btn--contorno mesa__acao" onClick={() => setVerSobre(true)} aria-label="Sobre a loja: endereço e horários">
+              <Info size={20} /> <span className="mesa__rotulo">Sobre a loja</span>
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="loja-info">
@@ -355,7 +368,7 @@ export default function LojaCardapio() {
         </main>
       ) : (
       <>
-      <CapaCardapio imagem={loja.capa_url} video={loja.capa_video_url} recolhida={capaRecolhida} />
+      <CapaCardapio imagem={loja.capa_url} video={loja.capa_video_url} />
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias">
           {secoes.map((c) => (
@@ -366,7 +379,7 @@ export default function LojaCardapio() {
             </button>
           ))}
         </nav>
-        <main className="mesa__lista" ref={listaRef} onScroll={(e) => setCapaRecolhida(e.currentTarget.scrollTop > 40)}>
+        <main className="mesa__lista" ref={listaRef}>
           {secao?.id === secoes[0]?.id && loja.descricao && (
             <div className="loja-hero">
               <p className="loja-hero__desc">{loja.descricao}</p>
@@ -390,23 +403,13 @@ export default function LojaCardapio() {
               {grade(lista)}
             </section>
           ) : <p className="vazio">O cardápio ainda está sendo preparado.</p>}
-          <footer className="loja-rodape">
-            <strong>{loja.nome}</strong>
-            {loja.endereco && <span><MapPin size={14} /> {loja.endereco}</span>}
-            {loja.instagram && <a href={`https://instagram.com/${loja.instagram}`} target="_blank" rel="noopener"><AtSign size={14} /> {loja.instagram}</a>}
-            {loja.horarios && (
-              <span className="loja-rodape__horarios">
-                <Clock size={14} />
-                {loja.horarios.map((h, i) => <small key={i}>{DIAS[i].slice(0, 3)}: {h.aberto ? `${h.de}–${h.ate}` : 'fechado'}</small>)}
-              </span>
-            )}
-            {loja.rodape && <p>{loja.rodape}</p>}
-          </footer>
         </main>
         <aside className="mesa__carrinho">{sacola}</aside>
       </div>
       </>
       )}
+
+      {verSobre && <ModalSobreLoja loja={loja} aoFechar={() => setVerSobre(false)} />}
 
       {/* Barra de baixo, como nos apps de delivery */}
       <nav className="loja-nav" aria-label="Menu da loja">
@@ -758,6 +761,7 @@ interface StatusPedido {
   numero: number; status: 'novo' | 'preparando' | 'pronto' | 'entregue' | 'cancelado'; tipo: 'delivery' | 'retirada';
   total: number; taxa: number; criado_em: string; pago: boolean; forma: Forma; troco: number | null; cliente: string;
   endereco: Cliente['endereco'] | null; itens: { nome: string; qtd: number; preco: number; complementos?: string | null }[];
+  motivo?: string | null; cancelados?: { nome: string; qtd: number; motivo: string | null }[] | null;
   loja: { nome: string; logo_url: string | null; cor: string; whatsapp: string | null; endereco: string | null; codigo: string; tempo: string };
 }
 
@@ -808,7 +812,7 @@ export function LojaPedido() {
       {p.status === 'cancelado' ? (
         <section className="loja-pedido__cartao loja-pedido__cancelado">
           <h1>Pedido cancelado</h1>
-          <p>A loja cancelou este pedido. Fale com ela para saber mais.</p>
+          <p>{p.motivo ? <>A loja cancelou este pedido. <b>Motivo: {p.motivo}.</b></> : 'A loja cancelou este pedido. Fale com ela para saber mais.'}</p>
         </section>
       ) : (
         <section className="loja-pedido__cartao">
@@ -822,6 +826,14 @@ export function LojaPedido() {
               </li>
             ))}
           </ol>
+        </section>
+      )}
+
+      {p.status !== 'cancelado' && !!p.cancelados?.length && (
+        <section className="loja-pedido__cartao loja-pedido__cancelado loja-pedido__itens-fora">
+          <h2><Ban size={18} /> {p.cancelados.length === 1 ? 'Um item saiu do pedido' : 'Alguns itens saíram do pedido'}</h2>
+          <ul>{p.cancelados.map((c, i) => <li key={i}><b>{c.qtd}×</b> {fraseCancelamento(c.nome, c.motivo)}</li>)}</ul>
+          <p>O valor já foi descontado do total.</p>
         </section>
       )}
 
@@ -843,5 +855,53 @@ export function LojaPedido() {
       </div>
       <p className="loja-pedido__nota">Esta página se atualiza sozinha.</p>
     </div>
+  );
+}
+
+/* ---------- Sobre a loja (endereço, Instagram, horários): fica no topo, ao lado da logo ---------- */
+function ModalSobreLoja({ loja, aoFechar }: { loja: Loja; aoFechar: () => void }) {
+  const hoje = new Date().getDay();
+  const mapa = loja.endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loja.endereco)}` : '';
+  return (
+    <Modal aberto aoFechar={aoFechar} largura={460} classe="mesa-modal sobre-loja">
+      <div className="sobre-loja__topo">
+        {loja.logo_url ? <img src={loja.logo_url} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
+        <div>
+          <strong>{loja.nome}</strong>
+          <span className={cx('loja-status', loja.aberto ? 'aberta' : 'fechada')}>{loja.aberto ? 'Aberto agora' : 'Fechado agora'}</span>
+        </div>
+      </div>
+      <ul className="sobre-loja__lista">
+        {loja.endereco && (
+          <li>
+            <span className="sobre-loja__icone"><MapPin size={18} /></span>
+            <div><small>Endereço</small><span>{loja.endereco}</span>{mapa && <a href={mapa} target="_blank" rel="noopener">Ver no mapa</a>}</div>
+          </li>
+        )}
+        {loja.instagram && (
+          <li>
+            <span className="sobre-loja__icone"><AtSign size={18} /></span>
+            <div><small>Instagram</small><a href={`https://instagram.com/${loja.instagram}`} target="_blank" rel="noopener">@{loja.instagram.replace(/^@/, '')}</a></div>
+          </li>
+        )}
+        {loja.horarios && (
+          <li>
+            <span className="sobre-loja__icone"><Clock size={18} /></span>
+            <div>
+              <small>Horários</small>
+              <ul className="sobre-loja__horarios">
+                {loja.horarios.map((h, i) => (
+                  <li key={i} className={cx(i === hoje && 'hoje')}>
+                    <span>{i === hoje ? 'Hoje' : DIAS[i]}</span>
+                    <b>{h.aberto ? `${h.de} – ${h.ate}` : 'Fechado'}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </li>
+        )}
+      </ul>
+      {loja.rodape && <p className="sobre-loja__rodape">{loja.rodape}</p>}
+    </Modal>
   );
 }

@@ -104,6 +104,15 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: filtro }, (payload) => {
         const novo = payload.new as Pedido;
+        // Total mudou (item cancelado): busca os itens de novo
+        setPedidos((lista) => {
+          const atual = lista.find((x) => x.id === novo.id);
+          if (atual && Number(atual.total) !== Number(novo.total)) {
+            void supabase.from('pedido_itens').select('*').eq('pedido_id', novo.id)
+              .then(({ data }) => { if (data) setPedidos((l) => l.map((x) => (x.id === novo.id ? { ...x, pedido_itens: data as Pedido['pedido_itens'] } : x))); });
+          }
+          return lista;
+        });
         setPedidos((lista) => {
           const atual = lista.find((x) => x.id === novo.id);
           const mesclado = { ...(atual ?? {}), ...novo, pedido_itens: atual?.pedido_itens ?? [] } as Pedido;

@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Check, CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Minus, Play, Plus, Receipt,
+  Ban, Check, CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Minus, Play, Plus, Receipt,
   ShieldCheck, ShoppingBag, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
@@ -15,7 +15,8 @@ import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
 import { useNovaVersao } from '../../lib/versao';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { sugerirObs } from '../../lib/sugestoes';
-import { destravarSom, tocarEnviado } from '../../lib/som';
+import { destravarSom, tocarAviso, tocarEnviado } from '../../lib/som';
+import { fraseCancelamento } from '../../lib/cancelamento';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import '../../estilos/mesa.css';
 
@@ -138,9 +139,9 @@ export default function Mesa() {
   const [pedindoAcesso, setPedindoAcesso] = useState(false);
   const acaoDepois = useRef<(() => void) | null>(null);
   const listaRef = useRef<HTMLDivElement>(null);
-  const [capaRecolhida, setCapaRecolhida] = useState(false);
   const catsRef = useRef<HTMLElement>(null);
   useAlturaTela();
+  const cancelados = useAvisosCancelamento(token, dispositivo, acesso === 'liberado' || acesso === 'equipe');
   // "Adicionar à tela de início" guarda esta mesa (e não o painel do sistema)
   useAppInstalavel(dados ? {
     nome: `${dados.mesa.nome} · ${dados.restaurante.nome}`,
@@ -574,7 +575,7 @@ export default function Mesa() {
 
       <FaixaAcesso acesso={acesso} mesa={mesa.nome} aoAbrir={() => setVerAbrir(true)} />
 
-      <CapaCardapio imagem={restaurante.capa_url} video={restaurante.capa_video_url} recolhida={capaRecolhida} />
+      <CapaCardapio imagem={restaurante.capa_url} video={restaurante.capa_video_url} />
 
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias" ref={catsRef}>
@@ -595,7 +596,7 @@ export default function Mesa() {
           ))}
         </nav>
 
-        <main className="mesa__lista" ref={listaRef} onScroll={(e) => setCapaRecolhida(e.currentTarget.scrollTop > 40)}>
+        <main className="mesa__lista" ref={listaRef}>
           {secao ? (() => {
             const lista = abaAtual === OUTRAS || !secao.subs.length ? secao.diretos : produtosDe(abaAtual);
             const iAba = abas.findIndex((a) => a.id === abaAtual);
@@ -731,7 +732,84 @@ export default function Mesa() {
       )}
 
       {sucesso !== null && <TelaSucesso numeros={sucesso} aoFechar={() => setSucesso(null)} />}
+
+      {cancelados.avisos.length > 0 && <AvisoCancelamento avisos={cancelados.avisos} aoFechar={cancelados.entendi} />}
     </div>
+  );
+}
+
+/* ---------- Aviso de item cancelado pela equipe ---------- */
+interface AvisoCancelado { id: string; nome: string; qtd: number; motivo: string | null; numero: number; pedido_inteiro: boolean; quando: string }
+
+/** Confere de tempos em tempos se a equipe cancelou algo desta mesa (tablet e celulares liberados). */
+function useAvisosCancelamento(token: string, dispositivo: string, ativo: boolean) {
+  const chave = `bf:cancelados:${token}`;
+  const [avisos, setAvisos] = useState<AvisoCancelado[]>([]);
+  const mostrados = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!ativo) return;
+    let vivo = true;
+    const ler = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const { data, error } = await supabase.rpc('mesa_cancelamentos', { p_token: token, p_dispositivo: dispositivo });
+      if (error || !vivo) return;
+      const lista = (data ?? []) as AvisoCancelado[];
+      const vistos = ls.ler<string[] | null>(chave, null);
+      // Primeira vez neste aparelho: o que já tinha acontecido não vira aviso
+      if (vistos === null) { ls.gravar(chave, lista.map((x) => x.id)); return; }
+      const novos = lista.filter((x) => !vistos.includes(x.id) && !mostrados.current.has(x.id));
+      if (!novos.length) return;
+      novos.forEach((x) => mostrados.current.add(x.id));
+      tocarAviso();
+      setAvisos((a) => [...a, ...novos]);
+    };
+    void ler();
+    const i = setInterval(() => void ler(), 8000);
+    const aoVoltar = () => void ler();
+    document.addEventListener('visibilitychange', aoVoltar);
+    return () => {
+      vivo = false;
+      clearInterval(i);
+      document.removeEventListener('visibilitychange', aoVoltar);
+    };
+  }, [token, dispositivo, ativo, chave]);
+
+  const entendi = useCallback(() => {
+    setAvisos((a) => {
+      const vistos = ls.ler<string[]>(chave, []);
+      ls.gravar(chave, [...new Set([...vistos, ...a.map((x) => x.id)])].slice(-200));
+      return [];
+    });
+  }, [chave]);
+
+  return { avisos, entendi };
+}
+
+function AvisoCancelamento({ avisos, aoFechar }: { avisos: AvisoCancelado[]; aoFechar: () => void }) {
+  const varios = avisos.length > 1;
+  return (
+    <Modal
+      aberto
+      aoFechar={aoFechar}
+      largura={460}
+      classe="mesa-modal aviso-cancel"
+      rodape={<button className="btn btn--primario btn--lg btn--bloco" onClick={aoFechar} autoFocus>Entendi</button>}
+    >
+      <div className="aviso-cancel__topo">
+        <span className="aviso-cancel__icone" aria-hidden="true"><Ban size={30} strokeWidth={1.8} /></span>
+        <h2>{varios ? `${avisos.length} itens foram cancelados` : 'Um item foi cancelado'}</h2>
+        <p>{varios ? 'Eles não serão cobrados na sua conta.' : 'Ele não será cobrado na sua conta.'}</p>
+      </div>
+      <ul className="aviso-cancel__lista">
+        {avisos.map((a) => (
+          <li key={a.id}>
+            <span className="aviso-cancel__qtd">{a.qtd}×</span>
+            <span>{fraseCancelamento(a.nome, a.motivo)}</span>
+          </li>
+        ))}
+      </ul>
+    </Modal>
   );
 }
 
@@ -941,10 +1019,10 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
 }
 
 /** Capa do estabelecimento (vídeo ou foto deitada) em cima das categorias; recolhe ao rolar os produtos. */
-export function CapaCardapio({ imagem, video, recolhida }: { imagem?: string | null; video?: string | null; recolhida?: boolean }) {
+export function CapaCardapio({ imagem, video }: { imagem?: string | null; video?: string | null }) {
   if (!imagem && !video) return null;
   return (
-    <div className={cx('capa-cardapio', recolhida && 'recolhida')} aria-hidden="true">
+    <div className="capa-cardapio" aria-hidden="true">
       {video
         ? <video src={video} poster={imagem ?? undefined} autoPlay muted loop playsInline ref={(v) => { if (v) { v.muted = true; v.setAttribute('muted', ''); } }} />
         : <img src={imagem!} alt="" />}

@@ -13,7 +13,7 @@ import type { FormaPagamento, Mesa, Pedido, StatusPedido } from '../../lib/tipos
 import { SeletorPagamento } from '../../componentes/Pagamento';
 import { STATUS_ROTULO, brl, cx, hora, minutosDesde, ordenarNome, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
-import { confirmar } from '../../componentes/Confirmar';
+import { cancelarComMotivo } from '../../componentes/CancelarPedido';
 
 type Coluna = 'novo' | 'preparando' | 'pronto' | 'entregue';
 type Aba = 'todos' | Coluna | 'finalizados';
@@ -36,7 +36,7 @@ function useMudarStatus() {
   const { atualizarPedido } = usePainel();
   const toast = useToast();
   return async (p: Pedido, status: StatusPedido) => {
-    if (status === 'cancelado' && !(await confirmar(`Cancelar o pedido #${p.numero} (${p.mesa_nome})?\n\nOs itens voltam para o estoque.`, { sim: 'Cancelar pedido', perigo: true }))) return;
+    if (status === 'cancelado') return void cancelarComMotivo(p, atualizarPedido, toast);
     const antes = p.status;
     atualizarPedido(p.id, { status, atualizado_em: new Date().toISOString() });
     const { error } = await supabase.rpc('pedido_mudar_status', { p_pedido: p.id, p_status: status });

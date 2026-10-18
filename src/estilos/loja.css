@@ -96,3 +96,15 @@
 .loja-pedido__acoes { display: grid; gap: 10px; }
 .loja-pedido__acoes .btn { gap: 8px; text-decoration: none; }
 .loja-pedido__nota { margin: 0; text-align: center; color: var(--muted-2); font-size: .8rem; }
+
+/* Capa, descrição e rodapé do cardápio digital */
+.loja-hero { display: grid; gap: 10px; margin: 4px 0 16px; }
+.loja-hero__capa { width: 100%; aspect-ratio: 3 / 1; max-height: 220px; object-fit: cover; border-radius: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+.loja-hero__desc { margin: 0; color: var(--muted); font-size: .92rem; line-height: 1.5; }
+.loja-rodape { display: grid; gap: 6px; margin: 28px 0 8px; padding: 18px 4px 4px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+.loja-rodape strong { color: var(--text); font-size: .92rem; }
+.loja-rodape span, .loja-rodape a { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.loja-rodape svg { flex: none; color: var(--acento); }
+.loja-rodape__horarios { flex-wrap: wrap; gap: 4px 10px !important; }
+.loja-rodape__horarios small { font-size: .78rem; text-transform: capitalize; }
+.loja-rodape p { margin: 4px 0 0; font-size: .78rem; line-height: 1.5; }

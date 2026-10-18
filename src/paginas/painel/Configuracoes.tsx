@@ -1,31 +1,65 @@
-import { useEffect, useRef, useState } from 'react';
-import { BellRing, Bike, Check, CircleCheck, ConciergeBell, ImagePlus, Play, Printer, Store } from 'lucide-react';
-import { Campo, Switch } from '../../componentes/Basicos';
+import { useEffect, useState, type ReactElement } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import {
+  BellRing, BookOpen, Check, ChevronRight, CircleCheck, ClipboardList, ConciergeBell, Megaphone, Play, Plug, Printer, Store, Users,
+  type LucideIcon,
+} from 'lucide-react';
+import { Switch, Campo } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, programaDesktop, type ConfigImpressao } from '../../lib/impressao';
 import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
 import { SONS_CHAMADO, definirSom, somLigado, tocarAlerta, tocarChamado, type SomChamado } from '../../lib/som';
-import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../lib/supabase';
-import { cx, ehGestor, lerPreco, precoParaTexto } from '../../lib/util';
-import { LinkCopiavel } from '../../componentes/Link';
-import { linkLoja } from '../../componentes/CardapioDigital';
+import { msgErro, supabase } from '../../lib/supabase';
+import type { Papel } from '../../lib/tipos';
+import { cx, ehGestor, podeCaixa } from '../../lib/util';
 import { VERSAO_CURTA } from '../../lib/versao';
 import { usePainel } from './Painel';
+import { PaginaConfig, usePasso, type Passo } from './config/Layout';
+import Estabelecimento from './config/Estabelecimento';
+import CardapioDigitalConfig from './config/CardapioDigitalConfig';
+import Integracoes from './config/Integracoes';
+import Anuncios from './config/Anuncios';
+import Clientes from './config/Clientes';
+import HistoricoPedidos from './config/HistoricoPedidos';
 
-const CORES = ['#ff5a1f', '#e63946', '#d6336c', '#7048e8', '#1c7ed6', '#0ca678', '#5c940d', '#f08c00'];
+interface Secao { id: string; titulo: string; descricao: string; icone: LucideIcon; pode: (p: Papel) => boolean; tela: () => ReactElement }
+
+const SECOES: Secao[] = [
+  { id: 'clientes', titulo: 'Meus clientes', descricao: 'Quem já pediu, quanto gastou e WhatsApp para chamar de volta', icone: Users, pode: podeCaixa, tela: () => <Clientes /> },
+  { id: 'pedidos', titulo: 'Meus pedidos', descricao: 'Histórico de todos os pedidos com filtros e reimpressão', icone: ClipboardList, pode: podeCaixa, tela: () => <HistoricoPedidos /> },
+  { id: 'impressora', titulo: 'Impressora', descricao: 'Impressão automática, papel e vias deste computador', icone: Printer, pode: () => true, tela: () => <PaginaImpressora /> },
+  { id: 'integracoes', titulo: 'Integrações', descricao: 'Chave (token) para conectar outros aplicativos', icone: Plug, pode: ehGestor, tela: () => <Integracoes /> },
+  { id: 'cardapio-digital', titulo: 'Cardápio digital', descricao: 'Cor, capa, destaques, esgotados e link do delivery', icone: BookOpen, pode: ehGestor, tela: () => <CardapioDigitalConfig /> },
+  { id: 'estabelecimento', titulo: 'Estabelecimento', descricao: 'Dados, endereço, horários, entrega e pagamento', icone: Store, pode: ehGestor, tela: () => <Estabelecimento /> },
+  { id: 'anuncios', titulo: 'Integração de anúncios', descricao: 'Pixel do Facebook, Google Analytics e Google Ads', icone: Megaphone, pode: ehGestor, tela: () => <Anuncios /> },
+  { id: 'avisos', titulo: 'Avisos e sons', descricao: 'Notificações neste aparelho e toque do chamado', icone: BellRing, pode: () => true, tela: () => <PaginaAvisos /> },
+];
 
 export default function Configuracoes() {
   const { restaurante, papel } = usePainel();
+  const { aba } = useParams();
+  const secao = SECOES.find((x) => x.id === aba);
+  if (secao) {
+    if (!secao.pode(papel)) return <p className="vazio">Seu cargo não tem acesso a esta área.</p>;
+    return <div key={`${secao.id}-${restaurante.id}`} className="cfg-pagina">{secao.tela()}</div>;
+  }
   return (
     <div className="pagina">
-      <div className="pagina__cab"><h1 className="titulo">Configurações</h1></div>
-      <div className="config-grade">
-        {ehGestor(papel) && <CartaoRestaurante key={restaurante.id} />}
-        {ehGestor(papel) && <CartaoDelivery key={`d-${restaurante.id}`} />}
-        <CartaoImpressora />
-        <CartaoNotificacoes />
-        <CartaoSomChamado />
+      <div className="pagina__cab">
+        <div>
+          <h1 className="titulo">Configurações</h1>
+          <p>Escolha o que você quer ajustar.</p>
+        </div>
+      </div>
+      <div className="cfg-inicio">
+        {SECOES.filter((x) => x.pode(papel)).map((x) => (
+          <Link key={x.id} to={`/painel/config/${x.id}`} className="cfg-atalho">
+            <span className="cfg-atalho__icone"><x.icone size={22} strokeWidth={1.8} /></span>
+            <span className="cfg-atalho__texto"><strong>{x.titulo}</strong><small>{x.descricao}</small></span>
+            <ChevronRight size={18} className="cfg-atalho__seta" />
+          </Link>
+        ))}
       </div>
       <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>
         Versão do sistema: <b>{VERSAO_CURTA}</b> · as atualizações são verificadas a cada minuto.
@@ -34,116 +68,35 @@ export default function Configuracoes() {
   );
 }
 
-function CartaoRestaurante() {
-  const { restaurante } = usePainel();
-  const s = useSessao();
-  const toast = useToast();
-  const arquivoRef = useRef<HTMLInputElement>(null);
-  const [nome, setNome] = useState(restaurante.nome);
-  const [slogan, setSlogan] = useState(restaurante.slogan ?? '');
-  const [cor, setCor] = useState(restaurante.cor);
-  const [logo, setLogo] = useState(restaurante.logo_url);
-  const [salvando, setSalvando] = useState(false);
+const PASSOS_IMPRESSORA: Passo[] = [
+  { id: 'impressao', rotulo: 'Impressão', dica: 'Vale só para este computador' },
+  { id: 'direto', rotulo: 'Imprimir direto', dica: 'Sem a janela de confirmação do navegador' },
+];
 
-  async function salvar() {
-    setSalvando(true);
-    const { error } = await supabase.from('restaurantes')
-      .update({ nome: nome.trim(), slogan: slogan.trim() || null, cor, logo_url: logo })
-      .eq('id', restaurante.id);
-    setSalvando(false);
-    if (error) return toast(msgErro(error), 'erro');
-    toast('Dados do restaurante salvos.', 'ok');
-    void s.recarregar();
-  }
-
-  async function enviarLogo(arquivo?: File) {
-    if (!arquivo) return;
-    try {
-      setLogo(await enviarImagem(restaurante.id, arquivo, 'logo'));
-    } catch (e) {
-      toast(msgErro(e), 'erro');
-    }
-  }
-
+function PaginaImpressora() {
+  const [passo, ir] = usePasso(PASSOS_IMPRESSORA);
   return (
-    <section className="card">
-      <h2 className="card__titulo"><Store size={20} /> Restaurante</h2>
-      <div className="form">
-        <div className="foto-editor">
-          <div className="foto" style={{ width: 72, height: 72, borderRadius: 14, fontSize: 30 }}>
-            {logo ? <img src={logo} alt="Logo" /> : <span>{nome.charAt(0)}</span>}
-          </div>
-          <div className="acoes-linha">
-            <button className="btn btn--contorno btn--sm" onClick={() => arquivoRef.current?.click()}><ImagePlus size={16} /> {logo ? 'Trocar logo' : 'Enviar logo'}</button>
-            {logo && <button className="btn btn--fantasma btn--sm" onClick={() => setLogo(null)}>Remover</button>}
-            <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => void enviarLogo(e.target.files?.[0])} />
-          </div>
-        </div>
-        <Campo rotulo="Nome do restaurante"><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} /></Campo>
-        <Campo rotulo="Frase de boas-vindas (aparece no tablet)"><input className="input" value={slogan} onChange={(e) => setSlogan(e.target.value)} maxLength={100} /></Campo>
-        <Campo rotulo="Cor de destaque">
-          <div className="cores">
-            {CORES.map((c) => (
-              <button key={c} type="button" className={cx('cor', cor === c && 'ativo')} style={{ background: c }} onClick={() => setCor(c)} aria-label={`Cor ${c}`} />
-            ))}
-          </div>
-        </Campo>
-        <button className="btn btn--primario" disabled={!nome.trim() || salvando} onClick={() => void salvar()}>Salvar</button>
-      </div>
-    </section>
+    <PaginaConfig titulo="Impressora" passos={PASSOS_IMPRESSORA} atual={passo} aoPasso={ir}>
+      <CartaoImpressora parte={passo.id as 'impressao' | 'direto'} />
+    </PaginaConfig>
   );
 }
 
-/** Delivery: taxa, pedido mínimo, tempo e retirada (o link fica no botão da empresa, lá em cima). */
-function CartaoDelivery() {
-  const { restaurante: r } = usePainel();
-  const s = useSessao();
-  const toast = useToast();
-  const [f, setF] = useState({
-    ativo: r.delivery_ativo,
-    taxa: precoParaTexto(Number(r.delivery_taxa ?? 0)),
-    minimo: precoParaTexto(Number(r.delivery_minimo ?? 0)),
-    tempo: r.delivery_tempo ?? '40 a 60 min',
-    retirada: r.retirada_ativa ?? true,
-  });
-  const [salvando, setSalvando] = useState(false);
-  const link = linkLoja(r.codigo);
+const PASSOS_AVISOS: Passo[] = [
+  { id: 'notificacoes', rotulo: 'Notificações', dica: 'Som e aviso no canto da tela quando chegar pedido ou chamado' },
+  { id: 'toque', rotulo: 'Toque do chamado', dica: 'O som que toca quando uma mesa chama o garçom' },
+];
 
-  async function salvar() {
-    const taxa = f.taxa.trim() ? lerPreco(f.taxa) : 0;
-    const minimo = f.minimo.trim() ? lerPreco(f.minimo) : 0;
-    if (!Number.isFinite(taxa) || taxa < 0 || !Number.isFinite(minimo) || minimo < 0) return toast('Valor inválido. Ex.: 5,00', 'erro');
-    setSalvando(true);
-    const { error } = await supabase.from('restaurantes').update({
-      delivery_ativo: f.ativo, delivery_taxa: taxa, delivery_minimo: minimo,
-      delivery_tempo: f.tempo.trim() || '40 a 60 min', retirada_ativa: f.retirada,
-    }).eq('id', r.id);
-    setSalvando(false);
-    if (error) return toast(msgErro(error), 'erro');
-    toast('Delivery salvo.', 'ok');
-    void s.recarregar();
-  }
-
+function PaginaAvisos() {
+  const [passo, ir] = usePasso(PASSOS_AVISOS);
   return (
-    <section className="card">
-      <h2 className="card__titulo"><Bike size={20} /> Delivery (pedidos de casa)</h2>
-      <div className="form">
-        <Switch marcado={f.ativo} aoMudar={(v) => setF({ ...f, ativo: v })}>Loja aberta para pedidos de casa</Switch>
-        <LinkCopiavel link={link} />
-        <div className="form-linha">
-          <Campo rotulo="Taxa de entrega (R$)" dica="0 = entrega grátis"><input className="input" inputMode="decimal" value={f.taxa} onChange={(e) => setF({ ...f, taxa: e.target.value })} /></Campo>
-          <Campo rotulo="Pedido mínimo (R$)"><input className="input" inputMode="decimal" value={f.minimo} onChange={(e) => setF({ ...f, minimo: e.target.value })} /></Campo>
-        </div>
-        <Campo rotulo="Tempo de entrega" dica="Ex.: 40 a 60 min"><input className="input" maxLength={30} value={f.tempo} onChange={(e) => setF({ ...f, tempo: e.target.value })} /></Campo>
-        <Switch marcado={f.retirada} aoMudar={(v) => setF({ ...f, retirada: v })}>Cliente pode retirar no balcão</Switch>
-        <p className="muted" style={{ margin: 0, fontSize: '.84rem' }}>WhatsApp e endereço do restaurante ficam em Minha conta › Informações pessoais.</p>
-        <button className="btn btn--primario" disabled={salvando} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Salvar'}</button>
-      </div>
-    </section>
+    <PaginaConfig titulo="Avisos e sons" passos={PASSOS_AVISOS} atual={passo} aoPasso={ir}>
+      {passo.id === 'notificacoes' ? <CartaoNotificacoes /> : <CartaoSomChamado />}
+    </PaginaConfig>
   );
 }
 
-function CartaoImpressora() {
+function CartaoImpressora({ parte }: { parte: 'impressao' | 'direto' }) {
   const { restaurante } = usePainel();
   const [c, setC] = useState<ConfigImpressao>(lerConfigImpressao());
   const desktop = programaDesktop();
@@ -157,9 +110,28 @@ function CartaoImpressora() {
     gravarConfigImpressao(nova);
   };
 
+  if (parte === 'direto') {
+    return desktop ? (
+      <p className="muted aviso-ok" style={{ margin: 0, fontSize: '.92rem' }}>
+        <CircleCheck size={16} /> Você está no <b>programa BasilFiery para Windows</b>: a impressão já sai direto na impressora escolhida.
+      </p>
+    ) : (
+      <div className="form">
+        <ol className="passos-lista">
+          <li>No Windows, defina a impressora térmica como <b>impressora padrão</b>.</li>
+          <li>Crie um atalho do Google Chrome na área de trabalho.</li>
+          <li>Clique com o botão direito → Propriedades → no campo <b>Destino</b>, adicione no final:<br />
+            <code>--kiosk-printing {window.location.origin}/painel</code></li>
+          <li>Feche todas as janelas do Chrome e abra pelo atalho. Os pedidos saem direto na impressora.</li>
+          <li>Nas preferências da impressora, ajuste margens para “nenhuma” se o cupom sair cortado.</li>
+        </ol>
+        <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Mais fácil: instale o <b>programa BasilFiery para Windows</b>, que já imprime direto.</p>
+      </div>
+    );
+  }
+
   return (
-    <section className="card">
-      <h2 className="card__titulo"><Printer size={20} /> Impressora deste computador</h2>
+    <section>
       <div className="form">
         <Switch marcado={c.auto} aoMudar={(v) => mudar({ auto: v })}>
           Imprimir pedidos novos automaticamente
@@ -191,24 +163,6 @@ function CartaoImpressora() {
         )}
         <button className="btn btn--contorno" onClick={() => imprimirTeste(restaurante.nome)}><Printer size={18} /> Imprimir teste</button>
 
-        {desktop ? (
-          <p className="muted aviso-ok" style={{ margin: 0, fontSize: '.88rem' }}>
-            <CircleCheck size={16} /> Você está no <b>programa BasilFiery para Windows</b>: a impressão sai direto na impressora escolhida.
-          </p>
-        ) : (
-        <details>
-          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Como imprimir sem a janela de confirmação</summary>
-          <ol className="passos-lista" style={{ marginTop: 10 }}>
-            <li>No Windows, defina a impressora térmica como <b>impressora padrão</b>.</li>
-            <li>Crie um atalho do Google Chrome na área de trabalho.</li>
-            <li>Clique com o botão direito → Propriedades → no campo <b>Destino</b>, adicione no final:<br />
-              <code>--kiosk-printing {window.location.origin}/painel</code></li>
-            <li>Feche todas as janelas do Chrome e abra pelo atalho. Os pedidos saem direto na impressora.</li>
-            <li>Nas preferências da impressora, ajuste margens para “nenhuma” se o cupom sair cortado.</li>
-          </ol>
-          <p className="muted" style={{ fontSize: '.85rem' }}>Mais fácil: instale o <b>programa BasilFiery para Windows</b>, que já imprime direto.</p>
-        </details>
-        )}
       </div>
     </section>
   );
@@ -236,8 +190,8 @@ function CartaoSomChamado() {
   }
 
   return (
-    <section className="card">
-      <h2 className="card__titulo"><ConciergeBell size={20} /> Toque do “chamar garçom”</h2>
+    <section>
+      <p className="cfg-subtitulo"><ConciergeBell size={18} /> Toque do “chamar garçom”</p>
       <p className="muted" style={{ margin: '0 0 12px', fontSize: '.9rem' }}>
         Toca no painel do caixa e no celular dos garçons quando uma mesa chama.{' '}
         {gestor ? 'Clique numa opção para ouvir e escolher.' : 'Clique para ouvir; só o dono ou gerente pode trocar.'}
@@ -317,8 +271,7 @@ function CartaoNotificacoes() {
   };
 
   return (
-    <section className="card">
-      <h2 className="card__titulo"><BellRing size={20} /> Avisos neste aparelho</h2>
+    <section>
       <div className="form">
         <Switch marcado={som} aoMudar={(v) => { setSom(v); definirSom(v); if (v) tocarAlerta('pedido'); }}>
           Tocar som quando chegar pedido ou chamado

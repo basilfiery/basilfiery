@@ -26,6 +26,38 @@ export interface Restaurante {
   plano_valor: number | null;
   plano_vence_em: string | null;
   plano_forma: string | null;
+  /** Estabelecimento */
+  segmento: string | null;
+  instagram: string | null;
+  endereco_info: EnderecoLoja | null;
+  /** Domingo (0) a sábado (6) */
+  horarios: HorarioDia[] | null;
+  horarios_ativos: boolean;
+  entrega_ativa: boolean;
+  formas_pagamento: ('pix' | 'dinheiro' | 'credito' | 'debito')[];
+  /** Cardápio digital */
+  loja_obs: boolean;
+  loja_capa_url: string | null;
+  loja_descricao: string | null;
+  loja_rodape: string | null;
+  /** Anúncios (IDs públicos) */
+  ads_pixel: string | null;
+  ads_ga4: string | null;
+  ads_gads: string | null;
+}
+
+export interface HorarioDia { aberto: boolean; de: string; ate: string }
+export interface EnderecoLoja { cep: string; rua: string; numero: string; bairro: string; cidade: string; uf: string; complemento: string }
+
+/** Dados sensíveis do estabelecimento (só dono e gerente) */
+export interface RestauranteDados {
+  restaurante_id: string;
+  responsavel_nome: string | null;
+  responsavel_cpf: string | null;
+  responsavel_whatsapp: string | null;
+  cnpj: string | null;
+  razao_social: string | null;
+  capi_token: string | null;
 }
 
 export interface Fatura {
@@ -143,8 +175,9 @@ export interface Pedido {
   pago_em: string | null;
   /** false = só itens prontos (bebidas): ao aceitar vai direto para "Prontos" */
   precisa_preparo: boolean;
-  /** mesa | delivery | retirada */
-  tipo: 'mesa' | 'delivery' | 'retirada';
+  /** mesa | delivery | retirada | balcao (PDV) */
+  tipo: 'mesa' | 'delivery' | 'retirada' | 'balcao';
+  desconto?: number;
   cliente_nome: string | null;
   cliente_telefone: string | null;
   endereco: EnderecoEntrega | null;

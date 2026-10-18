@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Banknote, Bike, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
+  AtSign, Banknote, Bike, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -22,6 +22,65 @@ import '../../estilos/loja.css';
 interface Loja {
   id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string;
   aberto: boolean; taxa: number; minimo: number; tempo: string; retirada: boolean; whatsapp: string | null; endereco: string | null;
+  /** Chave "Cardápio ativado" (aberto = ligado e dentro do horário) */
+  ligado?: boolean; entrega?: boolean; segmento?: string | null; instagram?: string | null; capa_url?: string | null;
+  descricao?: string | null; rodape?: string | null; obs?: boolean; formas?: Forma[];
+  horarios?: { aberto: boolean; de: string; ate: string }[] | null;
+  ads?: { pixel?: string; ga4?: string; gads?: string };
+}
+
+const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+
+/** Quando a loja abre de novo (pelos horários cadastrados). */
+function proximaAbertura(h: NonNullable<Loja['horarios']>): string | null {
+  const agora = new Date();
+  const hhmm = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+  for (let i = 0; i < 7; i++) {
+    const dia = (agora.getDay() + i) % 7;
+    const x = h[dia];
+    if (!x?.aberto) continue;
+    if (i === 0 && x.de <= hhmm) continue;
+    return i === 0 ? `Abre hoje às ${x.de}` : i === 1 ? `Abre amanhã às ${x.de}` : `Abre ${DIAS[dia]} às ${x.de}`;
+  }
+  return null;
+}
+
+/* ---------- Anúncios: Pixel do Facebook, Google Analytics 4 e Google Ads ---------- */
+type Janela = Window & { fbq?: any; _fbq?: any; gtag?: any; dataLayer?: unknown[] };
+function iniciarAnuncios(ads: Loja['ads']) {
+  const w = window as Janela;
+  if (ads?.pixel && /^\d{5,20}$/.test(ads.pixel) && !w.fbq) {
+        const f: any = function (...a: unknown[]) { if (f.callMethod) f.callMethod(...a); else f.queue.push(a); };
+    f.push = f; f.loaded = true; f.version = '2.0'; f.queue = [];
+    w.fbq = f; w._fbq = f;
+    const sc = document.createElement('script');
+    sc.async = true; sc.src = 'https://connect.facebook.net/en_US/fbevents.js';
+    document.head.appendChild(sc);
+    w.fbq('init', ads.pixel);
+    w.fbq('track', 'PageView');
+  }
+  const ga4 = ads?.ga4 && /^G-[A-Z0-9]{4,15}$/.test(ads.ga4) ? ads.ga4 : '';
+  const gads = ads?.gads && /^AW-\d{5,15}$/.test(ads.gads) ? ads.gads : '';
+  if ((ga4 || gads) && !w.gtag) {
+    w.dataLayer = w.dataLayer || [];
+    // O gtag precisa receber o objeto "arguments" (não um array)
+    w.gtag = function () { (w.dataLayer as unknown[]).push(arguments); }; // eslint-disable-line prefer-rest-params
+    const sc = document.createElement('script');
+    sc.async = true; sc.src = `https://www.googletagmanager.com/gtag/js?id=${ga4 || gads}`;
+    document.head.appendChild(sc);
+    w.gtag('js', new Date());
+    if (ga4) w.gtag('config', ga4);
+    if (gads) w.gtag('config', gads);
+  }
+}
+function rastrear(evento: 'AddToCart' | 'InitiateCheckout' | 'Purchase', valor: number, id?: string) {
+  const w = window as Janela;
+  const dados = { value: Number(valor.toFixed(2)), currency: 'BRL' };
+  if (w.fbq) w.fbq('track', evento, dados, id ? { eventID: id } : undefined);
+  if (w.gtag) {
+    const ga = { AddToCart: 'add_to_cart', InitiateCheckout: 'begin_checkout', Purchase: 'purchase' }[evento];
+    w.gtag('event', ga, { ...dados, ...(id ? { transaction_id: id } : {}) });
+  }
 }
 interface Dados { restaurante: Loja; categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[] }
 interface Linha { chave: string; produto_id: string; qtd: number; obs: string }
@@ -82,6 +141,8 @@ export default function LojaCardapio() {
     return () => clearInterval(i);
   }, [carregar]);
   useEffect(() => ls.gravar(`bf:loja:carrinho:${codigo}`, carrinho), [carrinho, codigo]);
+  const ads = dados?.restaurante.ads;
+  useEffect(() => { if (ads) iniciarAnuncios(ads); }, [ads]);
   useAppInstalavel(dados ? { nome: dados.restaurante.nome, curto: dados.restaurante.nome.slice(0, 12), inicio: `/loja/${codigo}`, escopo: `/loja/${codigo}` } : null);
 
   // Sabores de grupo e preço de subcategoria: igual ao cardápio da mesa
@@ -154,6 +215,7 @@ export default function LojaCardapio() {
       ? c.map((l) => (l.chave === chave ? { ...l, qtd: l.qtd + qtd } : l))
       : [...c, { chave, produto_id: p.id, qtd, obs }]));
     toast(`${qtd}× ${nomeItem(p)} na sacola`, 'ok');
+    rastrear('AddToCart', p.preco * qtd);
   }
   const mudarQtd = (chave: string, qtd: number) =>
     setCarrinho((c) => (qtd <= 0 ? c.filter((l) => l.chave !== chave) : c.map((l) => (l.chave === chave ? { ...l, qtd } : l))));
@@ -188,7 +250,7 @@ export default function LojaCardapio() {
           {Number(loja.taxa) > 0 && <div><span>Entrega</span><span>{brl(Number(loja.taxa))}</span></div>}
         </div>
         {faltaMinimo > 0 && carrinho.length > 0 && <p className="loja-aviso">Pedido mínimo {brl(Number(loja.minimo))}. Faltam {brl(faltaMinimo)}.</p>}
-        <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length || !loja.aberto || faltaMinimo > 0} onClick={() => { setVerCarrinho(false); setFinalizar(true); }}>
+        <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length || !loja.aberto || faltaMinimo > 0} onClick={() => { setVerCarrinho(false); setFinalizar(true); rastrear('InitiateCheckout', subtotal); }}>
           {loja.aberto ? 'Continuar' : 'Loja fechada agora'}
         </button>
         {carrinho.length > 0 && <button className="btn btn--fantasma btn--sm btn--bloco" onClick={() => setCarrinho([])}><Trash2 size={16} /> Esvaziar</button>}
@@ -238,11 +300,16 @@ export default function LojaCardapio() {
 
       <div className="loja-info">
         <span><Clock size={15} /> {loja.tempo}</span>
-        <span><Bike size={15} /> {Number(loja.taxa) > 0 ? `Entrega ${brl(Number(loja.taxa))}` : 'Entrega grátis'}</span>
+        {loja.entrega !== false && <span><Bike size={15} /> {Number(loja.taxa) > 0 ? `Entrega ${brl(Number(loja.taxa))}` : 'Entrega grátis'}</span>}
         {Number(loja.minimo) > 0 && <span><Receipt size={15} /> Mínimo {brl(Number(loja.minimo))}</span>}
         {loja.retirada && <span><Store size={15} /> Retirada no balcão</span>}
       </div>
-      {!loja.aberto && <div className="faixa-acesso faixa-acesso--recusado loja-fechada"><Clock size={16} /><span><b>A loja está fechada agora.</b> Você pode olhar o cardápio; os pedidos voltam quando abrir.</span></div>}
+      {!loja.aberto && (
+        <div className="faixa-acesso faixa-acesso--recusado loja-fechada">
+          <Clock size={16} />
+          <span><b>A loja está fechada agora.</b> {loja.ligado && loja.horarios ? `${proximaAbertura(loja.horarios) ?? 'Volte mais tarde'}.` : 'Você pode olhar o cardápio; os pedidos voltam quando abrir.'}</span>
+        </div>
+      )}
 
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias">
@@ -255,6 +322,12 @@ export default function LojaCardapio() {
           ))}
         </nav>
         <main className="mesa__lista" ref={listaRef}>
+          {secao?.id === secoes[0]?.id && (loja.capa_url || loja.descricao) && (
+            <div className="loja-hero">
+              {loja.capa_url && <img className="loja-hero__capa" src={loja.capa_url} alt="" />}
+              {loja.descricao && <p className="loja-hero__desc">{loja.descricao}</p>}
+            </div>
+          )}
           {secao ? (
             <section key={`${secao.id}:${abaAtual}`} className="mesa__secao">
               <header className="mesa__secao-cab">
@@ -274,6 +347,18 @@ export default function LojaCardapio() {
               {grade(lista)}
             </section>
           ) : <p className="vazio">O cardápio ainda está sendo preparado.</p>}
+          <footer className="loja-rodape">
+            <strong>{loja.nome}</strong>
+            {loja.endereco && <span><MapPin size={14} /> {loja.endereco}</span>}
+            {loja.instagram && <a href={`https://instagram.com/${loja.instagram}`} target="_blank" rel="noopener"><AtSign size={14} /> {loja.instagram}</a>}
+            {loja.horarios && (
+              <span className="loja-rodape__horarios">
+                <Clock size={14} />
+                {loja.horarios.map((h, i) => <small key={i}>{DIAS[i].slice(0, 3)}: {h.aberto ? `${h.de}–${h.ate}` : 'fechado'}</small>)}
+              </span>
+            )}
+            {loja.rodape && <p>{loja.rodape}</p>}
+          </footer>
         </main>
         <aside className="mesa__carrinho">{sacola}</aside>
       </div>
@@ -294,6 +379,7 @@ export default function LojaCardapio() {
           aoFechar={() => setProdutoAberto(null)}
           aoAdicionar={(qtd, obs) => { adicionar(produtoAberto, qtd, obs); setProdutoAberto(null); }}
           jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
+          semObs={loja.obs === false}
         />
       )}
 
@@ -338,7 +424,9 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
   aoEnviar: (acompanhar: string) => void;
 }) {
   const toast = useToast();
-  const [tipo, setTipo] = useState<'delivery' | 'retirada'>('delivery');
+  const fazEntrega = loja.entrega !== false;
+  const [tipo, setTipo] = useState<'delivery' | 'retirada'>(fazEntrega ? 'delivery' : 'retirada');
+  const formas = FORMAS.filter((f) => !loja.formas || loja.formas.includes(f.id));
   const [cli, setCli] = useState<Cliente>(() => ({ ...CLIENTE_VAZIO, ...ls.ler<Cliente>('bf:loja:cliente', CLIENTE_VAZIO) }));
   const [forma, setForma] = useState<Forma | null>(null);
   const [troco, setTroco] = useState('');
@@ -364,18 +452,21 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
         nome: cli.nome, telefone: cli.telefone, pagamento: forma,
         troco: forma === 'dinheiro' && troco.trim() ? String(lerPreco(troco)) : '',
         endereco: tipo === 'delivery' ? cli.endereco : null,
+        ua: navigator.userAgent, url: window.location.href,
       },
       p_obs: obs,
     });
     setEnviando(false);
     if (error) return toast(msgErro(error), 'erro');
-    aoEnviar((data as { acompanhar: string }).acompanhar);
+    const feito = data as { acompanhar: string; total: number };
+    rastrear('Purchase', Number(feito.total), feito.acompanhar);
+    aoEnviar(feito.acompanhar);
   }
 
   return (
     <Modal aberto aoFechar={() => !enviando && aoFechar()} titulo="Finalizar pedido" classe="mesa-modal loja-finalizar" largura={560}>
       <form className="loja-form" onSubmit={enviar} id="form-finalizar">
-        {loja.retirada && (
+        {loja.retirada && fazEntrega && (
           <div className="loja-segmento" role="radiogroup" aria-label="Como receber">
             <button type="button" role="radio" aria-checked={tipo === 'delivery'} className={cx(tipo === 'delivery' && 'ativo')} onClick={() => setTipo('delivery')}>
               <Bike size={20} /><span>Entrega<small>{loja.tempo}</small></span>
@@ -412,7 +503,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
         <fieldset>
           <legend>Pagamento {tipo === 'delivery' ? 'na entrega' : 'na retirada'}</legend>
           <div className="loja-formas">
-            {FORMAS.map((f) => (
+            {formas.map((f) => (
               <button key={f.id} type="button" className={cx(forma === f.id && 'ativo')} onClick={() => setForma(f.id)} aria-pressed={forma === f.id}>
                 {f.icone}<span>{f.rotulo}</span>{forma === f.id && <Check size={15} className="loja-formas__ok" />}
               </button>
@@ -423,7 +514,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
           )}
         </fieldset>
 
-        <label className="campo"><span>Observação (opcional)</span><textarea className="textarea" rows={2} maxLength={300} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: sem cebola, tocar o interfone" /></label>
+        {loja.obs !== false && <label className="campo"><span>Observação (opcional)</span><textarea className="textarea" rows={2} maxLength={300} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: sem cebola, tocar o interfone" /></label>}
 
         <div className="loja-resumo">
           {carrinho.map((l) => {

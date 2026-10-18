@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Ban, Bike, Check, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MapPin, MessageCircle, MoreVertical, Plus, Printer, SlidersHorizontal, Store, UtensilsCrossed, Wallet, X,
+  Ban, Bike, Check, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MapPin, MessageCircle, MoreVertical, Plus, Printer, SlidersHorizontal, Store, UtensilsCrossed, Wallet, X, ShoppingBasket,
 } from 'lucide-react';
 import { FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -302,7 +302,7 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
         <span className={cx('cp__tipo', p.tipo !== 'mesa' && 'cp__tipo--casa')}>{iconeTipo(p, 13)} {ROTULO_TIPO[p.tipo ?? 'mesa']}</span>
       </header>
       <div className="cp__cliente">
-        {p.tipo && p.tipo !== 'mesa' ? <>{p.cliente_nome}{p.endereco?.bairro && <small className="cp__bairro">{p.endereco.bairro}</small>}</> : p.mesa_nome}
+        {p.tipo && p.tipo !== 'mesa' ? <>{p.cliente_nome || p.mesa_nome}{p.endereco?.bairro && <small className="cp__bairro">{p.endereco.bairro}</small>}</> : p.mesa_nome}
         {p.precisa_preparo === false && <span className="cp__selo" title="Bebidas ou itens prontos: não passa pela cozinha"><GlassWater size={13} /> Sem preparo</span>}
       </div>
       <ul className="cp__itens">
@@ -331,10 +331,10 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
 }
 
 /* ---------------- Delivery / retirada ---------------- */
-const ROTULO_TIPO: Record<string, string> = { mesa: 'Mesa', delivery: 'Delivery', retirada: 'Retirada' };
+const ROTULO_TIPO: Record<string, string> = { mesa: 'Mesa', delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
 const FORMA_ROTULO: Record<string, string> = { pix: 'Pix', dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito' };
 const iconeTipo = (p: Pedido, t: number) =>
-  p.tipo === 'delivery' ? <Bike size={t} /> : p.tipo === 'retirada' ? <Store size={t} /> : <UtensilsCrossed size={t} />;
+  p.tipo === 'delivery' ? <Bike size={t} /> : p.tipo === 'retirada' ? <Store size={t} /> : p.tipo === 'balcao' ? <ShoppingBasket size={t} /> : <UtensilsCrossed size={t} />;
 
 function DadosCliente({ p }: { p: Pedido }) {
   const tel = (p.cliente_telefone ?? '').replace(/\D/g, '');
@@ -343,13 +343,13 @@ function DadosCliente({ p }: { p: Pedido }) {
     <section className="dp__cliente">
       <h3 className="dp__titulo">Cliente</h3>
       <div className="dp__cliente-linha">
-        <strong>{p.cliente_nome}</strong>
+        <strong>{p.cliente_nome || 'Cliente do balcão'}</strong>
         {tel && <a className="btn btn--contorno btn--sm" href={`https://wa.me/${tel.length <= 11 ? `55${tel}` : tel}`} target="_blank" rel="noopener"><MessageCircle size={15} /> {tel.replace(/^(\d{2})(\d+)(\d{4})$/, '($1) $2-$3')}</a>}
       </div>
       {e ? (
         <p className="dp__endereco"><MapPin size={15} /> <span>{e.rua}, {e.numero}{e.complemento ? ` · ${e.complemento}` : ''}<br />{e.bairro}{e.referencia ? <><br /><em>Ref.: {e.referencia}</em></> : null}</span></p>
-      ) : <p className="dp__endereco"><Store size={15} /> <span>Cliente vai retirar no balcão</span></p>}
-      <p className="dp__endereco"><Wallet size={15} /> <span>{FORMA_ROTULO[p.forma_pagamento ?? ''] ?? '—'} {p.tipo === 'delivery' ? 'na entrega' : 'na retirada'}{p.troco_para ? ` · levar troco para ${brl(Number(p.troco_para))}` : ''}</span></p>
+      ) : <p className="dp__endereco"><Store size={15} /> <span>{p.tipo === 'balcao' ? 'Venda no balcão (PDV)' : 'Cliente vai retirar no balcão'}</span></p>}
+      <p className="dp__endereco"><Wallet size={15} /> <span>{FORMA_ROTULO[p.forma_pagamento ?? ''] ?? '—'} {p.tipo === 'delivery' ? 'na entrega' : p.tipo === 'balcao' ? (p.pago_em ? '· pago no balcão' : 'no balcão') : 'na retirada'}{p.troco_para ? (p.tipo === 'balcao' ? ` · recebido ${brl(Number(p.troco_para))}` : ` · levar troco para ${brl(Number(p.troco_para))}`) : ''}</span></p>
     </section>
   );
 }
@@ -445,7 +445,7 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
   const qtdItens = p.pedido_itens.reduce((s, i) => s + i.qtd, 0);
 
   const historico: { titulo: string; detalhe: string; quando: string; feito: boolean }[] = [
-    { titulo: 'Pedido recebido', detalhe: p.tipo && p.tipo !== 'mesa' ? 'Pelo cardápio digital (delivery)' : `Pelo tablet da ${p.mesa_nome}`, quando: p.criado_em, feito: true },
+    { titulo: 'Pedido recebido', detalhe: p.tipo === 'balcao' ? 'No balcão (PDV)' : p.tipo && p.tipo !== 'mesa' ? 'Pelo cardápio digital (delivery)' : `Pelo tablet da ${p.mesa_nome}`, quando: p.criado_em, feito: true },
   ];
   if (p.impresso_em) historico.push({ titulo: 'Impresso na cozinha', detalhe: 'Impressão automática do caixa', quando: p.impresso_em, feito: true });
   if (p.status !== 'novo') {

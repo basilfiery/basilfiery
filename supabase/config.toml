@@ -7,3 +7,7 @@ verify_jwt = false
 
 [functions.gestao]
 verify_jwt = false
+
+# Integrações: a chave do restaurante (x-api-key) é conferida dentro da função
+[functions.api]
+verify_jwt = false

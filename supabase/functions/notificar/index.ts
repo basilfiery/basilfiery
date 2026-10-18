@@ -66,6 +66,8 @@ Deno.serve(async (req) => {
     await Promise.all((inscricoes ?? []).map(async (s) => {
       const doDono = s.app === 'dono';
       if (doDono && p.evento !== 'venda') return;
+      // Venda de balcão já entregue: só interessa ao dono
+      if (!doDono && p.so_dono) return;
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

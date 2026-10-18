@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, ChevronDown, CircleUserRound, ChevronsUpDown, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -45,25 +45,70 @@ export interface ContextoPainel {
 export const usePainel = () => useOutletContext<ContextoPainel>();
 
 const TODOS: Papel[] = ['dono', 'gerente', 'caixa', 'garcom'];
-const MENU: { para: string; icone: LucideIcon; rotulo: string; papeis: Papel[]; fim?: boolean; filhos?: { para: string; rotulo: string }[] }[] = [
-  { para: '/painel', icone: ClipboardList, rotulo: 'Pedidos', papeis: TODOS, fim: true },
-  { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
-  { para: '/painel/cardapio', icone: BookOpen, rotulo: 'Cardápio', papeis: ['dono', 'gerente'] },
-  { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: ['dono', 'gerente', 'caixa'] },
-  { para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: ['dono', 'gerente', 'caixa'] },
-  { para: '/painel/garcons', icone: UserRound, rotulo: 'Garçons', papeis: ['dono', 'gerente'] },
-  { para: '/painel/equipe', icone: Users, rotulo: 'Equipe', papeis: ['dono', 'gerente'] },
-  { para: '/painel/config', icone: Settings, rotulo: 'Configurações', papeis: TODOS },
+const GESTORES: Papel[] = ['dono', 'gerente'];
+const CAIXA: Papel[] = ['dono', 'gerente', 'caixa'];
+
+interface FilhoMenu { para: string; rotulo: string; papeis?: Papel[]; novo?: boolean }
+interface ItemMenu { para: string; icone: LucideIcon; rotulo: string; curto?: string; papeis: Papel[]; fim?: boolean; filhos?: FilhoMenu[] }
+
+/** Menu lateral em seções (como no Anota AI). Itens com "filhos" abrem e fecham. */
+const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
   {
-    para: '/painel/conta', icone: CircleUserRound, rotulo: 'Minha conta', papeis: ['dono'],
-    filhos: [
-      { para: '/painel/conta', rotulo: 'Geral' },
-      { para: '/painel/conta/pessoais', rotulo: 'Informações pessoais' },
-      { para: '/painel/conta/pagamento', rotulo: 'Formas de pagamento' },
-      { para: '/painel/conta/faturas', rotulo: 'Fatura' },
+    titulo: 'Seu dia a dia',
+    itens: [
+      { para: '/painel', icone: ClipboardList, rotulo: 'Pedidos', papeis: TODOS, fim: true },
+      { para: '/painel/pdv', icone: ShoppingBasket, rotulo: 'Pedidos balcão (PDV)', curto: 'PDV', papeis: TODOS },
+      { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
+      { para: '/painel/cardapio', icone: BookOpen, rotulo: 'Gestor de cardápio', curto: 'Cardápio', papeis: GESTORES },
+      { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: CAIXA },
+    ],
+  },
+  {
+    titulo: 'Análises',
+    itens: [{ para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: CAIXA }],
+  },
+  {
+    titulo: 'Equipe',
+    itens: [
+      { para: '/painel/garcons', icone: UserRound, rotulo: 'Garçons', papeis: GESTORES },
+      { para: '/painel/equipe', icone: Users, rotulo: 'Equipe', papeis: GESTORES },
+    ],
+  },
+  {
+    titulo: 'Configurações',
+    itens: [
+      {
+        para: '/painel/conta', icone: CircleUserRound, rotulo: 'Minha conta', papeis: ['dono'],
+        filhos: [
+          { para: '/painel/conta', rotulo: 'Geral' },
+          { para: '/painel/conta/pessoais', rotulo: 'Informações pessoais' },
+          { para: '/painel/conta/pagamento', rotulo: 'Formas de pagamento' },
+          { para: '/painel/conta/faturas', rotulo: 'Fatura' },
+        ],
+      },
+      {
+        para: '/painel/config', icone: Settings, rotulo: 'Configurações', papeis: TODOS,
+        filhos: [
+          { para: '/painel/config/clientes', rotulo: 'Meus clientes', papeis: CAIXA, novo: true },
+          { para: '/painel/config/pedidos', rotulo: 'Meus pedidos', papeis: CAIXA },
+          { para: '/painel/config/impressora', rotulo: 'Impressora' },
+          { para: '/painel/config/integracoes', rotulo: 'Integrações', papeis: GESTORES },
+          { para: '/painel/config/cardapio-digital', rotulo: 'Cardápio digital', papeis: GESTORES, novo: true },
+          { para: '/painel/config/estabelecimento', rotulo: 'Estabelecimento', papeis: GESTORES },
+          { para: '/painel/config/anuncios', rotulo: 'Integração de anúncios', papeis: GESTORES },
+          { para: '/painel/config/avisos', rotulo: 'Avisos e sons' },
+        ],
+      },
     ],
   },
 ];
+
+/** Todas as telas (itens e subitens), para conferir permissão e para a busca do menu. */
+const TELAS = SECOES.flatMap((sec) => sec.itens.flatMap((m) => [
+  { para: m.para, rotulo: m.rotulo, papeis: m.papeis, fim: m.fim ?? !!m.filhos, icone: m.icone, pai: undefined as string | undefined },
+  ...(m.filhos ?? []).map((f) => ({ para: f.para, rotulo: f.rotulo, papeis: f.papeis ?? m.papeis, fim: true, icone: m.icone, pai: m.rotulo })),
+]));
+const semAcento = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 const PLANO_ROTULO: Record<string, string> = {
   teste: 'Teste gratuito',
@@ -73,6 +118,17 @@ const PLANO_ROTULO: Record<string, string> = {
 };
 
 type Tema = 'claro' | 'escuro';
+
+function useMedia(consulta: string) {
+  const [v, setV] = useState(() => window.matchMedia(consulta).matches);
+  useEffect(() => {
+    const m = window.matchMedia(consulta);
+    const mudar = () => setV(m.matches);
+    m.addEventListener('change', mudar);
+    return () => m.removeEventListener('change', mudar);
+  }, [consulta]);
+  return v;
+}
 
 
 export default function Painel() {
@@ -91,6 +147,18 @@ export default function Painel() {
   const [busca, setBusca] = useState('');
   const buscaRef = useRef<HTMLInputElement>(null);
   const agora = useAgora(30000);
+  /* ---------- Menu lateral: gaveta (tela menor), grupos abertos e busca ---------- */
+  const [gaveta, setGaveta] = useState(false);
+  const [abertos, setAbertos] = useState<Record<string, boolean>>({});
+  const [buscaMenu, setBuscaMenu] = useState('');
+  const trilho = useMedia('(max-width: 1360px)');
+  useEffect(() => { setGaveta(false); setBuscaMenu(''); }, [local.pathname]);
+  useEffect(() => {
+    if (!gaveta) return;
+    const fechar = (e: KeyboardEvent) => { if (e.key === 'Escape') setGaveta(false); };
+    document.addEventListener('keydown', fechar);
+    return () => document.removeEventListener('keydown', fechar);
+  }, [gaveta]);
 
   /* ---------- Tema claro/escuro (só no painel) ---------- */
   const [tema, setTema] = useState<Tema>(() => ls.ler<Tema>('bf:tema', 'claro'));
@@ -251,9 +319,32 @@ export default function Painel() {
   }
 
   const papel = r.papel;
-  const itens = MENU.filter((m) => m.papeis.includes(papel));
-  const atual = MENU.find((m) => (m.fim ? local.pathname === m.para : local.pathname.startsWith(m.para)));
+  const secoes = SECOES
+    .map((sec) => ({
+      ...sec,
+      itens: sec.itens.filter((m) => m.papeis.includes(papel))
+        .map((m) => ({ ...m, filhos: m.filhos?.filter((f) => (f.papeis ?? m.papeis).includes(papel)) })),
+    }))
+    .filter((sec) => sec.itens.length > 0);
+  const atual = TELAS
+    .filter((t) => (t.fim ? local.pathname === t.para : local.pathname.startsWith(t.para)))
+    .sort((a, b) => b.para.length - a.para.length)[0];
   const permitido = !atual || atual.papeis.includes(papel);
+  const termo = semAcento(buscaMenu.trim());
+  const resultados = termo
+    ? TELAS.filter((t, i) => t.papeis.includes(papel) && TELAS.findIndex((x) => x.para === t.para) === i && semAcento(`${t.rotulo} ${t.pai ?? ''}`).includes(termo))
+    : [];
+  const atalhos = secoes[0]?.itens.slice(0, 4) ?? [];
+  const grupoAberto = (m: ItemMenu) => abertos[m.para] ?? local.pathname.startsWith(m.para);
+  const alternarGrupo = (m: ItemMenu) => {
+    // Barra só com ícones: abre o menu inteiro já com o grupo aberto
+    if (trilho && !gaveta) {
+      setGaveta(true);
+      setAbertos((a) => ({ ...a, [m.para]: true }));
+      return;
+    }
+    setAbertos((a) => ({ ...a, [m.para]: !grupoAberto(m) }));
+  };
   const naTelaDePedidos = local.pathname === '/painel';
   const novos = vivo.pedidos.filter((p) => p.status === 'novo').length;
   const desktop = programaDesktop();
@@ -293,31 +384,82 @@ export default function Painel() {
 
   return (
     <div className="painel" style={{ '--acento': r.cor } as CSSProperties}>
-      {/* ================= Barra lateral ================= */}
-      <aside className="lateral">
-        <Link to="/painel" className="lateral__marca" aria-label="BasilFiery">
-          <img src="/favicon.png" alt="" />
-          <div>
-            <strong>Basil<span>Fiery</span></strong>
-            <small>Gestão de pedidos</small>
-          </div>
-        </Link>
+      {/* ================= Barra lateral (estilo Anota AI) ================= */}
+      {gaveta && <div className="lateral-fundo" onClick={() => setGaveta(false)} aria-hidden="true" />}
+      <aside className={cx('lateral', gaveta && 'lateral--gaveta')}>
+        <div className="lateral__topo">
+          <Link to="/painel" className="lateral__marca" aria-label="BasilFiery">
+            <img src="/favicon.png" alt="" />
+            <div>
+              <strong>Basil<span>Fiery</span></strong>
+              <small>Gestão de pedidos</small>
+            </div>
+          </Link>
+          <button className="lateral__fechar" onClick={() => setGaveta(false)} aria-label="Fechar menu"><X size={20} /></button>
+        </div>
+        <button className="lateral__expandir" onClick={() => setGaveta(true)} aria-label="Abrir menu completo" title="Abrir menu completo"><Menu size={21} /></button>
+
+        <label className="lateral__busca">
+          <Search size={17} />
+          <span className="sr">Buscar no menu</span>
+          <input
+            value={buscaMenu}
+            onChange={(e) => setBuscaMenu(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setBuscaMenu('');
+              if (e.key === 'Enter' && resultados[0]) navegar(resultados[0].para);
+            }}
+            placeholder="Procurando por algo?"
+          />
+        </label>
 
         <nav className="lateral__menu" aria-label="Menu principal">
-          {itens.map((m) => (
-            <NavLink key={m.para} to={m.para} end={m.fim} title={m.rotulo} className={({ isActive }) => cx('lateral__item', isActive && 'ativo')}>
-              <m.icone size={20} strokeWidth={1.8} />
-              <span>{m.rotulo}</span>
-              {m.para === '/painel' && novos > 0 && <b className="lateral__contador">{novos}</b>}
-              {m.filhos && <ChevronDown size={16} className={cx('lateral__seta', local.pathname.startsWith(m.para) && 'aberta')} />}
-            </NavLink>
-          ))}
-          {/* Subopções abertas embaixo (ex.: Minha conta › Geral, Informações pessoais…) */}
-          {itens.filter((m) => m.filhos && local.pathname.startsWith(m.para)).map((m) => (
-            <div key={`${m.para}-filhos`} className="lateral__filhos">
-              {m.filhos!.map((f) => (
-                <NavLink key={f.para} to={f.para} end className={({ isActive }) => cx('lateral__filho', isActive && 'ativo')}>{f.rotulo}</NavLink>
-              ))}
+          {termo ? (
+            resultados.length ? (
+              <div className="lateral__secao">
+                <p className="lateral__titulo">Resultados</p>
+                {resultados.map((t) => (
+                  <NavLink key={t.para} to={t.para} end className={({ isActive }) => cx('lateral__item', isActive && 'ativo')}>
+                    <t.icone size={20} strokeWidth={1.8} />
+                    <span>{t.rotulo}{t.pai && <small>{t.pai}</small>}</span>
+                  </NavLink>
+                ))}
+              </div>
+            ) : <p className="lateral__nada">Nada encontrado para “{buscaMenu.trim()}”.</p>
+          ) : secoes.map((sec) => (
+            <div key={sec.titulo} className="lateral__secao">
+              <p className="lateral__titulo">{sec.titulo}</p>
+              {sec.itens.map((m) => (m.filhos?.length ? (
+                <div key={m.para} className={cx('lateral__grupo', grupoAberto(m) && 'aberto')}>
+                  <button
+                    type="button"
+                    className={cx('lateral__item', local.pathname.startsWith(m.para) && 'ativo')}
+                    title={m.rotulo}
+                    aria-expanded={grupoAberto(m)}
+                    onClick={() => alternarGrupo(m)}
+                  >
+                    <m.icone size={20} strokeWidth={1.8} />
+                    <span>{m.rotulo}</span>
+                    <ChevronDown size={16} className="lateral__seta" />
+                  </button>
+                  {grupoAberto(m) && (
+                    <div className="lateral__filhos">
+                      {m.filhos.map((f) => (
+                        <NavLink key={f.para} to={f.para} end className={({ isActive }) => cx('lateral__filho', isActive && 'ativo')}>
+                          <span>{f.rotulo}</span>
+                          {f.novo && <em className="lateral__novo">Novo</em>}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <NavLink key={m.para} to={m.para} end={m.fim} title={m.rotulo} className={({ isActive }) => cx('lateral__item', isActive && 'ativo')}>
+                  <m.icone size={20} strokeWidth={1.8} />
+                  <span>{m.rotulo}</span>
+                  {m.para === '/painel' && novos > 0 && <b className="lateral__contador">{novos}</b>}
+                </NavLink>
+              )))}
             </div>
           ))}
         </nav>
@@ -328,12 +470,12 @@ export default function Painel() {
             largura={240}
             gatilho={(_, alternar) => (
               <button className="usuario-btn" onClick={alternar} aria-label="Menu da conta">
-                <Avatar nome={s.nome || 'Usuário'} foto={s.foto} />
+                {avatarEmpresa}
                 <div>
-                  <strong>{s.nome || 'Usuário'}</strong>
-                  <small>{PAPEL_ROTULO[papel]}</small>
+                  <strong>{r.nome}</strong>
+                  <small>{s.nome || 'Usuário'} · {PAPEL_ROTULO[papel]}</small>
+                  <em className={cx('lateral__status', caixa && 'aberto')}>{caixa ? 'Caixa aberto' : 'Caixa fechado'}</em>
                 </div>
-                <ChevronsUpDown size={16} />
               </button>
             )}
           >
@@ -352,8 +494,24 @@ export default function Painel() {
               </>
             )}
           </Suspenso>
+          <button className="lateral__sair" onClick={() => void s.sair()} title="Sair" aria-label="Sair"><LogOut size={18} /></button>
         </div>
       </aside>
+
+      {/* Celular: atalhos embaixo + botão que abre o menu completo */}
+      <nav className="barra-mobile" aria-label="Atalhos">
+        {atalhos.map((m) => (
+          <NavLink key={m.para} to={m.para} end={m.fim} className={({ isActive }) => cx('barra-mobile__item', isActive && 'ativo')}>
+            <m.icone size={22} strokeWidth={1.8} />
+            <span>{m.curto ?? m.rotulo}</span>
+            {m.para === '/painel' && novos > 0 && <b className="lateral__contador">{novos}</b>}
+          </NavLink>
+        ))}
+        <button className={cx('barra-mobile__item', gaveta && 'ativo')} onClick={() => setGaveta(true)}>
+          <Menu size={22} strokeWidth={1.8} />
+          <span>Menu</span>
+        </button>
+      </nav>
       {perfilAberto && <ModalPerfil aoFechar={() => setPerfilAberto(false)} />}
 
       {/* ================= Área principal ================= */}
@@ -493,7 +651,7 @@ export default function Painel() {
                   <button className="menu-item" onClick={() => { imprimirTeste(r.nome); fechar(); }}>
                     <Printer size={18} /> Imprimir teste
                   </button>
-                  <Link className="menu-item" to="/painel/config" onClick={fechar}><Settings size={18} /> Configurar impressora</Link>
+                  <Link className="menu-item" to="/painel/config/impressora" onClick={fechar}><Settings size={18} /> Configurar impressora</Link>
                 </>
               )}
             </Suspenso>
@@ -570,7 +728,7 @@ export default function Painel() {
           </div>
         )}
 
-        <main className={cx('painel__conteudo', naTelaDePedidos && permitido && 'painel__conteudo--cheio')}>
+        <main className={cx('painel__conteudo', (naTelaDePedidos || local.pathname === '/painel/pdv') && permitido && 'painel__conteudo--cheio')}>
           {permitido ? <Outlet context={ctx} /> : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}
         </main>
       </div>

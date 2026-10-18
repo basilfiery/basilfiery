@@ -99,11 +99,12 @@ function documento(corpo: string, largura: 58 | 80) {
 
 const FORMA_TXT: Record<string, string> = { pix: 'Pix', dinheiro: 'Dinheiro', credito: 'Cartão de crédito', debito: 'Cartão de débito' };
 const rotuloPagamento = (p: Pedido) =>
-  `Pagamento: ${FORMA_TXT[p.forma_pagamento ?? ''] ?? '—'}${p.troco_para ? ` · troco para ${brl(Number(p.troco_para))}` : ''}${p.pago_em ? ' · PAGO' : ''}`;
+  `Pagamento: ${FORMA_TXT[p.forma_pagamento ?? ''] ?? '—'}${p.troco_para ? ` · ${p.tipo === 'balcao' ? 'recebido' : 'troco para'} ${brl(Number(p.troco_para))}` : ''}${p.pago_em ? ' · PAGO' : ''}`;
 
 /** Cliente e endereço no cupom de delivery/retirada. */
 function htmlCliente(p: Pedido) {
   const e = p.endereco;
+  if (p.tipo === 'balcao') return p.cliente_nome || p.cliente_telefone ? `<hr><b>${esc(p.cliente_nome ?? '')}</b>${p.cliente_telefone ? ` · ${esc(p.cliente_telefone)}` : ''}` : '';
   return `<hr>
     <b>${esc(p.cliente_nome ?? '')}</b>${p.cliente_telefone ? ` · ${esc(p.cliente_telefone)}` : ''}
     ${e ? `<div>${esc(e.rua)}, ${esc(e.numero)}${e.complemento ? ` - ${esc(e.complemento)}` : ''}</div><div>${esc(e.bairro)}</div>${e.referencia ? `<div class="obs">Ref.: ${esc(e.referencia)}</div>` : ''}` : '<div>Retirada no balcão</div>'}`;
@@ -125,6 +126,7 @@ function htmlPedido(p: Pedido, restaurante: string) {
     ${p.observacao ? `<hr><b>OBS DO PEDIDO:</b><div class="obs">${esc(p.observacao)}</div>` : ''}
     <hr>
     ${Number(p.taxa_entrega) > 0 ? `<div class="tot" style="font-size:12px"><span>Entrega</span><span>${brl(Number(p.taxa_entrega))}</span></div>` : ''}
+    ${Number(p.desconto) > 0 ? `<div class="tot" style="font-size:12px"><span>Desconto</span><span>- ${brl(Number(p.desconto))}</span></div>` : ''}
     <div class="tot"><span>TOTAL</span><span>${brl(p.total)}</span></div>
     ${p.tipo && p.tipo !== 'mesa' ? `<div class="c p">${esc(rotuloPagamento(p))}</div>` : ''}
   </div>`;

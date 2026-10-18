@@ -796,11 +796,13 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
   );
 }
 
-export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
+export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs }: {
   p: ProdutoMesa;
   aoFechar: () => void;
   aoAdicionar: (qtd: number, obs: string) => void;
   jaNoCarrinho: number;
+  /** Loja desligou o campo de observação */
+  semObs?: boolean;
 }) {
   const [qtd, setQtd] = useState(1);
   const [obs, setObs] = useState('');
@@ -843,10 +845,12 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
       <p className="modal-produto__desc">{p.descricao}</p>
       <p className="modal-produto__preco">{brl(p.preco)}</p>
       {p.estoque_max !== null && p.estoque_max <= 5 && <p className="modal-produto__aviso">Últimas {p.estoque_max} unidades!</p>}
-      <label className="campo">
-        <span>Alguma observação?</span>
-        <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: sem cebola, bem passado…" />
-      </label>
+      {!semObs && (
+        <label className="campo">
+          <span>Alguma observação?</span>
+          <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: sem cebola, bem passado…" />
+        </label>
+      )}
     </Modal>
   );
 }

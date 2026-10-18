@@ -21,10 +21,10 @@
 
 /* Barra lateral (estilo Anota AI): azul-marinho, seções, grupos que abrem e fecham */
 .lateral {
-  --lat-txt: #cfdbe7; --lat-fraco: #7f99b1; --lat-hover: rgba(255, 255, 255, .07);
+  --lat-txt: #d4d4d8; --lat-fraco: #85858f; --lat-hover: rgba(255, 255, 255, .07);
   display: flex; flex-direction: column; gap: 12px; min-height: 0;
   padding: 18px 12px 12px; overflow: hidden;
-  background: linear-gradient(180deg, #0e3253 0%, #0a2740 100%); color: var(--lat-txt);
+  background: linear-gradient(180deg, #161618 0%, #0b0b0c 100%); color: var(--lat-txt);
   border-right: 1px solid rgba(255, 255, 255, .04);
 }
 .lateral__topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px; }
@@ -109,7 +109,7 @@
 .lateral__status.aberto { border-color: #69db7c; color: #2b8a3e; }
 .lateral__sair { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--lat-fraco); }
 .lateral__sair:hover { background: rgba(255, 255, 255, .08); color: #fff; }
-.lateral-fundo { position: fixed; inset: 0; z-index: 59; background: rgba(4, 16, 28, .55); backdrop-filter: blur(2px); animation: aparecer .15s ease-out; }
+.lateral-fundo { position: fixed; inset: 0; z-index: 59; background: rgba(0, 0, 0, .55); backdrop-filter: blur(2px); animation: aparecer .15s ease-out; }
 .barra-mobile { display: none; }
 @keyframes gaveta { from { transform: translateX(-100%); } }
 .avatar {
@@ -253,12 +253,12 @@
     position: fixed; z-index: 40; left: 0; right: 0; bottom: 0;
     display: flex; justify-content: space-around; gap: 2px;
     padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
-    background: #0b2a44; border-top: 1px solid rgba(255, 255, 255, .06);
+    background: #0f0f10; border-top: 1px solid rgba(255, 255, 255, .06);
   }
   .barra-mobile__item {
     position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
     padding: 6px 2px; border: 0; border-radius: 10px; background: transparent;
-    color: #9fb4c8; font: inherit; font-size: .66rem; font-weight: 600; text-decoration: none; white-space: nowrap;
+    color: #8e8e98; font: inherit; font-size: .66rem; font-weight: 600; text-decoration: none; white-space: nowrap;
   }
   .barra-mobile__item.ativo { color: #fff; background: rgba(255, 255, 255, .06); }
   .barra-mobile__item.ativo svg { color: #ff7a45; }

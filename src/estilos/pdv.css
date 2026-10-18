@@ -76,7 +76,7 @@
 .pdv-pedido__cab strong small { min-width: 22px; height: 22px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px; background: var(--acento); color: #fff; font-size: .72rem; }
 .pdv-pedido__fechar { display: none; }
 .pdv-pedido__itens { flex: 1 1 120px; min-height: 96px; overflow-y: auto; padding: 6px 12px; }
-.pdv-pedido__vazio { height: 100%; min-height: 140px; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; font-size: .86rem; }
+.pdv-pedido__vazio { height: 100%; min-height: 84px; padding: 8px 0; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; font-size: .86rem; }
 .pdv-pedido__vazio p { margin: 0; }
 .pdv-linha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 10px 2px; border-bottom: 1px dashed var(--line); animation: subir .15s ease-out; }
 .pdv-linha:last-child { border-bottom: 0; }
@@ -189,3 +189,18 @@
   .pdv-gerar kbd { display: none; }
   .pdv-ok__acoes { grid-template-columns: 1fr; }
 }
+
+/* Só a categoria escolhida; subcategorias em abas */
+.pdv-cab-cat { position: sticky; top: 0; z-index: 2; display: grid; gap: 10px; margin: 0 -16px; padding: 14px 16px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.pdv-cab-cat h2 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+.pdv-subs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.pdv-subs::-webkit-scrollbar { display: none; }
+.pdv-sub {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: .84rem; font-weight: 600; white-space: nowrap;
+}
+.pdv-sub small { min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px; background: var(--bg-2); font-size: .7rem; }
+.pdv-sub:hover { border-color: var(--line-2); color: var(--text); }
+.pdv-sub.ativa { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 9%, var(--surface)); color: var(--acento); }
+.pdv-sub.ativa small { background: var(--acento); color: #fff; }
+@media (max-width: 760px) { .pdv-cab-cat { margin: 0 -12px; padding: 12px; } }

@@ -52,6 +52,7 @@ export default function Pdv() {
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [busca, setBusca] = useState('');
   const [catAtiva, setCatAtiva] = useState('');
+  const [subAtiva, setSubAtiva] = useState('');
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [obsPedido, setObsPedido] = useState('');
   const [verObs, setVerObs] = useState(false);
@@ -100,10 +101,10 @@ export default function Pdv() {
     const secoes: SecaoPdv[] = [];
     for (const c of principais) {
       const diretos = itensDe(c);
-      if (diretos.length) secoes.push({ id: c.id, nome: c.nome, principal: c.id, itens: diretos });
+      if (diretos.length) secoes.push({ id: c.id, nome: cats.some((x) => x.pai_id === c.id) ? 'Outros' : c.nome, principal: c.id, itens: diretos });
       for (const sub of cats.filter((x) => x.pai_id === c.id)) {
         const itens = itensDe(sub);
-        if (itens.length) secoes.push({ id: sub.id, nome: `${c.nome} › ${sub.nome}`, principal: c.id, itens });
+        if (itens.length) secoes.push({ id: sub.id, nome: sub.nome, principal: c.id, itens });
       }
     }
     const porId = new Map(secoes.flatMap((sec) => sec.itens).map((p) => [p.id, p]));
@@ -201,23 +202,20 @@ export default function Pdv() {
     return () => document.removeEventListener('keydown', tecla);
   }, []);
 
+  // Mostra só a categoria escolhida (e, se quiser, uma subcategoria dela)
+  const catAtual = principais.some((c) => c.id === catAtiva) ? catAtiva : principais[0]?.id ?? '';
+  const daCategoria = secoes.filter((x) => x.principal === catAtual);
+  const visiveis = daCategoria.some((x) => x.id === subAtiva) ? daCategoria.filter((x) => x.id === subAtiva) : daCategoria;
   function irPara(id: string) {
     setCatAtiva(id);
+    setSubAtiva('');
     setBusca('');
-    requestAnimationFrame(() => listaRef.current?.querySelector(`[data-principal="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    listaRef.current?.scrollTo({ top: 0 });
   }
-
-  // Categoria em destaque acompanha a rolagem
-  useEffect(() => {
-    const raiz = listaRef.current;
-    if (!raiz || termo) return;
-    const obs = new IntersectionObserver((ent) => {
-      const vis = ent.filter((x) => x.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      if (vis) setCatAtiva((vis.target as HTMLElement).dataset.principal ?? '');
-    }, { root: raiz, rootMargin: '0px 0px -70% 0px' });
-    raiz.querySelectorAll('[data-principal]').forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, [secoes, termo]);
+  function irSub(id: string) {
+    setSubAtiva(id);
+    listaRef.current?.scrollTo({ top: 0 });
+  }
 
   const cartao = (p: ProdutoMesa) => {
     const n = qtdNoPedido(p.id);
@@ -391,7 +389,7 @@ export default function Pdv() {
           <div className="pdv__area">
             <nav className="pdv__cats" aria-label="Categorias">
               {principais.map((c) => (
-                <button key={c.id} type="button" className={cx('pdv-cat', !termo && catAtiva === c.id && 'ativa')} onClick={() => irPara(c.id)}>{c.nome}</button>
+                <button key={c.id} type="button" className={cx('pdv-cat', !termo && catAtual === c.id && 'ativa')} onClick={() => irPara(c.id)}>{c.nome}</button>
               ))}
             </nav>
             <div className="pdv__lista" ref={listaRef}>
@@ -404,12 +402,29 @@ export default function Pdv() {
                 ) : <p className="vazio">Nenhum produto com “{busca.trim()}”.</p>
               ) : secoes.length === 0 ? (
                 <p className="vazio">Cadastre produtos no Gestor de cardápio para vender aqui.</p>
-              ) : secoes.map((sec, i) => (
-                <section key={sec.id} className="pdv-secao" {...(secoes.findIndex((x) => x.principal === sec.principal) === i ? { 'data-principal': sec.principal } : {})}>
-                  <h2>{sec.nome}</h2>
-                  <div className="pdv-grade">{sec.itens.map(cartao)}</div>
-                </section>
-              ))}
+              ) : (
+                <>
+                  <header className="pdv-cab-cat">
+                    <h2>{principais.find((c) => c.id === catAtual)?.nome}</h2>
+                    {daCategoria.length > 1 && (
+                      <div className="pdv-subs" role="tablist">
+                        <button type="button" role="tab" aria-selected={visiveis.length > 1} className={cx('pdv-sub', visiveis.length > 1 && 'ativa')} onClick={() => irSub('')}>Todos</button>
+                        {daCategoria.map((x) => (
+                          <button key={x.id} type="button" role="tab" aria-selected={visiveis.length === 1 && visiveis[0].id === x.id} className={cx('pdv-sub', visiveis.length === 1 && visiveis[0].id === x.id && 'ativa')} onClick={() => irSub(x.id)}>
+                            {x.nome} <small>{x.itens.length}</small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </header>
+                  {visiveis.map((sec) => (
+                    <section key={sec.id} className="pdv-secao">
+                      {visiveis.length > 1 && <h2>{sec.nome}</h2>}
+                      <div className="pdv-grade">{sec.itens.map(cartao)}</div>
+                    </section>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </section>

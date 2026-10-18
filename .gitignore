@@ -8,3 +8,8 @@ supabase/.branches
 *.log
 desktop/node_modules
 desktop/dist
+
+# Gravações de referência (não sobem para o site)
+referencias/
+*.mov
+*.mp4

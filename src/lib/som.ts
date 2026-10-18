@@ -152,3 +152,15 @@ export function notificarLocal(titulo: string, corpo = '', tag?: string) {
     };
   } catch { /* Android exige service worker: lá usamos o push */ }
 }
+
+/** "Tlim" de moedas: nova venda no app do dono. */
+export function tocarVenda() {
+  if (!somLigado()) return;
+  destravarSom();
+  if (!ctx) return;
+  const c = ctx;
+  const t = c.currentTime + 0.02;
+  nota(c, t, 1975.5, 0.5, 'sine', 0.35, [[2.01, 0.08]]);
+  nota(c, t + 0.09, 2637, 0.7, 'sine', 0.3, [[2.01, 0.06]]);
+  if ('vibrate' in navigator) navigator.vibrate?.([60, 40, 60]);
+}

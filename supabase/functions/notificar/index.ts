@@ -50,17 +50,26 @@ Deno.serve(async (req) => {
     const p = await req.json();
     const { data: inscricoes, error } = await admin
       .from('push_inscricoes')
-      .select('id, endpoint, p256dh, auth')
+      .select('id, endpoint, p256dh, auth, app')
       .eq('restaurante_id', p.restaurante_id);
     if (error) throw error;
 
     const mensagem = JSON.stringify({ titulo: p.titulo, corpo: p.corpo, tag: p.tag, url: p.url });
+    // App do dono: só as vendas, com texto de venda, e o toque abre o app do dono
+    const mensagemDono = JSON.stringify({
+      titulo: 'Nova venda! ' + (p.valor ?? ''),
+      corpo: p.mesa ? `${p.mesa} · toque para ver` : p.corpo,
+      tag: p.tag,
+      url: '/dono',
+    });
     let enviados = 0;
     await Promise.all((inscricoes ?? []).map(async (s) => {
+      const doDono = s.app === 'dono';
+      if (doDono && p.evento !== 'venda') return;
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          mensagem,
+          doDono ? mensagemDono : mensagem,
           { TTL: 600, urgency: 'high' },
         );
         enviados++;

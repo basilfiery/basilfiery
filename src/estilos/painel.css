@@ -1168,3 +1168,17 @@
   display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; vertical-align: 1px;
   background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); font-size: .72rem; font-weight: 700;
 }
+
+/* Barra única da categoria (como no Anota AI): criar + buscar à esquerda, Esgotar + ⋮ à direita */
+.cat-painel__barra { flex-wrap: wrap; gap: 10px; }
+.cat-painel__criar { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-painel__barra .cat-painel__acoes { margin-left: auto; }
+.cat-painel__barra .cat-painel__busca { flex: 0 1 260px; }
+/* Subcategoria e item com a mesma cara na lista */
+.sub-linha { background: var(--surface); }
+.sub-linha__icone { width: 56px; height: 56px; overflow: hidden; }
+.sub-linha__icone img { width: 100%; height: 100%; object-fit: cover; }
+.cat-painel > .grupo-ligado { margin-top: -4px; }
+@media (max-width: 760px) {
+  .cat-painel__barra .cat-painel__busca { flex: 1 1 100%; max-width: none; order: 3; }
+}

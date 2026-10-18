@@ -338,9 +338,6 @@ export default function Cardapio() {
           <h1 className="titulo">Cardápio</h1>
           <p>O que você mudar aqui aparece nos tablets em até 1 minuto.</p>
         </div>
-        <button className="btn btn--primario" onClick={novoItem} disabled={!categorias.length}>
-          <Plus size={18} /> Novo produto
-        </button>
       </div>
 
       <div className="cardapio">
@@ -411,17 +408,11 @@ export default function Cardapio() {
                 <span className="cat-painel__tipo"><Layers size={14} /> Grupo de sabores</span>
                 <h2>{grupoSel.nome}</h2>
               </div>
-              {topoAcoes(saboresDe(grupoSel.id), (fechar) => (
-                <>
-                  <button className="menu-item" onClick={() => { fechar(); setEditGrupo(grupoSel); }}><Pencil size={17} /> Renomear ou excluir grupo</button>
-                  <button className="menu-item" onClick={() => { fechar(); novoItem(); }}><Plus size={17} /> Adicionar sabor</button>
-                </>
-              ))}
             </header>
             <div className="usado-em">
               <span>Aparece em</span>
               {usamGrupo(grupoSel.id).length === 0 ? (
-                <em>nenhum tamanho ainda. Abra a subcategoria (ex.: Pizza P), clique no lápis e escolha “Grupo de sabores”.</em>
+                <em>nenhum tamanho ainda. Abra a subcategoria (ex.: Pizza P), toque em ⋮ › Editar e escolha “Grupo de sabores”.</em>
               ) : usamGrupo(grupoSel.id).map((c) => (
                 <button key={c.id} className="usado-em__chip" onClick={() => abrir(c.id)}>
                   {nomeCompleto(c)} <b>{brl(Number(c.preco_grupo ?? 0))}</b>
@@ -429,17 +420,19 @@ export default function Cardapio() {
               ))}
             </div>
             <div className="cat-painel__barra">
-              <button className="btn btn--contorno btn--acento" onClick={novoItem}><Plus size={17} /> Adicionar sabor</button>
-              <label className="cat-painel__busca"><Search size={16} /><input placeholder="Pesquisar sabor" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
+              <div className="cat-painel__criar">
+                <button className="btn btn--contorno btn--acento" onClick={novoItem}><Plus size={17} /> Adicionar sabor</button>
+              </div>
+              <label className="cat-painel__busca"><Search size={16} /><input placeholder="Pesquisar" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
+              {topoAcoes(saboresDe(grupoSel.id), (fechar) => (
+                <button className="menu-item" onClick={() => { fechar(); setEditGrupo(grupoSel); }}><Pencil size={17} /> Renomear ou excluir grupo</button>
+              ))}
             </div>
-            <div className="cat-painel__bloco">
-              {filtrar(saboresDe(grupoSel.id)).length === 0 ? (
-                <div className="cat-painel__vazio"><Layers size={26} /><p>{termo ? 'Nenhum sabor com esse nome.' : 'Nenhum sabor ainda. Ex.: Calabresa, Frango com Catupiry, Portuguesa.'}</p></div>
-              ) : (
-                <ul className="itens-lista">{filtrar(saboresDe(grupoSel.id)).map((p) => linhaItem(p, !termo))}</ul>
-              )}
-              <button className="btn btn--contorno btn--acento cat-painel__mais" onClick={novoItem}><Plus size={17} /> Adicionar sabor</button>
-            </div>
+            {filtrar(saboresDe(grupoSel.id)).length === 0 ? (
+              <div className="cat-painel__vazio"><Layers size={26} /><p>{termo ? 'Nenhum sabor com esse nome.' : 'Nenhum sabor ainda. Ex.: Calabresa, Frango com Catupiry, Portuguesa.'}</p></div>
+            ) : (
+              <ul className="itens-lista">{filtrar(saboresDe(grupoSel.id)).map((p) => linhaItem(p, !termo))}</ul>
+            )}
           </section>
         ) : !cat ? (
           <section className="card cat-painel">
@@ -456,7 +449,12 @@ export default function Cardapio() {
               </ul>
             )}
           </section>
-        ) : (
+        ) : (() => {
+          const subs = !cat.pai_id && !termo ? filhasDe(cat.id) : [];
+          const itens = filtrar(itensDe(cat.id));
+          const grupo = grupoDe(cat.grupo_id);
+          const vazio = !subs.length && !itens.length && !grupo;
+          return (
           <section className="card cat-painel" key={cat.id}>
             <header className="cat-painel__cab">
               <div className="cat-painel__titulo">
@@ -469,119 +467,110 @@ export default function Cardapio() {
                 <h2>{cat.emoji} {cat.nome}</h2>
                 {!cat.ativo && <span className="badge">Oculta no tablet</span>}
               </div>
+            </header>
+
+            {/* Uma barra só: criar (item ou subcategoria), buscar; à direita, Esgotar e ⋮ */}
+            <div className="cat-painel__barra">
+              <div className="cat-painel__criar">
+                <button className="btn btn--contorno btn--acento" onClick={novoItem}><Plus size={17} /> Adicionar item</button>
+                {!cat.pai_id && (
+                  <button className="btn btn--contorno btn--acento" onClick={() => { setNovaPai(cat.id); setEditCat('nova'); }}>
+                    <Plus size={17} /> Nova subcategoria
+                  </button>
+                )}
+              </div>
+              <label className="cat-painel__busca"><Search size={16} /><input placeholder="Pesquisar" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
               {topoAcoes(itensDe(cat.id), (fechar) => (
                 <>
                   <button className="menu-item" onClick={() => { fechar(); setEditCat(cat); }}><Pencil size={17} /> Editar {cat.pai_id ? 'subcategoria' : 'categoria'}</button>
                   <button className="menu-item" onClick={() => { fechar(); void alternarCategoria(cat, !cat.ativo); }}>
                     {cat.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
                   </button>
-                  {!cat.pai_id && (
-                    <button className="menu-item" onClick={() => { fechar(); setNovaPai(cat.id); setEditCat('nova'); }}><Plus size={17} /> Nova subcategoria</button>
-                  )}
+                  <div className="menu-sep" />
+                  <button className="menu-item menu-item--perigo" onClick={() => { fechar(); void excluirCategoria(cat); }}><Trash2 size={17} /> Excluir</button>
                 </>
               ))}
-            </header>
-
-            <div className="cat-painel__barra">
-              <button className="btn btn--contorno btn--acento" onClick={novoItem}><Plus size={17} /> Adicionar item</button>
-              <label className="cat-painel__busca"><Search size={16} /><input placeholder="Pesquisar" value={busca} onChange={(e) => setBusca(e.target.value)} /></label>
-              {!cat.pai_id && (
-                <button className="btn btn--fantasma" onClick={() => { setNovaPai(cat.id); setEditCat('nova'); }}>
-                  <Plus size={17} /> Nova subcategoria
-                </button>
-              )}
             </div>
 
-            {/* Subcategorias como pastas: clica e entra */}
-            {!cat.pai_id && filhasDe(cat.id).length > 0 && !termo && (
-              <div className="cat-painel__bloco">
-                <h3>Subcategorias</h3>
-                <ul className="subs-lista">
-                  {filhasDe(cat.id).map((f) => {
-                    const itens = itensDe(f.id);
-                    const g = grupoDe(f.grupo_id);
-                    const qtd = itens.length + saboresDe(f.grupo_id).length;
-                    return (
-                      <li
-                        key={f.id}
-                        className={cx('sub-linha', !f.ativo && 'item-linha--oculto', f.esgotado && 'item-linha--esgotado', arrastoSubs.classe(f.id))}
-                        {...arrastoSubs.props(f.id)}
-                      >
-                        <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />
-                        <span className={cx('sub-linha__icone', !f.emoji && 'sub-linha__icone--vazia')}>{f.emoji || <ImagemComida />}</span>
-                        <button className="sub-linha__nome" onClick={() => abrir(f.id)}>
-                          <strong>
-                            {f.nome}
-                            {f.esgotado && <span className="selo-esgotado">Esgotado</span>}
-                            {!f.ativo && <span className="selo-oculto">Fora do tablet</span>}
-                          </strong>
-                          <small>{qtd} {qtd === 1 ? 'item' : 'itens'}{g && ` · sabores de “${g.nome}”`}</small>
-                        </button>
-                        <div className="item-linha__controles">
-                          <div className="chave-esgotar" title="Esgota tudo desta subcategoria (ex.: acabou a massa deste tamanho)">
-                            <span>Esgotar</span>
-                            <Switch marcado={f.esgotado} aoMudar={(v) => void esgotarCategoria(f, v)} />
-                          </div>
-                          <div className="item-linha__preco">
-                            <PrecoCategoria valor={f.preco_grupo} aoSalvar={(v) => precoCategoria(f, v)} />
-                          </div>
-                          <Suspenso
-                            largura={230}
-                            gatilho={(aberto, alternar) => (
-                              <button className={cx('btn-quadrado', aberto && 'ativo')} onClick={alternar} aria-label={`Mais opções de ${f.nome}`}><MoreVertical size={18} /></button>
-                            )}
-                          >
-                            {(fechar) => (
-                              <>
-                                <button className="menu-item" onClick={() => { fechar(); setEditCat(f); }}><Pencil size={17} /> Editar</button>
-                                <button className="menu-item" onClick={() => { fechar(); void alternarCategoria(f, !f.ativo); }}>
-                                  {f.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
-                                </button>
-                                <div className="menu-sep" />
-                                <button className="menu-item menu-item--perigo" onClick={() => { fechar(); void excluirCategoria(f); }}><Trash2 size={17} /> Excluir</button>
-                              </>
-                            )}
-                          </Suspenso>
-                          <button className="btn-quadrado" onClick={() => abrir(f.id)} aria-label={`Abrir ${f.nome}`}><ChevronRight size={18} /></button>
+            {grupo && !termo && (
+              <div className="grupo-ligado">
+                <span className="grupo-ligado__icone"><Layers size={20} /></span>
+                <div>
+                  <strong>Sabores do grupo “{grupo.nome}”</strong>
+                  <small>Preço {cat.pai_id ? 'deste tamanho' : ''}: <b>{brl(Number(cat.preco_grupo ?? 0))}</b> · {saboresDe(cat.grupo_id).length} sabores. Esgotar um sabor vale para todos os tamanhos.</small>
+                </div>
+                <button className="btn btn--contorno btn--sm" onClick={() => abrir(`g:${cat.grupo_id}`)}>Abrir grupo <ChevronRight size={15} /></button>
+              </div>
+            )}
+
+            {vazio ? (
+              <div className="cat-painel__vazio">
+                <UtensilsCrossed size={26} />
+                <p>{termo ? 'Nenhum item com esse nome aqui.' : cat.pai_id ? 'Nada aqui ainda. Toque em “Adicionar item”.' : 'Nada aqui ainda. Toque em “Adicionar item” ou, se tiver tamanhos (P, M, G), em “Nova subcategoria”.'}</p>
+              </div>
+            ) : (
+              <ul className="itens-lista">
+                {/* Subcategorias e itens na mesma lista, como no Anota AI */}
+                {subs.map((f) => {
+                  const itensF = itensDe(f.id);
+                  const g = grupoDe(f.grupo_id);
+                  const qtd = itensF.length + saboresDe(f.grupo_id).length;
+                  const foto = [...itensF, ...saboresDe(f.grupo_id)].find((x) => x.imagem_url)?.imagem_url;
+                  return (
+                    <li
+                      key={f.id}
+                      className={cx('item-linha sub-linha', !f.ativo && 'item-linha--oculto', f.esgotado && 'item-linha--esgotado', arrastoSubs.classe(f.id))}
+                      {...arrastoSubs.props(f.id)}
+                    >
+                      <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />
+                      <span className={cx('sub-linha__icone', !foto && !f.emoji && 'sub-linha__icone--vazia')}>
+                        {foto ? <img src={foto} alt="" /> : f.emoji || <ImagemComida />}
+                      </span>
+                      <button className="sub-linha__nome" onClick={() => abrir(f.id)}>
+                        <strong>
+                          {f.nome}
+                          {f.esgotado && <span className="selo-esgotado">Esgotado</span>}
+                          {!f.ativo && <span className="selo-oculto">Fora do tablet</span>}
+                        </strong>
+                        <small>{qtd} {qtd === 1 ? 'opção' : 'opções'}{g ? ` · sabores de “${g.nome}”` : ''}</small>
+                      </button>
+                      <div className="item-linha__controles">
+                        <div className="chave-esgotar" title="Esgota tudo desta subcategoria (ex.: acabou a massa deste tamanho)">
+                          <span>Esgotar</span>
+                          <Switch marcado={f.esgotado} aoMudar={(v) => void esgotarCategoria(f, v)} />
                         </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+                        <div className="item-linha__preco">
+                          <PrecoCategoria valor={f.preco_grupo} aoSalvar={(v) => precoCategoria(f, v)} />
+                        </div>
+                        <Suspenso
+                          largura={230}
+                          gatilho={(aberto, alternar) => (
+                            <button className={cx('btn-quadrado', aberto && 'ativo')} onClick={alternar} aria-label={`Mais opções de ${f.nome}`}><MoreVertical size={18} /></button>
+                          )}
+                        >
+                          {(fechar) => (
+                            <>
+                              <button className="menu-item" onClick={() => { fechar(); setEditCat(f); }}><Pencil size={17} /> Editar</button>
+                              <button className="menu-item" onClick={() => { fechar(); void alternarCategoria(f, !f.ativo); }}>
+                                {f.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
+                              </button>
+                              <div className="menu-sep" />
+                              <button className="menu-item menu-item--perigo" onClick={() => { fechar(); void excluirCategoria(f); }}><Trash2 size={17} /> Excluir</button>
+                            </>
+                          )}
+                        </Suspenso>
+                        <button className="btn-quadrado" onClick={() => abrir(f.id)} aria-label={`Abrir ${f.nome}`}><ChevronRight size={18} /></button>
+                      </div>
+                    </li>
+                  );
+                })}
+                {grupo && !termo && saboresDe(cat.grupo_id).map((p) => linhaItem(p, false))}
+                {itens.map((p) => linhaItem(p, !termo))}
+              </ul>
             )}
-
-            {grupoDe(cat.grupo_id) && !termo && (
-              <div className="cat-painel__bloco">
-                <div className="grupo-ligado">
-                  <span className="grupo-ligado__icone"><Layers size={20} /></span>
-                  <div>
-                    <strong>Sabores do grupo “{grupoDe(cat.grupo_id)!.nome}”</strong>
-                    <small>Preço {cat.pai_id ? 'deste tamanho' : ''}: <b>{brl(Number(cat.preco_grupo ?? 0))}</b> · {saboresDe(cat.grupo_id).length} sabores. Esgotar aqui vale para todos os tamanhos.</small>
-                  </div>
-                  <button className="btn btn--contorno btn--sm" onClick={() => setEditCat(cat)}>Alterar preço</button>
-                  <button className="btn btn--contorno btn--sm" onClick={() => abrir(`g:${cat.grupo_id}`)}>Abrir grupo <ChevronRight size={15} /></button>
-                </div>
-                <ul className="itens-lista">{saboresDe(cat.grupo_id).map((p) => linhaItem(p, false))}</ul>
-              </div>
-            )}
-
-            <div className="cat-painel__bloco">
-              {grupoDe(cat.grupo_id) && <h3>Itens próprios (opcional)</h3>}
-              {filtrar(itensDe(cat.id)).length === 0 ? (!termo && filhasDe(cat.id).length > 0 ? null : (
-                <div className="cat-painel__vazio">
-                  <UtensilsCrossed size={26} />
-                  <p>{termo ? 'Nenhum item com esse nome aqui.' : grupoDe(cat.grupo_id) ? 'Esta categoria já mostra os sabores do grupo. Itens próprios são opcionais.' : 'Nenhum item nesta categoria ainda.'}</p>
-                </div>
-              )) : (
-                <ul className="itens-lista">
-                  {filtrar(itensDe(cat.id)).map((p) => linhaItem(p, !termo))}
-                </ul>
-              )}
-              <button className="btn btn--contorno btn--acento cat-painel__mais" onClick={novoItem}><Plus size={17} /> Adicionar item</button>
-            </div>
           </section>
-        )}
+          );
+        })()}
       </div>
 
       {editCat && (

@@ -339,7 +339,6 @@ export default function LojaCardapio() {
                   {abas.map((a) => (
                     <button key={a.id} role="tab" aria-selected={abaAtual === a.id} className={cx('mesa__aba', abaAtual === a.id && 'ativa')} onClick={() => setSubAtiva(a.id)}>
                       <span>{a.emoji} {a.nome}</span>
-                      {a.preco > 0 && <small>{brl(a.preco)}</small>}
                     </button>
                   ))}
                 </div>

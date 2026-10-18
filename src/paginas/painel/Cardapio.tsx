@@ -414,23 +414,6 @@ export default function Cardapio() {
             </div>
           )}
 
-          <div className="cardapio__cats-cab cardapio__cats-cab--grupos">
-            <h2 className="card__titulo">Grupos de sabores</h2>
-            <button className="btn btn--contorno btn--sm" onClick={() => setEditGrupo('novo')}><Plus size={16} /> Novo</button>
-          </div>
-          {grupos.length === 0 ? (
-            <p className="cats-dica cats-dica--bloco">Sabores que se repetem em vários tamanhos (ex.: Pizza P, M e G). Cadastre uma vez e use em todos.</p>
-          ) : (
-            <div className="cats-lista">
-              {grupos.map((g) => (
-                <button key={g.id} className={cx('cat-item', catSel === `g:${g.id}` && 'ativo')} onClick={() => abrir(`g:${g.id}`)}>
-                  <Layers size={15} className="cat-item__seta" aria-hidden="true" />
-                  <span>{g.nome}</span>
-                  <span className="contagem">{saboresDe(g.id).length}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </aside>
 
         {/* ---------- A "guia" da categoria aberta ---------- */}
@@ -622,7 +605,6 @@ export default function Cardapio() {
           restauranteId={restaurante.id}
           categoria={editCat === 'nova' ? null : editCat}
           categorias={categorias}
-          grupos={grupos}
           paiInicial={editCat === 'nova' ? novaPai : editCat.pai_id}
           aoFechar={() => setEditCat(null)}
           aoSalvar={() => { setEditCat(null); void carregar(); }}
@@ -783,11 +765,10 @@ function PrecoEditavel({ produto, aoSalvar }: { produto: Produto; aoSalvar: (pre
 
 const EMOJIS_SUGERIDOS = ['🍕', '🍔', '🍟', '🥗', '🍝', '🍣', '🥩', '🍗', '🍤', '🥟', '🌮', '🍰', '🍨', '☕', '🥤', '🍺', '🍷', '🍹'];
 
-function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInicial, aoFechar, aoSalvar }: {
+function ModalCategoria({ restauranteId, categoria, categorias, paiInicial, aoFechar, aoSalvar }: {
   restauranteId: string;
   categoria: Categoria | null;
   categorias: Categoria[];
-  grupos: Grupo[];
   paiInicial: string | null;
   aoFechar: () => void;
   aoSalvar: () => void;
@@ -799,10 +780,11 @@ function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInici
   const [emoji, setEmoji] = useState(categoria?.emoji ?? '');
   const [pai, setPai] = useState<string>(paiInicial ?? '');
   const [ativo, setAtivo] = useState(categoria?.ativo ?? true);
-  const [usaGrupo, setUsaGrupo] = useState(!!categoria?.grupo_id);
-  const [grupoId, setGrupoId] = useState(categoria?.grupo_id ?? grupos[0]?.id ?? '');
+  // Grupo de sabores antigo: só mantém o que já existia (o novo jeito são os grupos de adicionais)
+  const usaGrupo = !!categoria?.grupo_id;
+  const grupoId = categoria?.grupo_id ?? '';
   const [precoGrupo, setPrecoGrupo] = useState(categoria?.preco_grupo != null ? precoParaTexto(categoria.preco_grupo) : '');
-  const [novoGrupo, setNovoGrupo] = useState('');
+  const novoGrupo = '';
   const [salvando, setSalvando] = useState(false);
   const temFilhas = !!categoria && categorias.some((c) => c.pai_id === categoria.id);
   const opcoesPai = categorias.filter((c) => !c.pai_id && c.id !== categoria?.id);
@@ -902,56 +884,16 @@ function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInici
           </select>
         </Campo>
 
-        <div className="cat-form__bloco">
-          <span className="cat-form__rotulo">O que aparece dentro</span>
-          <div className="segmentado segmentado--bloco" role="radiogroup" aria-label="Conteúdo">
-            <button type="button" role="radio" aria-checked={!usaGrupo} className={cx(!usaGrupo && 'ativo')} onClick={() => setUsaGrupo(false)}>
-              <UtensilsCrossed size={16} /> Itens próprios
-            </button>
-            <button type="button" role="radio" aria-checked={usaGrupo} className={cx(usaGrupo && 'ativo')} onClick={() => setUsaGrupo(true)}>
-              <Layers size={16} /> Grupo de sabores
-            </button>
-          </div>
-          {usaGrupo ? (
-            <>
-              <div className="form-linha">
-                {grupos.length > 0 ? (
-                  <Campo rotulo="Grupo de sabores">
-                    <select className="select" value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
-                      {grupos.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
-                      <option value="">+ Criar grupo novo…</option>
-                    </select>
-                  </Campo>
-                ) : null}
-                {!grupoId && (
-                  <Campo rotulo="Nome do grupo novo">
-                    <input className="input" value={novoGrupo} onChange={(e) => setNovoGrupo(e.target.value)} placeholder="Ex.: Sabores de pizza" maxLength={60} />
-                  </Campo>
-                )}
-                <Campo rotulo={ehSub ? 'Preço deste tamanho' : 'Preço'}>
-                  <div className="input-preco">
-                    <span>R$</span>
-                    <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(mascaraPreco(e.target.value))} placeholder="50,00" />
-                  </div>
-                </Campo>
-              </div>
-              <p className="cat-form__ajuda">
-                Os sabores do grupo aparecem aqui com este preço (mais o acréscimo do sabor, se houver). Cadastre os sabores uma vez e use o mesmo grupo na Pizza P, M e G. Esgotou um sabor? Esgota em todos os tamanhos.
-              </p>
-            </>
-          ) : ehSub ? (
-            <>
-              <Campo rotulo="Preço da subcategoria (opcional)" dica="Ex.: Pizza P R$ 50,00. Os itens dentro custam isso; o preço de cada item vira acréscimo. Vazio = cada item com o seu preço.">
-                <div className="input-preco">
-                  <span>R$</span>
-                  <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(mascaraPreco(e.target.value))} placeholder="0,00" />
-                </div>
-              </Campo>
-            </>
-          ) : (
-            <p className="cat-form__ajuda">Você cadastra os itens desta categoria, cada um com o seu preço.</p>
-          )}
-        </div>
+        {ehSub ? (
+          <Campo rotulo="Preço da subcategoria (opcional)" dica="Ex.: Pizza P R$ 50,00. Os itens dentro custam isso; o preço de cada item vira acréscimo. Vazio = cada item com o seu preço.">
+            <div className="input-preco">
+              <span>R$</span>
+              <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(mascaraPreco(e.target.value))} placeholder="0,00" />
+            </div>
+          </Campo>
+        ) : (
+          <p className="cat-form__ajuda">Você cadastra os itens desta categoria, cada um com o seu preço. Sabores, bordas e extras ficam nos <b>grupos de adicionais</b> de cada item.</p>
+        )}
 
         <Switch marcado={ativo} aoMudar={setAtivo}>Mostrar no tablet</Switch>
       </div>

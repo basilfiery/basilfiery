@@ -56,6 +56,33 @@ function cnpjValido(c: string) {
   return dv(12) === Number(c[12]) && dv(13) === Number(c[13]);
 }
 
+/** Consulta pública na Receita Federal (BrasilAPI; se cair, cnpj.ws). */
+interface DadosReceita { razao: string; fantasia: string; situacao: string; socios: { nome: string; cpf: string }[] }
+async function consultarReceita(cnpj: string): Promise<DadosReceita | 'nao-existe'> {
+  const r1 = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+  if (r1.ok) {
+    const j = await r1.json();
+    return {
+      razao: j.razao_social ?? '', fantasia: j.nome_fantasia ?? '', situacao: j.descricao_situacao_cadastral ?? '',
+      socios: (j.qsa ?? []).map((x: { nome_socio: string; cnpj_cpf_do_socio: string }) => ({ nome: x.nome_socio, cpf: x.cnpj_cpf_do_socio ?? '' })),
+    };
+  }
+  if (r1.status === 404) return 'nao-existe';
+  const r2 = await fetch(`https://publica.cnpj.ws/cnpj/${cnpj}`);
+  if (r2.status === 404) return 'nao-existe';
+  if (!r2.ok) throw new Error('indisponível');
+  const j = await r2.json();
+  return {
+    razao: j.razao_social ?? '', fantasia: j.estabelecimento?.nome_fantasia ?? '', situacao: j.estabelecimento?.situacao_cadastral ?? '',
+    socios: (j.socios ?? []).map((x: { nome: string; cpf_cnpj_socio: string }) => ({ nome: x.nome, cpf: x.cpf_cnpj_socio ?? '' })),
+  };
+}
+/** A Receita mostra o CPF do sócio mascarado (***123456**): confere os 6 do meio. */
+const cpfDoSocio = (cpf: string, mascarado: string) => {
+  const meio = mascarado.replace(/\D/g, '');
+  return meio.length === 6 && cpf.slice(3, 9) === meio;
+};
+
 /** "40 a 60 min" → [40, 60] */
 function lerTempo(t: string): [string, string] {
   const m = t.match(/(\d+)\D+(\d+)/);
@@ -87,6 +114,31 @@ export default function Estabelecimento() {
   const [d, setD] = useState(dadosVazios);
   const [salvando, setSalvando] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [receita, setReceita] = useState<{ estado: 'buscando' | 'erro' | 'nao-existe' } | ({ estado: 'ok' } & DadosReceita) | null>(null);
+
+  async function buscarCnpj(c: string) {
+    setReceita({ estado: 'buscando' });
+    try {
+      const r = await consultarReceita(c);
+      if (r === 'nao-existe') { setReceita({ estado: 'nao-existe' }); return; }
+      setReceita({ estado: 'ok', ...r });
+      setD((x) => (x.cnpj === c ? {
+        ...x,
+        razao_social: r.razao.toUpperCase().slice(0, 120),
+        // Responsável vazio: puxa o sócio cujo CPF bate (ou o único sócio)
+        responsavel_nome: x.responsavel_nome || (r.socios.find((so) => cpfDoSocio(x.responsavel_cpf, so.cpf)) ?? (r.socios.length === 1 ? r.socios[0] : null))?.nome || '',
+      } : x));
+    } catch {
+      setReceita({ estado: 'erro' });
+    }
+  }
+  function mudarCnpj(valor: string) {
+    const c = digitos(valor).slice(0, 14);
+    setD((x) => ({ ...x, cnpj: c, razao_social: c === x.cnpj ? x.razao_social : '' }));
+    if (c.length === 14 && cnpjValido(c)) void buscarCnpj(c);
+    else setReceita(null);
+  }
+  const socioDoCpf = receita?.estado === 'ok' && d.responsavel_cpf.length === 11 ? receita.socios.find((so) => cpfDoSocio(d.responsavel_cpf, so.cpf)) : undefined;
 
   useEffect(() => {
     void supabase.from('restaurante_dados').select('*').eq('restaurante_id', r.id).maybeSingle().then(({ data }) => {
@@ -128,8 +180,12 @@ export default function Estabelecimento() {
   async function salvar() {
     const erro = (msg: string, p: string) => { irPasso(p); toast(msg, 'erro'); };
     if (!f.nome.trim()) return erro('Informe o nome do estabelecimento.', 'informacoes');
-    if (d.responsavel_cpf && !cpfValido(d.responsavel_cpf)) return erro('CPF do responsável inválido.', 'informacoes');
-    if (d.cnpj && !cnpjValido(d.cnpj)) return erro('CNPJ inválido.', 'informacoes');
+    if (d.responsavel_cpf && d.responsavel_cpf.length < 11) return erro('CPF incompleto: são 11 números.', 'informacoes');
+    if (d.responsavel_cpf && !cpfValido(d.responsavel_cpf)) return erro('CPF do responsável inválido. Confira os números.', 'informacoes');
+    if (d.cnpj && d.cnpj.length < 14) return erro('CNPJ incompleto: são 14 números.', 'informacoes');
+    if (d.cnpj && !cnpjValido(d.cnpj)) return erro('CNPJ inválido. Confira os números.', 'informacoes');
+    if (receita?.estado === 'nao-existe') return erro('Este CNPJ não existe na Receita Federal.', 'informacoes');
+    if (d.cnpj && !d.razao_social.trim()) return erro('Aguarde a consulta do CNPJ na Receita Federal (ou toque em “Consultar de novo”).', 'informacoes');
     const de = Number(f.tempoDe), ate = Number(f.tempoAte);
     if (!(de > 0) || !(ate >= de) || ate > 600) return erro('Tempo de entrega inválido. Ex.: de 40 a 60 minutos.', 'tempo');
     if (!f.entrega_ativa && !f.retirada_ativa) return erro('Deixe pelo menos uma forma de entrega ligada.', 'formas');
@@ -198,19 +254,32 @@ export default function Estabelecimento() {
               <input className="input" value={d.responsavel_nome} maxLength={80} onChange={(e) => setD({ ...d, responsavel_nome: e.target.value })} />
             </CampoAjuda>
             <div className="cfg-linha cfg-linha--estreita">
-              <CampoAjuda rotulo="CPF do responsável legal">
-                <input className={cx('input', d.responsavel_cpf.length === 11 && !cpfValido(d.responsavel_cpf) && 'input--erro')} inputMode="numeric" placeholder="000.000.000-00" value={mascaraCpf(d.responsavel_cpf)} onChange={(e) => setD({ ...d, responsavel_cpf: digitos(e.target.value).slice(0, 11) })} />
+              <CampoAjuda
+                rotulo="CPF do responsável legal"
+                ajuda={d.responsavel_cpf.length === 11 ? (cpfValido(d.responsavel_cpf)
+                  ? <span className="cfg-ok"><Check size={13} /> {socioDoCpf ? `Sócio na Receita: ${socioDoCpf.nome}` : 'CPF válido'}</span>
+                  : <span className="cfg-erro">CPF inválido. Confira os números.</span>) : undefined}
+              >
+                <input className={cx('input', d.responsavel_cpf.length === 11 && !cpfValido(d.responsavel_cpf) && 'input--erro', d.responsavel_cpf.length === 11 && cpfValido(d.responsavel_cpf) && 'input--ok')} inputMode="numeric" placeholder="000.000.000-00" value={mascaraCpf(d.responsavel_cpf)} onChange={(e) => setD({ ...d, responsavel_cpf: digitos(e.target.value).slice(0, 11) })} />
               </CampoAjuda>
               <CampoAjuda rotulo="WhatsApp do responsável legal" ajuda="Usado pelo suporte do BasilFiery para falar com você.">
                 <input className="input" inputMode="tel" placeholder="(00) 00000-0000" value={mascaraTelefone(d.responsavel_whatsapp)} onChange={(e) => setD({ ...d, responsavel_whatsapp: digitos(e.target.value) })} />
               </CampoAjuda>
             </div>
             <div className="cfg-linha cfg-linha--estreita">
-              <CampoAjuda rotulo="CNPJ">
-                <input className={cx('input', d.cnpj.length === 14 && !cnpjValido(d.cnpj) && 'input--erro')} inputMode="numeric" placeholder="00.000.000/0000-00" value={mascaraCnpj(d.cnpj)} onChange={(e) => setD({ ...d, cnpj: digitos(e.target.value).slice(0, 14) })} />
+              <CampoAjuda
+                rotulo="CNPJ"
+                ajuda={d.cnpj.length === 14 && !cnpjValido(d.cnpj) ? <span className="cfg-erro">CNPJ inválido. Confira os números.</span>
+                  : receita?.estado === 'buscando' ? <span className="cfg-buscando"><LoaderCircle size={13} className="girando" /> Consultando a Receita Federal…</span>
+                    : receita?.estado === 'nao-existe' ? <span className="cfg-erro">CNPJ não encontrado na Receita Federal.</span>
+                      : receita?.estado === 'erro' ? <span className="cfg-erro">Não deu para consultar agora. <button type="button" className="link-botao" onClick={() => void buscarCnpj(d.cnpj)}>Consultar de novo</button></span>
+                        : receita?.estado === 'ok' ? <span className={receita.situacao.toUpperCase() === 'ATIVA' ? 'cfg-ok' : 'cfg-erro'}><Check size={13} /> Situação na Receita: {receita.situacao || '—'}</span>
+                          : undefined}
+              >
+                <input className={cx('input', d.cnpj.length === 14 && !cnpjValido(d.cnpj) && 'input--erro', receita?.estado === 'ok' && 'input--ok')} inputMode="numeric" placeholder="00.000.000/0000-00" value={mascaraCnpj(d.cnpj)} onChange={(e) => mudarCnpj(e.target.value)} />
               </CampoAjuda>
-              <CampoAjuda rotulo="Razão social">
-                <input className="input" value={d.razao_social} maxLength={120} onChange={(e) => setD({ ...d, razao_social: e.target.value.toUpperCase() })} />
+              <CampoAjuda rotulo="Razão social" ajuda="Preenchida automaticamente pela Receita Federal.">
+                <input className="input input--leitura" value={d.razao_social} readOnly tabIndex={-1} placeholder="Digite o CNPJ ao lado" />
               </CampoAjuda>
             </div>
             <div className="cfg-linha">

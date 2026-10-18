@@ -1200,7 +1200,7 @@
 @media (max-width: 640px) {
   .btn-esgotar { padding: 0 10px; }
 }
-.cardapio__cats-cab--grupos .card__titulo { min-width: 0; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardapio__cats-cab--grupos .card__titulo { min-width: 0; font-size: .95rem; line-height: 1.2; }
 .cardapio__cats-cab--grupos .btn { flex: none; padding-inline: 10px; }
 
 /* ---------- Linha de item no estilo do gestor do Anota AI ---------- */
@@ -1454,7 +1454,7 @@
 .cfg-logo strong { margin-top: 4px; font-size: 1.05rem; }
 .cfg-logo small { color: var(--muted); }
 .cfg-horarios { display: grid; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: opacity .2s; }
-.cfg-horarios.apagado { opacity: .6; }
+
 .cfg-horario { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px; padding: 8px 14px; }
 .cfg-horario + .cfg-horario { border-top: 1px solid var(--line); }
 .cfg-horario__dia span { font-weight: 600; color: var(--text); }
@@ -1936,3 +1936,16 @@
 .cfg-fid i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: color-mix(in srgb, var(--acento) 35%, transparent); }
 .cfg-fid small { position: relative; width: 100%; text-align: center; font-size: .74rem; font-weight: 800; }
 .cfg-apagado { opacity: .5; pointer-events: none; }
+
+/* CPF/CNPJ: resposta na hora */
+.cfg-ok, .cfg-erro, .cfg-buscando { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.cfg-ok { color: var(--ok); }
+.cfg-erro { color: var(--danger); }
+.cfg-buscando { color: var(--muted); }
+.cfg-erro .link-botao { margin-left: 4px; color: inherit; }
+.input--ok, .input--ok:focus { border-color: color-mix(in srgb, var(--ok) 55%, transparent) !important; }
+.cfg-campo .input--leitura { background: var(--bg-2); color: var(--text); font-weight: 600; cursor: default; }
+.cfg-campo .input--leitura:focus { outline: none; }
+/* Horários: dias abertos bem visíveis */
+.cfg-horario:not(.fechado) .cfg-horario__dia span { color: var(--text); }
+.cfg-horario__horas .input { color: var(--text); font-weight: 600; background: var(--surface); border-color: var(--line-2); }

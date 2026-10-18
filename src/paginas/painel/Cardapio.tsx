@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  Check, ChevronRight, CornerDownRight, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
+  Check, ChevronRight, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
 import { Campo, FotoProduto, ImagemComida, Switch, Vazio } from '../../componentes/Basicos';
@@ -370,14 +370,6 @@ export default function Cardapio() {
                   <span>{c.emoji} {c.nome}</span>
                   <span className="contagem">{contagem(c.id)}</span>
                 </div>
-                {/* Subcategorias da categoria aberta, para pular direto */}
-                {principalAberta?.id === c.id && filhasDe(c.id).map((f) => (
-                  <button key={f.id} className={cx('cat-item cat-item--sub', catSel === f.id && 'ativo-sub', !f.ativo && 'cat-item--inativa')} onClick={() => abrir(f.id)}>
-                    <CornerDownRight size={14} className="cat-item__seta" aria-hidden="true" />
-                    <span>{f.emoji} {f.nome}</span>
-                    <span className="contagem">{totalDe(f)}</span>
-                  </button>
-                ))}
               </div>
             ))}
           </div>
@@ -575,14 +567,13 @@ export default function Cardapio() {
             )}
 
             <div className="cat-painel__bloco">
-              {!cat.pai_id && filhasDe(cat.id).length > 0 && <h3>Itens direto em {cat.nome}</h3>}
               {grupoDe(cat.grupo_id) && <h3>Itens próprios (opcional)</h3>}
-              {filtrar(itensDe(cat.id)).length === 0 ? (
+              {filtrar(itensDe(cat.id)).length === 0 ? (!termo && filhasDe(cat.id).length > 0 ? null : (
                 <div className="cat-painel__vazio">
                   <UtensilsCrossed size={26} />
-                  <p>{termo ? 'Nenhum item com esse nome aqui.' : grupoDe(cat.grupo_id) ? 'Esta categoria já mostra os sabores do grupo. Itens próprios são opcionais.' : filhasDe(cat.id).length ? 'Os itens estão nas subcategorias acima. Você também pode pôr itens direto aqui.' : 'Nenhum item nesta categoria ainda.'}</p>
+                  <p>{termo ? 'Nenhum item com esse nome aqui.' : grupoDe(cat.grupo_id) ? 'Esta categoria já mostra os sabores do grupo. Itens próprios são opcionais.' : 'Nenhum item nesta categoria ainda.'}</p>
                 </div>
-              ) : (
+              )) : (
                 <ul className="itens-lista">
                   {filtrar(itensDe(cat.id)).map((p) => linhaItem(p, !termo))}
                 </ul>

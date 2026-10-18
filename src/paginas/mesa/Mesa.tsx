@@ -14,6 +14,7 @@ import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
 import { useNovaVersao } from '../../lib/versao';
 import { useAppInstalavel } from '../../lib/manifesto';
+import { sugerirObs } from '../../lib/sugestoes';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import '../../estilos/mesa.css';
 
@@ -25,6 +26,10 @@ export interface ProdutoMesa {
   preco: number;
   /** Preço "de" (riscado) quando está em promoção */
   preco_de?: number | null;
+  /** Mais fotos e vídeos do produto */
+  galeria?: { tipo: 'imagem' | 'video'; url: string }[];
+  /** Sugestão do campo de observação (se vazio, o sistema sugere pelo nome) */
+  dica_obs?: string | null;
   emoji: string | null;
   imagem_url: string | null;
   video_url: string | null;
@@ -818,7 +823,6 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
 }) {
   const [qtd, setQtd] = useState(1);
   const [obs, setObs] = useState('');
-  const [videoFalhou, setVideoFalhou] = useState(false);
   const [escolhas, setEscolhas] = useState<Escolha[]>([]);
   const [tentou, setTentou] = useState(false);
   const max = p.estoque_max !== null ? Math.max(0, p.estoque_max - jaNoCarrinho) : 50;
@@ -861,21 +865,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
         </div>
       }
     >
-      {p.video_url && !videoFalhou ? (
-        <video
-          className="modal-produto__video"
-          src={p.video_url}
-          poster={p.imagem_url ?? undefined}
-          autoPlay
-          muted
-          loop
-          playsInline
-          controls
-          onError={() => setVideoFalhou(true)}
-        />
-      ) : (
-        <FotoProduto p={p} classe="modal-produto__foto" />
-      )}
+      <GaleriaProduto p={p} />
       {p.prefixo && <p className="modal-produto__tamanho">{p.prefixo}</p>}
       <h2 className="titulo modal-produto__nome">{p.nome}</h2>
       <Selos p={p} />
@@ -937,10 +927,90 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       {!semObs && (
         <label className="campo">
           <span>Alguma observação?</span>
-          <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: sem cebola, bem passado…" />
+          <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder={p.dica_obs || sugerirObs(p.nome, p.prefixo, p.descricao)} />
         </label>
       )}
     </Modal>
+  );
+}
+
+/** Cor do fundo da foto: média das bordas (foto de fundo branco fica com fundo branco). */
+const coresFundo = new Map<string, string>();
+function useCorDeFundo(url: string | null) {
+  const [cor, setCor] = useState(() => (url && coresFundo.get(url)) || '#ffffff');
+  useEffect(() => {
+    if (!url) return;
+    if (coresFundo.has(url)) { setCor(coresFundo.get(url)!); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const n = 24;
+        const c = document.createElement('canvas');
+        c.width = n; c.height = n;
+        const g = c.getContext('2d')!;
+        g.drawImage(img, 0, 0, n, n);
+        const d = g.getImageData(0, 0, n, n).data;
+        let r = 0, gg = 0, b = 0, k = 0;
+        for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+          if (x > 1 && x < n - 2 && y > 1 && y < n - 2) continue; // só a moldura
+          const i = (y * n + x) * 4;
+          r += d[i]; gg += d[i + 1]; b += d[i + 2]; k++;
+        }
+        r /= k; gg /= k; b /= k;
+        const v = r + gg + b > 690 ? '#ffffff' : `rgb(${Math.round(r)}, ${Math.round(gg)}, ${Math.round(b)})`;
+        coresFundo.set(url, v);
+        setCor(v);
+      } catch { /* imagem de outro site sem permissão: fica branco */ }
+    };
+    img.src = url;
+  }, [url]);
+  return cor;
+}
+
+function SlideGaleria({ item, ativo, p }: { item: { tipo: 'imagem' | 'video'; url: string }; ativo: boolean; p: ProdutoMesa }) {
+  const cor = useCorDeFundo(item.tipo === 'imagem' ? item.url : p.imagem_url);
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (ativo) void v.play().catch(() => {}); else v.pause();
+  }, [ativo]);
+  return (
+    <div className="galeria__item" style={{ background: item.tipo === 'video' ? '#000' : cor }}>
+      {item.tipo === 'video'
+        ? <video ref={ref} src={item.url} poster={p.imagem_url ?? undefined} muted loop playsInline controls autoPlay={ativo} />
+        : <img src={item.url} alt={p.nome} draggable={false} />}
+    </div>
+  );
+}
+
+/** Fotos e vídeos do produto, inteiros (sem cortar), deslizando para o lado. */
+function GaleriaProduto({ p }: { p: ProdutoMesa }) {
+  const itens = useMemo(() => {
+    const capa = p.video_url && p.capa === 'video' ? [{ tipo: 'video' as const, url: p.video_url }] : [];
+    const foto = p.imagem_url ? [{ tipo: 'imagem' as const, url: p.imagem_url }] : [];
+    const video = p.video_url && p.capa !== 'video' ? [{ tipo: 'video' as const, url: p.video_url }] : [];
+    const todos = [...capa, ...foto, ...video, ...(p.galeria ?? [])];
+    return todos.filter((x, i) => todos.findIndex((y) => y.url === x.url) === i);
+  }, [p]);
+  const [atual, setAtual] = useState(0);
+  const trilho = useRef<HTMLDivElement>(null);
+  if (!itens.length) return <FotoProduto p={p} classe="modal-produto__foto" />;
+  const ir = (i: number) => trilho.current?.scrollTo({ left: i * trilho.current.clientWidth, behavior: 'smooth' });
+  return (
+    <div className="galeria">
+      <div className="galeria__trilho" ref={trilho} onScroll={(e) => setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}>
+        {itens.map((x, i) => <SlideGaleria key={x.url} item={x} ativo={i === atual} p={p} />)}
+      </div>
+      {itens.length > 1 && (
+        <>
+          <button type="button" className="galeria__seta galeria__seta--esq" onClick={() => ir(Math.max(0, atual - 1))} disabled={atual === 0} aria-label="Anterior"><ChevronRight size={20} style={{ transform: 'rotate(180deg)' }} /></button>
+          <button type="button" className="galeria__seta galeria__seta--dir" onClick={() => ir(Math.min(itens.length - 1, atual + 1))} disabled={atual === itens.length - 1} aria-label="Próxima"><ChevronRight size={20} /></button>
+          <div className="galeria__pontos">{itens.map((x, i) => <button key={x.url} type="button" className={cx(i === atual && 'ativo')} onClick={() => ir(i)} aria-label={`Ver ${i + 1}`} />)}</div>
+        </>
+      )}
+    </div>
   );
 }
 

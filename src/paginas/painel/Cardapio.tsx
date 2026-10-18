@@ -8,6 +8,7 @@ import { Suspenso } from '../../componentes/Suspenso';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
+import { sugerirObs } from '../../lib/sugestoes';
 import type { Categoria, Grupo, Produto } from '../../lib/tipos';
 import { brl, cx, lerPreco, mascaraPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
@@ -1006,6 +1007,8 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
     descricao: produto?.descricao ?? '',
     preco: produto ? precoParaTexto(produto.preco) : '',
     preco_de: produto?.preco_de ? precoParaTexto(Number(produto.preco_de)) : '',
+    galeria: (produto?.galeria ?? []) as { tipo: 'imagem' | 'video'; url: string }[],
+    dica_obs: produto?.dica_obs ?? '',
     categoria_id: produto?.categoria_id ?? categoriaPadrao ?? '',
     emoji: produto?.emoji ?? '',
     imagem_url: produto?.imagem_url ?? null as string | null,
@@ -1041,6 +1044,24 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
     }
   }
 
+  const galeriaFotoRef = useRef<HTMLInputElement>(null);
+  const galeriaVideoRef = useRef<HTMLInputElement>(null);
+  const [enviandoGaleria, setEnviandoGaleria] = useState(false);
+  async function addGaleria(tipo: 'imagem' | 'video', arquivo?: File) {
+    if (!arquivo) return;
+    setEnviandoGaleria(true);
+    try {
+      const url = tipo === 'imagem' ? await enviarImagem(restauranteId, arquivo, 'produtos') : await enviarVideo(restauranteId, arquivo, 'produtos');
+      setF((x) => ({ ...x, galeria: [...x.galeria, { tipo, url }].slice(0, 6) }));
+    } catch (e) {
+      toast(msgErro(e), 'erro');
+    } finally {
+      setEnviandoGaleria(false);
+      if (galeriaFotoRef.current) galeriaFotoRef.current.value = '';
+      if (galeriaVideoRef.current) galeriaVideoRef.current.value = '';
+    }
+  }
+
   async function escolherVideo(arquivo?: File) {
     if (!arquivo) return;
     setEnviandoVideo(true);
@@ -1070,6 +1091,8 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
       descricao: f.descricao.trim(),
       preco,
       preco_de: ehSabor ? null : precoDe,
+      galeria: f.galeria.slice(0, 6),
+      dica_obs: f.dica_obs.trim().slice(0, 80) || null,
       categoria_id: ehSabor ? null : f.categoria_id || null,
       grupo_id: ehSabor ? grupo?.id ?? produto?.grupo_id ?? null : null,
       esgotado,
@@ -1188,8 +1211,37 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
           </small>
         </div>
 
+        {!ehSabor && (
+          <div className="galeria-painel">
+            <div className="galeria-painel__cab">
+              <strong>Mais fotos e vídeos <small>(opcional, até 6)</small></strong>
+              <small>O cliente desliza para ver o produto de outros ângulos. A foto aparece inteira, sem cortar.</small>
+            </div>
+            <div className="galeria-painel__lista">
+              {f.galeria.map((g, i) => (
+                <div key={g.url} className="galeria-painel__item">
+                  {g.tipo === 'imagem' ? <img src={g.url} alt="" /> : <video src={g.url} muted playsInline />}
+                  {g.tipo === 'video' && <span className="galeria-painel__tipo"><Film size={12} /></span>}
+                  <button type="button" onClick={() => setF((x) => ({ ...x, galeria: x.galeria.filter((_, n) => n !== i) }))} aria-label="Tirar"><Trash2 size={13} /></button>
+                </div>
+              ))}
+              {f.galeria.length < 6 && (
+                <>
+                  <button type="button" className="galeria-painel__add" disabled={enviandoGaleria} onClick={() => galeriaFotoRef.current?.click()}>{enviandoGaleria ? <span className="spinner" /> : <><ImagePlus size={18} /> Foto</>}</button>
+                  <button type="button" className="galeria-painel__add" disabled={enviandoGaleria} onClick={() => galeriaVideoRef.current?.click()}><Film size={18} /> Vídeo</button>
+                </>
+              )}
+            </div>
+            <input ref={galeriaFotoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => void addGaleria('imagem', e.target.files?.[0])} />
+            <input ref={galeriaVideoRef} className="input-arquivo" type="file" accept={ACEITA_VIDEO} onChange={(e) => void addGaleria('video', e.target.files?.[0])} />
+          </div>
+        )}
+
         <Campo rotulo="Nome"><input className="input" value={f.nome} onChange={(e) => mudar('nome', e.target.value)} maxLength={60} autoFocus={!produto} /></Campo>
         <Campo rotulo="Descrição"><textarea className="textarea" rows={2} value={f.descricao} onChange={(e) => mudar('descricao', e.target.value)} maxLength={240} /></Campo>
+        <Campo rotulo="Exemplo no campo de observação" dica={`Vazio = o sistema sugere sozinho pelo nome: “${sugerirObs(f.nome, f.descricao)}”`}>
+          <input className="input" value={f.dica_obs} maxLength={80} onChange={(e) => mudar('dica_obs', e.target.value)} placeholder={sugerirObs(f.nome, f.descricao)} />
+        </Campo>
         <div className="form-linha">
           <Campo rotulo={ehSabor ? 'Acréscimo (opcional)' : 'Preço (R$)'} dica={ehSabor ? 'Somado ao preço do tamanho. Ex.: 5,00 para sabor especial.' : undefined}>
             <input className="input" inputMode="decimal" value={f.preco} onChange={(e) => mudar('preco', mascaraPreco(e.target.value))} placeholder={ehSabor ? '0,00' : '49,90'} />

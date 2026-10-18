@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { AtSign, Bike, Check, Copy, ImagePlus, LoaderCircle, Phone, RefreshCw, Store, Trash2 } from 'lucide-react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { AtSign, Bike, Check, Copy, ImagePlus, LoaderCircle, MapPin, Phone, Plus, Radius, RefreshCw, Store, Trash2, X } from 'lucide-react';
+import { bairroDoPonto, buscarEndereco, type Ponto } from '../../../lib/mapa';
 import { AjustarFoto } from '../../../componentes/AjustarFoto';
 import { useToast } from '../../../componentes/Toast';
 import { IconeForma } from '../../../componentes/Pagamento';
@@ -9,6 +10,9 @@ import type { EnderecoLoja, HorarioDia, RestauranteDados } from '../../../lib/ti
 import { cx, lerPreco, mascaraPreco, precoParaTexto } from '../../../lib/util';
 import { usePainel } from '../Painel';
 import { CampoAjuda, OpcaoChave, PaginaConfig, mudou, usePasso, type Passo } from './Layout';
+
+const MapaEntrega = lazy(() => import('../../../componentes/MapaEntrega'));
+type ModoEntrega = 'fixa' | 'raio' | 'bairro';
 
 const PASSOS: Passo[] = [
   { id: 'informacoes', rotulo: 'Informações', dica: 'Preencha as informações sobre o seu estabelecimento' },
@@ -106,6 +110,10 @@ export default function Estabelecimento() {
     entrega_ativa: r.entrega_ativa ?? true, retirada_ativa: r.retirada_ativa ?? true,
     minimo: precoParaTexto(Number(r.delivery_minimo ?? 0)), taxa: precoParaTexto(Number(r.delivery_taxa ?? 0)),
     formas: [...(r.formas_pagamento ?? ['pix', 'dinheiro', 'credito', 'debito'])] as string[],
+    modo: (r.entrega_modo ?? 'fixa') as ModoEntrega,
+    raios: (r.entrega_raios?.length ? r.entrega_raios : [{ ate_km: 3, taxa: 5 }, { ate_km: 6, taxa: 8 }]).map((x) => ({ km: String(x.ate_km).replace('.', ','), taxa: precoParaTexto(Number(x.taxa)) })),
+    bairros: (r.entrega_bairros ?? []).map((x) => ({ nome: x.nome, taxa: precoParaTexto(Number(x.taxa)), lat: x.lat, lng: x.lng })),
+    lat: r.lat ?? null as number | null, lng: r.lng ?? null as number | null,
   });
   const [base, setBase] = useState(inicial);
   const [f, setF] = useState(base);
@@ -193,6 +201,12 @@ export default function Estabelecimento() {
     const taxa = f.taxa.trim() ? lerPreco(f.taxa) : 0;
     if (!Number.isFinite(minimo) || minimo < 0) return erro('Pedido mínimo inválido. Ex.: 20,00', 'minimo');
     if (!Number.isFinite(taxa) || taxa < 0) return erro('Taxa de entrega inválida. Ex.: 5,00', 'taxa');
+    const raios = f.raios.map((x) => ({ ate_km: Number(x.km.replace(',', '.')), taxa: x.taxa.trim() ? lerPreco(x.taxa) : 0 })).filter((x) => x.ate_km > 0).sort((a, b) => a.ate_km - b.ate_km);
+    const bairros = f.bairros.filter((x) => x.nome.trim()).map((x) => ({ nome: x.nome.trim().slice(0, 60), taxa: x.taxa.trim() ? lerPreco(x.taxa) : 0, ...(x.lat != null ? { lat: x.lat, lng: x.lng } : {}) }));
+    if (f.modo === 'raio' && (f.lat == null || !raios.length)) return erro('Marque a loja no mapa e cadastre pelo menos uma faixa de distância.', 'taxa');
+    if (f.modo === 'raio' && raios.some((x) => !Number.isFinite(x.taxa) || x.taxa < 0 || x.ate_km > 100)) return erro('Confira as faixas: até 100 km e taxa válida.', 'taxa');
+    if (f.modo === 'bairro' && !bairros.length) return erro('Cadastre pelo menos um bairro com a taxa.', 'taxa');
+    if (f.modo === 'bairro' && bairros.some((x) => !Number.isFinite(x.taxa) || x.taxa < 0)) return erro('Confira a taxa dos bairros.', 'taxa');
     if (!f.formas.length) return erro('Escolha pelo menos uma forma de pagamento.', 'pagamento');
     for (const h of f.horarios) if (h.aberto && (!h.de || !h.ate)) return erro('Preencha os horários dos dias abertos.', 'horarios');
 
@@ -211,6 +225,7 @@ export default function Estabelecimento() {
         horarios: f.horarios, horarios_ativos: f.horarios_ativos,
         delivery_tempo: `${de} a ${ate} min`, entrega_ativa: f.entrega_ativa, retirada_ativa: f.retirada_ativa,
         delivery_minimo: minimo, delivery_taxa: taxa, formas_pagamento: f.formas,
+        entrega_modo: f.modo, entrega_raios: raios, entrega_bairros: bairros, lat: f.lat, lng: f.lng,
       }).eq('id', r.id),
       mudou(d, dadosBase)
         ? supabase.from('restaurante_dados').upsert({
@@ -393,13 +408,7 @@ export default function Estabelecimento() {
         </div>
       )}
 
-      {passo.id === 'taxa' && (
-        <div className="form cfg-estreito">
-          <CampoAjuda rotulo="Taxa de entrega (R$)" ajuda="Deixe 0,00 para entrega grátis.">
-            <span className="input-icone"><Bike size={17} /><input className="input" inputMode="decimal" value={f.taxa} onChange={(e) => set('taxa', mascaraPreco(e.target.value))} /></span>
-          </CampoAjuda>
-        </div>
-      )}
+      {passo.id === 'taxa' && <TaxaEntrega f={f} setF={setF} enderecoTexto={[f.end.rua, f.end.numero, f.end.bairro, f.end.cidade, f.end.uf].filter(Boolean).join(', ') || r.endereco || ''} />}
 
       {passo.id === 'pagamento' && (
         <div className="cfg-formas">
@@ -422,5 +431,130 @@ export default function Estabelecimento() {
         </div>
       )}
     </PaginaConfig>
+  );
+}
+
+/* ---------- Taxa de entrega: fixa, por distância (raio) ou por bairro ---------- */
+type FormTaxa = {
+  taxa: string; modo: ModoEntrega; lat: number | null; lng: number | null;
+  raios: { km: string; taxa: string }[];
+  bairros: { nome: string; taxa: string; lat?: number; lng?: number }[];
+};
+
+function TaxaEntrega<T extends FormTaxa>({ f, setF, enderecoTexto }: { f: T; setF: (fn: (x: T) => T) => void; enderecoTexto: string }) {
+  const toast = useToast();
+  const [buscando, setBuscando] = useState(false);
+  const mudar = (m: Partial<FormTaxa>) => setF((x) => ({ ...x, ...m }));
+  const loja: Ponto | null = f.lat != null && f.lng != null ? { lat: f.lat, lng: f.lng } : null;
+
+  async function acharLoja() {
+    if (!enderecoTexto) return toast('Cadastre o endereço da loja no passo 2 (Endereço).', 'erro');
+    setBuscando(true);
+    const p = await buscarEndereco(enderecoTexto) ?? await buscarEndereco(enderecoTexto.split(',').slice(-3).join(','));
+    setBuscando(false);
+    if (!p) return toast('Não achei no mapa. Clique no mapa ou arraste o pino até a loja.', 'erro');
+    mudar({ lat: p.lat, lng: p.lng });
+  }
+  // Primeira vez em raio/bairro: tenta achar a loja sozinho
+  useEffect(() => {
+    if (f.modo !== 'fixa' && f.lat == null && enderecoTexto) void acharLoja();
+  }, [f.modo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function cliqueNoMapa(p: Ponto) {
+    if (f.lat == null) return mudar({ lat: p.lat, lng: p.lng });
+    if (f.modo !== 'bairro') return;
+    const nome = await bairroDoPonto(p);
+    if (!nome) {
+      mudar({ bairros: [...f.bairros, { nome: '', taxa: '', lat: p.lat, lng: p.lng }] });
+      toast('O mapa não tem o nome desse bairro. Digite o nome na lista ao lado.', 'info');
+      requestAnimationFrame(() => { const l = document.querySelectorAll<HTMLInputElement>('.taxa-linha__nome'); l[l.length - 1]?.focus(); });
+      return;
+    }
+    if (f.bairros.some((b) => b.nome.trim().toLowerCase() === nome.toLowerCase())) return toast(`${nome} já está na lista.`, 'info');
+    mudar({ bairros: [...f.bairros, { nome, taxa: '', lat: p.lat, lng: p.lng }] });
+    toast(`${nome} adicionado. Coloque a taxa.`, 'ok');
+  }
+
+  const raiosNum = f.raios.map((x) => ({ ate_km: Number(x.km.replace(',', '.')) || 0, taxa: x.taxa.trim() ? lerPreco(x.taxa) : 0 }));
+  const bairrosNum = f.bairros.map((x) => ({ nome: x.nome || '?', taxa: x.taxa.trim() ? lerPreco(x.taxa) : 0, lat: x.lat, lng: x.lng }));
+
+  return (
+    <div className="form taxa">
+      <div className="taxa-modos" role="radiogroup" aria-label="Como cobrar a entrega">
+        {([
+          ['fixa', Bike, 'Taxa fixa', 'O mesmo valor para todo lugar'],
+          ['raio', Radius, 'Por distância', 'Faixas em km a partir da loja'],
+          ['bairro', MapPin, 'Por bairro', 'Cada bairro com o seu valor'],
+        ] as const).map(([id, Icone, titulo, dica]) => (
+          <button key={id} type="button" role="radio" aria-checked={f.modo === id} className={cx('taxa-modo', f.modo === id && 'ativo')} onClick={() => mudar({ modo: id })}>
+            <Icone size={20} />
+            <span><strong>{titulo}</strong><small>{dica}</small></span>
+          </button>
+        ))}
+      </div>
+
+      {f.modo === 'fixa' ? (
+        <div className="cfg-estreito">
+          <CampoAjuda rotulo="Taxa de entrega (R$)" ajuda="Deixe 0,00 para entrega grátis.">
+            <span className="input-icone"><Bike size={17} /><input className="input" inputMode="decimal" value={f.taxa} onChange={(e) => mudar({ taxa: mascaraPreco(e.target.value) })} /></span>
+          </CampoAjuda>
+        </div>
+      ) : (
+        <div className="taxa-mapa">
+          <div className="taxa-mapa__mapa">
+            <div className="taxa-mapa__topo">
+              <span>{loja ? <><MapPin size={14} /> Arraste o pino “Loja” se não estiver no lugar certo.</> : 'Clique no mapa onde fica a loja, ou:'}</span>
+              <button type="button" className="btn btn--contorno btn--sm" disabled={buscando} onClick={() => void acharLoja()}>{buscando ? <LoaderCircle size={15} className="girando" /> : <MapPin size={15} />} Achar pelo endereço</button>
+            </div>
+            <Suspense fallback={<div className="mapa-entrega mapa-entrega--carregando"><div className="spinner" /></div>}>
+              <MapaEntrega
+                loja={loja}
+                raios={f.modo === 'raio' ? raiosNum : []}
+                bairros={f.modo === 'bairro' ? bairrosNum : []}
+                aoMoverLoja={(p) => mudar({ lat: p.lat, lng: p.lng })}
+                aoClicar={(p) => void cliqueNoMapa(p)}
+              />
+            </Suspense>
+            {f.modo === 'bairro' && loja && <p className="cfg-nota">Dica: clique no mapa em cima de um bairro para colocá-lo na lista.</p>}
+          </div>
+
+          <div className="taxa-lista">
+            {f.modo === 'raio' ? (
+              <>
+                <h3>Faixas de distância</h3>
+                {f.raios.map((x, i) => (
+                  <div key={i} className="taxa-linha">
+                    <span>Até</span>
+                    <input className="input taxa-linha__km" inputMode="decimal" value={x.km} onChange={(e) => mudar({ raios: f.raios.map((y, n) => (n === i ? { ...y, km: e.target.value.replace(/[^\d,]/g, '').slice(0, 5) } : y)) })} aria-label="Até quantos km" />
+                    <span>km</span>
+                    <span className="input-icone taxa-linha__valor"><b>R$</b><input className="input" inputMode="decimal" value={x.taxa} onChange={(e) => mudar({ raios: f.raios.map((y, n) => (n === i ? { ...y, taxa: mascaraPreco(e.target.value) } : y)) })} placeholder="0,00" aria-label="Taxa" /></span>
+                    <button type="button" className="icone-btn icone-btn--perigo" onClick={() => mudar({ raios: f.raios.filter((_, n) => n !== i) })} aria-label="Tirar faixa"><X size={16} /></button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn--contorno btn--acento btn--sm" onClick={() => {
+                  const ult = Number(f.raios[f.raios.length - 1]?.km.replace(',', '.') || 0);
+                  mudar({ raios: [...f.raios, { km: String(ult + 2).replace('.', ','), taxa: '' }] });
+                }}><Plus size={15} /> Adicionar faixa</button>
+                <p className="cfg-nota">Mais longe que a maior faixa, o cardápio avisa que não entrega. A distância é em linha reta a partir da loja.</p>
+              </>
+            ) : (
+              <>
+                <h3>Bairros atendidos <small>{f.bairros.length}</small></h3>
+                {f.bairros.length === 0 && <p className="cfg-nota">Clique no mapa ou adicione abaixo.</p>}
+                {f.bairros.map((x, i) => (
+                  <div key={i} className="taxa-linha">
+                    <input className="input taxa-linha__nome" value={x.nome} maxLength={60} onChange={(e) => mudar({ bairros: f.bairros.map((y, n) => (n === i ? { ...y, nome: e.target.value } : y)) })} placeholder="Nome do bairro" />
+                    <span className="input-icone taxa-linha__valor"><b>R$</b><input className="input" inputMode="decimal" value={x.taxa} onChange={(e) => mudar({ bairros: f.bairros.map((y, n) => (n === i ? { ...y, taxa: mascaraPreco(e.target.value) } : y)) })} placeholder="0,00" aria-label="Taxa" /></span>
+                    <button type="button" className="icone-btn icone-btn--perigo" onClick={() => mudar({ bairros: f.bairros.filter((_, n) => n !== i) })} aria-label="Tirar bairro"><X size={16} /></button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn--contorno btn--acento btn--sm" onClick={() => mudar({ bairros: [...f.bairros, { nome: '', taxa: '' }] })}><Plus size={15} /> Adicionar bairro</button>
+                <p className="cfg-nota">No cardápio, o cliente escolhe o bairro numa lista e a taxa entra sozinha.</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

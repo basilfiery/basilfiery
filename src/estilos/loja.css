@@ -195,3 +195,14 @@
 .meu-pedido__itens { margin: 0; color: var(--muted); font-size: .84rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .meu-pedido__base { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; }
 .meu-pedido__base b { color: var(--fire-2); }
+
+/* Checkout: entrega por distância / bairro */
+.loja-dica { color: var(--muted); font-size: .78rem; }
+.loja-distancia { display: grid; gap: 10px; padding: 12px 14px; border: 1px dashed var(--line-2); border-radius: 14px; background: var(--bg-2); }
+.loja-distancia p { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--muted); font-size: .9rem; }
+.loja-distancia.ok { border-style: solid; border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: color-mix(in srgb, var(--ok) 8%, var(--bg-2)); }
+.loja-distancia.ok p { color: var(--text); }
+.loja-distancia.ok p svg { color: var(--ok); }
+.loja-distancia.fora { border-style: solid; border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.loja-distancia.fora p { color: var(--danger); }
+.loja-distancia__botoes { display: flex; flex-wrap: wrap; gap: 8px; }

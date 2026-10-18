@@ -46,6 +46,12 @@ export interface Restaurante {
   ads_gads: string | null;
   /** Modelos de impressão (cabeçalho, logo, CNPJ, rodapé…) */
   impressao?: import('./impressao').ConfigImpressaoLoja | null;
+  /** Taxa de entrega: fixa, por distância (raio) ou por bairro */
+  entrega_modo?: 'fixa' | 'raio' | 'bairro';
+  entrega_raios?: { ate_km: number; taxa: number }[];
+  entrega_bairros?: { nome: string; taxa: number; lat?: number; lng?: number }[];
+  lat?: number | null;
+  lng?: number | null;
   /** Cartão fidelidade do delivery */
   fidelidade?: { ativo?: boolean; meta?: number; premio?: string; minimo?: number } | null;
 }
@@ -75,7 +81,7 @@ export interface Fatura {
   criado_em: string;
 }
 
-export interface EnderecoEntrega { rua: string; numero: string; bairro: string; complemento?: string | null; referencia?: string | null }
+export interface EnderecoEntrega { rua: string; numero: string; bairro: string; complemento?: string | null; referencia?: string | null; distancia_km?: number | null; lat?: number; lng?: number }
 
 export interface RestauranteComPapel extends Restaurante {
   papel: Papel;
@@ -137,6 +143,10 @@ export interface Produto {
   esgotado: boolean;
   /** Preço "de" (riscado): maior que o preço = item em promoção */
   preco_de?: number | null;
+  /** Mais fotos e vídeos */
+  galeria?: { tipo: 'imagem' | 'video'; url: string }[];
+  /** Exemplo no campo de observação (vazio = automático) */
+  dica_obs?: string | null;
 }
 
 /** Grupo de sabores compartilhado entre tamanhos (Pizza P, M, G…). */

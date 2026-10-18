@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "heic-to": "^1.6.6",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.460.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
@@ -18,6 +19,7 @@
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.12",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

@@ -490,3 +490,22 @@
 .adic-falta { margin: -6px 0 14px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-weight: 600; font-size: .9rem; }
 .btn--esperando { opacity: .7; }
 .carrinho__adic, .conta__adic { display: block; color: var(--muted); font-size: .8rem; line-height: 1.35; }
+
+/* ---------- Galeria do produto: foto inteira (sem cortar), deslizando ---------- */
+.galeria { position: relative; margin: 0 -20px 16px; }
+.galeria__trilho { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.galeria__trilho::-webkit-scrollbar { display: none; }
+.galeria__item { flex: 0 0 100%; height: min(46vh, 400px); display: grid; place-items: center; scroll-snap-align: center; overflow: hidden; transition: background .3s; }
+.galeria__item img, .galeria__item video { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+.galeria__item video { width: 100%; height: 100%; }
+.galeria__seta {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: rgba(0, 0, 0, .45); color: #fff; backdrop-filter: blur(6px); cursor: pointer;
+}
+.galeria__seta:disabled { opacity: 0; pointer-events: none; }
+.galeria__seta--esq { left: 10px; }
+.galeria__seta--dir { right: 10px; }
+.galeria__pontos { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 6px; }
+.galeria__pontos button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: rgba(0, 0, 0, .3); box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); transition: width .2s; cursor: pointer; }
+.galeria__pontos button.ativo { width: 22px; background: var(--acento); }
+@media (hover: none) { .galeria__seta { display: none; } }

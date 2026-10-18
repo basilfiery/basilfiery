@@ -1949,3 +1949,62 @@
 /* Horários: dias abertos bem visíveis */
 .cfg-horario:not(.fechado) .cfg-horario__dia span { color: var(--text); }
 .cfg-horario__horas .input { color: var(--text); font-weight: 600; background: var(--surface); border-color: var(--line-2); }
+
+/* =====================================================================
+   Taxa de entrega: fixa, por distância (raio) ou por bairro, com mapa
+   ===================================================================== */
+.taxa { gap: 18px; }
+.taxa-modos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.taxa-modo {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text);
+}
+.taxa-modo > svg { flex: none; margin-top: 2px; color: var(--muted); }
+.taxa-modo span { display: grid; gap: 2px; }
+.taxa-modo strong { font-size: .95rem; }
+.taxa-modo small { color: var(--muted); font-size: .8rem; }
+.taxa-modo.ativo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 6%, var(--surface)); box-shadow: inset 0 0 0 1px var(--acento); }
+.taxa-modo.ativo > svg { color: var(--acento); }
+.taxa-mapa { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 18px; align-items: start; }
+.taxa-mapa__mapa { display: grid; gap: 8px; min-width: 0; }
+.taxa-mapa__topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: .84rem; }
+.taxa-mapa__topo > span { display: inline-flex; align-items: center; gap: 5px; }
+.mapa-entrega { width: 100%; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--bg-2); z-index: 0; }
+.mapa-entrega--carregando { height: 380px; display: grid; place-items: center; }
+.mapa-pino { display: grid; place-items: center; }
+.mapa-pino span {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: #ff5a1f; box-shadow: 0 6px 14px rgba(0, 0, 0, .35); border: 3px solid #fff; color: transparent; font-size: 0;
+}
+.mapa-pino span::after { content: 'Loja'; transform: rotate(45deg); color: #fff; font: 800 10px/1 var(--fonte); }
+.mapa-bairro b {
+  display: inline-grid; justify-items: center; padding: 3px 9px; border-radius: 10px; white-space: nowrap; transform: translate(-50%, -50%);
+  background: #fff; color: #222; font: 700 11px/1.2 var(--fonte); border: 2px solid var(--c); box-shadow: 0 3px 8px rgba(0, 0, 0, .2);
+}
+.mapa-bairro small { color: var(--c); font-size: 10px; }
+.taxa-lista { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
+.taxa-lista h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1rem; }
+.taxa-lista h3 small { min-width: 22px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: .72rem; }
+.taxa-linha { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .88rem; }
+.taxa-linha .input { height: 40px; background: var(--surface); }
+.taxa-linha__km { width: 70px; text-align: center; font-weight: 700; color: var(--text); }
+.taxa-linha__valor { width: 130px; flex: none; }
+.taxa-linha__nome { flex: 1; min-width: 0; font-weight: 600; color: var(--text); }
+.taxa-lista > .btn { justify-self: start; }
+@media (max-width: 1100px) { .taxa-mapa { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .taxa-modos { grid-template-columns: minmax(0, 1fr); } }
+
+/* Galeria do produto (cadastro) */
+.galeria-painel { display: grid; gap: 10px; padding: 14px; border: 1px dashed var(--line-2); border-radius: 12px; }
+.galeria-painel__cab { display: grid; gap: 2px; }
+.galeria-painel__cab strong { font-size: .92rem; }
+.galeria-painel__cab strong small { color: var(--muted); font-weight: 500; }
+.galeria-painel__cab > small { color: var(--muted); font-size: .8rem; }
+.galeria-painel__lista { display: flex; flex-wrap: wrap; gap: 8px; }
+.galeria-painel__item { position: relative; width: 76px; height: 76px; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid var(--line); }
+.galeria-painel__item img, .galeria-painel__item video { width: 100%; height: 100%; object-fit: contain; }
+.galeria-painel__item button { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 7px; background: rgba(0, 0, 0, .6); color: #fff; }
+.galeria-painel__tipo { position: absolute; left: 4px; bottom: 4px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: rgba(0, 0, 0, .6); color: #fff; }
+.galeria-painel__add { width: 76px; height: 76px; display: grid; place-items: center; align-content: center; gap: 2px; border: 1px dashed var(--line-2); border-radius: 10px; background: var(--bg-2); color: var(--muted); font-size: .74rem; font-weight: 700; }
+.galeria-painel__add:hover:not(:disabled) { border-color: var(--acento); color: var(--acento); }
+.galeria-painel__add .spinner { width: 20px; height: 20px; border-width: 2px; }

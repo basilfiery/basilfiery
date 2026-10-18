@@ -347,7 +347,7 @@ function DadosCliente({ p }: { p: Pedido }) {
         {tel && <a className="btn btn--contorno btn--sm" href={`https://wa.me/${tel.length <= 11 ? `55${tel}` : tel}`} target="_blank" rel="noopener"><MessageCircle size={15} /> {tel.replace(/^(\d{2})(\d+)(\d{4})$/, '($1) $2-$3')}</a>}
       </div>
       {e ? (
-        <p className="dp__endereco"><MapPin size={15} /> <span>{e.rua}, {e.numero}{e.complemento ? ` · ${e.complemento}` : ''}<br />{e.bairro}{e.referencia ? <><br /><em>Ref.: {e.referencia}</em></> : null}</span></p>
+        <p className="dp__endereco"><MapPin size={15} /> <span>{e.rua}, {e.numero}{e.complemento ? ` · ${e.complemento}` : ''}<br />{e.bairro}{e.distancia_km != null ? ` · ${String(e.distancia_km).replace('.', ',')} km da loja` : ''}{e.referencia ? <><br /><em>Ref.: {e.referencia}</em></> : null}{e.lat != null && <><br /><a href={`https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}`} target="_blank" rel="noopener">Abrir rota no mapa</a></>}</span></p>
       ) : <p className="dp__endereco"><Store size={15} /> <span>{p.tipo === 'balcao' ? 'Venda no balcão (PDV)' : 'Cliente vai retirar no balcão'}</span></p>}
       <p className="dp__endereco"><Wallet size={15} /> <span>{FORMA_ROTULO[p.forma_pagamento ?? ''] ?? '—'} {p.tipo === 'delivery' ? 'na entrega' : p.tipo === 'balcao' ? (p.pago_em ? '· pago no balcão' : 'no balcão') : 'na retirada'}{p.troco_para ? (p.tipo === 'balcao' ? ` · recebido ${brl(Number(p.troco_para))}` : ` · levar troco para ${brl(Number(p.troco_para))}`) : ''}</span></p>
     </section>

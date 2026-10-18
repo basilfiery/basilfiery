@@ -12,6 +12,7 @@ import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco } from '../../lib/util';
 import { ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
+import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaRaio, type Ponto } from '../../lib/mapa';
 import '../../estilos/mesa.css';
 import '../../estilos/loja.css';
 
@@ -29,6 +30,18 @@ interface Loja {
   horarios?: { aberto: boolean; de: string; ate: string }[] | null;
   ads?: { pixel?: string; ga4?: string; gads?: string };
   fidelidade?: { meta: number; premio: string | null; minimo: number } | null;
+  /** Taxa: fixa, por distância (raio) ou por bairro */
+  entrega_modo?: 'fixa' | 'raio' | 'bairro'; lat?: number | null; lng?: number | null; cidade?: string | null;
+  raios?: FaixaRaio[] | null; bairros?: { nome: string; taxa: number }[] | null;
+}
+
+/** "Entrega R$ 5" / "a partir de R$ 3" / "grátis" para o topo e a sacola. */
+function rotuloEntrega(l: Loja) {
+  const valores = l.entrega_modo === 'raio' ? (l.raios ?? []).map((x) => Number(x.taxa))
+    : l.entrega_modo === 'bairro' ? (l.bairros ?? []).map((x) => Number(x.taxa)) : [Number(l.taxa)];
+  const menor = valores.length ? Math.min(...valores) : 0;
+  if (l.entrega_modo === 'raio' || l.entrega_modo === 'bairro') return menor > 0 ? `Entrega a partir de ${brl(menor)}` : 'Entrega grátis em parte da cidade';
+  return menor > 0 ? `Entrega ${brl(menor)}` : 'Entrega grátis';
 }
 
 type AbaLoja = 'inicio' | 'promocoes' | 'fidelidade' | 'pedidos';
@@ -260,7 +273,8 @@ export default function LojaCardapio() {
       <div className="carrinho__rodape">
         <div className="loja-totais">
           <div><span>Subtotal</span><span>{brl(subtotal)}</span></div>
-          {Number(loja.taxa) > 0 && <div><span>Entrega</span><span>{brl(Number(loja.taxa))}</span></div>}
+          {(loja.entrega_modo ?? 'fixa') === 'fixa' ? Number(loja.taxa) > 0 && <div><span>Entrega</span><span>{brl(Number(loja.taxa))}</span></div>
+            : <div><span>Entrega</span><span>calculada no endereço</span></div>}
         </div>
         {faltaMinimo > 0 && carrinho.length > 0 && <p className="loja-aviso">Pedido mínimo {brl(Number(loja.minimo))}. Faltam {brl(faltaMinimo)}.</p>}
         <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length || !loja.aberto || faltaMinimo > 0} onClick={() => { setVerCarrinho(false); setFinalizar(true); rastrear('InitiateCheckout', subtotal); }}>
@@ -312,7 +326,7 @@ export default function LojaCardapio() {
 
       <div className="loja-info">
         <span><Clock size={15} /> {loja.tempo}</span>
-        {loja.entrega !== false && <span><Bike size={15} /> {Number(loja.taxa) > 0 ? `Entrega ${brl(Number(loja.taxa))}` : 'Entrega grátis'}</span>}
+        {loja.entrega !== false && <span><Bike size={15} /> {rotuloEntrega(loja)}</span>}
         {Number(loja.minimo) > 0 && <span><Receipt size={15} /> Mínimo {brl(Number(loja.minimo))}</span>}
         {loja.retirada && <span><Store size={15} /> Retirada no balcão</span>}
       </div>
@@ -576,13 +590,49 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
   const [troco, setTroco] = useState('');
   const [obs, setObs] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const taxa = tipo === 'delivery' ? Number(loja.taxa) : 0;
-  const total = subtotal + taxa;
+  const modo = loja.entrega_modo ?? 'fixa';
   const end = (k: keyof Cliente['endereco'], v: string) => setCli((c) => ({ ...c, endereco: { ...c.endereco, [k]: v } }));
+  // Por distância: acha o endereço no mapa (ou usa o GPS) e calcula a taxa
+  const [local, setLocal] = useState<{ ponto: Ponto; km: number; taxa: number | null } | null>(null);
+  const [localizando, setLocalizando] = useState(false);
+  const [erroLocal, setErroLocal] = useState('');
+  const lojaPonto = loja.lat != null && loja.lng != null ? { lat: Number(loja.lat), lng: Number(loja.lng) } : null;
+  const aplicarPonto = (p: Ponto) => {
+    if (!lojaPonto) return;
+    const km = distanciaKm(lojaPonto, p);
+    setLocal({ ponto: p, km, taxa: taxaPorRaio(loja.raios ?? [], km) });
+    setErroLocal('');
+  };
+  async function localizarEndereco() {
+    const e = cli.endereco;
+    if (!e.rua.trim() || !e.bairro.trim()) return setErroLocal('Preencha rua e bairro.');
+    setLocalizando(true);
+    const cidade = loja.cidade ?? '';
+    const p = await buscarEndereco(`${e.rua}, ${e.numero}, ${e.bairro}, ${cidade}`) ?? await buscarEndereco(`${e.rua}, ${e.bairro}, ${cidade}`) ?? await buscarEndereco(`${e.bairro}, ${cidade}`);
+    setLocalizando(false);
+    if (!p) { setLocal(null); return setErroLocal('Não achei esse endereço no mapa. Use “Minha localização”.'); }
+    aplicarPonto(p);
+  }
+  async function usarGps() {
+    setLocalizando(true);
+    try { aplicarPonto(await minhaLocalizacao()); } catch (e) { setErroLocal(msgErro(e)); }
+    setLocalizando(false);
+  }
+  // Endereço mudou: precisa calcular de novo
+  useEffect(() => { if (modo === 'raio') setLocal(null); }, [cli.endereco.rua, cli.endereco.numero, cli.endereco.bairro, modo]);
+  const bairroEscolhido = modo === 'bairro' ? (loja.bairros ?? []).find((b) => b.nome.toLowerCase() === cli.endereco.bairro.trim().toLowerCase()) : undefined;
+  const taxa = tipo !== 'delivery' ? 0
+    : modo === 'bairro' ? Number(bairroEscolhido?.taxa ?? 0)
+      : modo === 'raio' ? Number(local?.taxa ?? 0)
+        : Number(loja.taxa);
+  const total = subtotal + taxa;
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
     if (!forma) return toast('Escolha a forma de pagamento.', 'erro');
+    if (tipo === 'delivery' && modo === 'bairro' && !bairroEscolhido) return toast('Escolha o seu bairro na lista.', 'erro');
+    if (tipo === 'delivery' && modo === 'raio' && !local) return toast('Toque em “Calcular entrega” para confirmar o endereço.', 'erro');
+    if (tipo === 'delivery' && modo === 'raio' && local?.taxa == null) return toast('Esse endereço fica fora da área de entrega.', 'erro');
     setEnviando(true);
     ls.gravar('bf:loja:cliente', cli);
     const { data, error } = await supabase.rpc('loja_pedido_enviar', {
@@ -595,7 +645,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
       p_cliente: {
         nome: cli.nome, telefone: cli.telefone, pagamento: forma,
         troco: forma === 'dinheiro' && troco.trim() ? String(lerPreco(troco)) : '',
-        endereco: tipo === 'delivery' ? cli.endereco : null,
+        endereco: tipo === 'delivery' ? { ...cli.endereco, ...(modo === 'raio' && local ? { lat: local.ponto.lat, lng: local.ponto.lng } : {}) } : null,
         ua: navigator.userAgent, url: window.location.href,
       },
       p_obs: obs,
@@ -634,7 +684,30 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
               <label className="campo loja-linha__grande"><span>Rua</span><input className="input" required maxLength={120} value={cli.endereco.rua} onChange={(e) => end('rua', e.target.value)} autoComplete="address-line1" /></label>
               <label className="campo"><span>Número</span><input className="input" required maxLength={20} value={cli.endereco.numero} onChange={(e) => end('numero', e.target.value)} inputMode="numeric" /></label>
             </div>
-            <label className="campo"><span>Bairro</span><input className="input" required maxLength={80} value={cli.endereco.bairro} onChange={(e) => end('bairro', e.target.value)} /></label>
+            {modo === 'bairro' ? (
+              <label className="campo"><span>Bairro</span>
+                <select className="select" required value={bairroEscolhido?.nome ?? ''} onChange={(e) => end('bairro', e.target.value)}>
+                  <option value="">Escolha o seu bairro</option>
+                  {(loja.bairros ?? []).map((b) => <option key={b.nome} value={b.nome}>{b.nome} — {Number(b.taxa) > 0 ? brl(Number(b.taxa)) : 'grátis'}</option>)}
+                </select>
+                <small className="loja-dica">Seu bairro não está na lista? A loja ainda não entrega aí.</small>
+              </label>
+            ) : (
+              <label className="campo"><span>Bairro</span><input className="input" required maxLength={80} value={cli.endereco.bairro} onChange={(e) => end('bairro', e.target.value)} /></label>
+            )}
+            {modo === 'raio' && (
+              <div className={cx('loja-distancia', local && (local.taxa == null ? 'fora' : 'ok'))}>
+                {local ? (
+                  <p>{local.taxa == null
+                    ? <><MapPin size={16} /> Fica a {String(local.km).replace('.', ',')} km: fora da área de entrega.</>
+                    : <><MapPin size={16} /> {String(local.km).replace('.', ',')} km da loja · entrega <b>{local.taxa > 0 ? brl(local.taxa) : 'grátis'}</b></>}</p>
+                ) : <p>{erroLocal || 'Confirme o endereço para calcular a entrega.'}</p>}
+                <div className="loja-distancia__botoes">
+                  <button type="button" className="btn btn--contorno btn--sm" disabled={localizando} onClick={() => void localizarEndereco()}>{localizando ? 'Calculando…' : 'Calcular entrega'}</button>
+                  <button type="button" className="btn btn--fantasma btn--sm" disabled={localizando} onClick={() => void usarGps()}><MapPin size={15} /> Minha localização</button>
+                </div>
+              </div>
+            )}
             <div className="loja-linha">
               <label className="campo"><span>Complemento</span><input className="input" maxLength={80} value={cli.endereco.complemento} onChange={(e) => end('complemento', e.target.value)} placeholder="Apto, bloco…" /></label>
               <label className="campo"><span>Referência</span><input className="input" maxLength={120} value={cli.endereco.referencia} onChange={(e) => end('referencia', e.target.value)} placeholder="Perto de…" /></label>

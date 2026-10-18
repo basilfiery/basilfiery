@@ -10,7 +10,7 @@ import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco } from '../../lib/util';
-import { ModalProduto, nomeItem, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { ModalProduto, capaEmVideo, nomeItem, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import '../../estilos/mesa.css';
 import '../../estilos/loja.css';
 
@@ -265,8 +265,8 @@ export default function LojaCardapio() {
         return (
           <button key={p.id} className={cx('prod', !p.disponivel && 'prod--esgotado')} disabled={!p.disponivel} onClick={() => setProdutoAberto(p)}>
             <div className="prod__midia">
-              {p.capa === 'video' && p.video_url ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" /> : <FotoProduto p={p} classe="prod__foto" />}
-              {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
+              {capaEmVideo(p) ? <VideoCapa p={{ ...p, video_url: p.video_url! }} classe="prod__foto" /> : <FotoProduto p={p} classe="prod__foto" />}
+              {p.video_url && !capaEmVideo(p) && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
               {n > 0 && <span className="prod__no-carrinho">{n}</span>}
               {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
             </div>

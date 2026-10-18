@@ -40,6 +40,10 @@ export interface ProdutoMesa {
 
 export interface SaborMesa extends ProdutoMesa { grupo_id: string }
 
+/** O cartão roda o vídeo quando ele é a capa escolhida ou quando o produto não tem foto. */
+export const capaEmVideo = (p: { video_url: string | null; imagem_url: string | null; capa: string }) =>
+  !!p.video_url && (p.capa === 'video' || !p.imagem_url);
+
 /** Nome do item no pedido: "Pizza P · Calabresa" quando é sabor de um tamanho. */
 export const nomeItem = (p: ProdutoMesa) => (p.prefixo ? `${p.prefixo} · ${p.nome}` : p.nome);
 
@@ -445,10 +449,10 @@ export default function Mesa() {
             onClick={() => setProdutoAberto(p)}
           >
             <div className="prod__midia">
-              {p.capa === 'video' && p.video_url
-                ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" />
+              {capaEmVideo(p)
+                ? <VideoCapa p={{ ...p, video_url: p.video_url! }} classe="prod__foto" />
                 : <FotoProduto p={p} classe="prod__foto" />}
-              {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
+              {p.video_url && !capaEmVideo(p) && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
               {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
               {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
             </div>

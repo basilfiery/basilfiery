@@ -98,6 +98,10 @@ export function VideoCapa({ p, classe }: { p: { video_url: string; imagem_url: s
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
+    v.muted = true;
+    v.defaultMuted = true;
+    v.setAttribute('muted', '');
+    v.setAttribute('playsinline', '');
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) void v.play().catch(() => { /* modo economia: fica a primeira imagem */ });
       else v.pause();

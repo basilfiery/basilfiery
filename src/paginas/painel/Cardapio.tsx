@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  Check, ChevronRight, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
+  Check, ChevronRight, Copy, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
 import { Campo, FotoProduto, ImagemComida, Switch, Vazio } from '../../componentes/Basicos';
@@ -9,7 +9,7 @@ import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
 import type { Categoria, Grupo, Produto } from '../../lib/tipos';
-import { brl, cx, lerPreco, ordenarNome, precoParaTexto } from '../../lib/util';
+import { brl, cx, lerPreco, mascaraPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
 import { confirmar } from '../../componentes/Confirmar';
 
@@ -122,6 +122,22 @@ export default function Cardapio() {
       toast(msgErro(error), 'erro');
       void carregar();
     } else toast(esgotado ? `${p.nome} esgotado.${p.grupo_id ? ' Vale para todos os tamanhos.' : ''}` : `${p.nome} voltou ao cardápio.`, esgotado ? 'info' : 'ok');
+  }
+
+  async function duplicarProduto(p: Produto) {
+    const { data, error } = await supabase.rpc('produto_duplicar', { p_produto: p.id });
+    if (error) return toast(msgErro(error), 'erro');
+    toast(`Cópia de "${p.nome}" criada. Ajuste o que mudar.`, 'ok');
+    const [{ data: copia }] = await Promise.all([supabase.from('produtos').select('*').eq('id', data as string).single(), carregar()]);
+    if (copia) setEditProd(copia as Produto);
+  }
+
+  async function duplicarCategoria(c: Categoria) {
+    const { data, error } = await supabase.rpc('categoria_duplicar', { p_categoria: c.id });
+    if (error) return toast(msgErro(error), 'erro');
+    toast(`Cópia de "${c.nome}" criada${c.pai_id ? '' : ' com os itens e subcategorias'}.`, 'ok');
+    await carregar();
+    if (!c.pai_id) setCatSel(data as string);
   }
 
   async function excluirProduto(p: Produto) {
@@ -295,6 +311,7 @@ export default function Cardapio() {
           {(fechar) => (
             <>
               <button className="menu-item" onClick={() => { fechar(); setEditProd(p); }}><Pencil size={17} /> Editar</button>
+              <button className="menu-item" onClick={() => { fechar(); void duplicarProduto(p); }}><Copy size={17} /> Duplicar</button>
               <button className="menu-item" onClick={() => { fechar(); void alternarAtivo(p, !p.ativo); }}>
                 {p.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
               </button>
@@ -483,6 +500,7 @@ export default function Cardapio() {
               {topoAcoes(itensDe(cat.id), (fechar) => (
                 <>
                   <button className="menu-item" onClick={() => { fechar(); setEditCat(cat); }}><Pencil size={17} /> Editar {cat.pai_id ? 'subcategoria' : 'categoria'}</button>
+                  <button className="menu-item" onClick={() => { fechar(); void duplicarCategoria(cat); }}><Copy size={17} /> Duplicar {cat.pai_id ? 'subcategoria' : 'categoria'}</button>
                   <button className="menu-item" onClick={() => { fechar(); void alternarCategoria(cat, !cat.ativo); }}>
                     {cat.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
                   </button>
@@ -551,6 +569,7 @@ export default function Cardapio() {
                           {(fechar) => (
                             <>
                               <button className="menu-item" onClick={() => { fechar(); setEditCat(f); }}><Pencil size={17} /> Editar</button>
+                              <button className="menu-item" onClick={() => { fechar(); void duplicarCategoria(f); }}><Copy size={17} /> Duplicar</button>
                               <button className="menu-item" onClick={() => { fechar(); void alternarCategoria(f, !f.ativo); }}>
                                 {f.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
                               </button>
@@ -650,7 +669,7 @@ function PrecoCategoria({ valor, aoSalvar }: { valor: number | null; aoSalvar: (
         placeholder="0,00"
         aria-label="Preço da subcategoria"
         onFocus={(e) => { focado.current = true; e.currentTarget.select(); }}
-        onChange={(e) => setTexto(e.target.value)}
+        onChange={(e) => setTexto(mascaraPreco(e.target.value))}
         onBlur={() => void salvar()}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur();
@@ -711,7 +730,7 @@ function PrecoEditavel({ produto, aoSalvar }: { produto: Produto; aoSalvar: (pre
         inputMode="decimal"
         aria-label={`Preço de ${produto.nome}`}
         onFocus={(e) => { focado.current = true; e.currentTarget.select(); }}
-        onChange={(e) => setTexto(e.target.value)}
+        onChange={(e) => setTexto(mascaraPreco(e.target.value))}
         onBlur={() => void salvar()}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur();
@@ -874,7 +893,7 @@ function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInici
                 <Campo rotulo={ehSub ? 'Preço deste tamanho' : 'Preço'}>
                   <div className="input-preco">
                     <span>R$</span>
-                    <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(e.target.value)} placeholder="50,00" />
+                    <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(mascaraPreco(e.target.value))} placeholder="50,00" />
                   </div>
                 </Campo>
               </div>
@@ -887,7 +906,7 @@ function ModalCategoria({ restauranteId, categoria, categorias, grupos, paiInici
               <Campo rotulo="Preço da subcategoria (opcional)" dica="Ex.: Pizza P R$ 50,00. Os itens dentro custam isso; o preço de cada item vira acréscimo. Vazio = cada item com o seu preço.">
                 <div className="input-preco">
                   <span>R$</span>
-                  <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(e.target.value)} placeholder="0,00" />
+                  <input className="input" inputMode="decimal" value={precoGrupo} onChange={(e) => setPrecoGrupo(mascaraPreco(e.target.value))} placeholder="0,00" />
                 </div>
               </Campo>
             </>
@@ -1161,7 +1180,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
         <Campo rotulo="Descrição"><textarea className="textarea" rows={2} value={f.descricao} onChange={(e) => mudar('descricao', e.target.value)} maxLength={240} /></Campo>
         <div className="form-linha">
           <Campo rotulo={ehSabor ? 'Acréscimo (opcional)' : 'Preço (R$)'} dica={ehSabor ? 'Somado ao preço do tamanho. Ex.: 5,00 para sabor especial.' : undefined}>
-            <input className="input" inputMode="decimal" value={f.preco} onChange={(e) => mudar('preco', e.target.value)} placeholder={ehSabor ? '0,00' : '49,90'} />
+            <input className="input" inputMode="decimal" value={f.preco} onChange={(e) => mudar('preco', mascaraPreco(e.target.value))} placeholder={ehSabor ? '0,00' : '49,90'} />
           </Campo>
           {ehSabor ? (
             <Campo rotulo="Grupo" dica="O preço vem de cada tamanho que usa este grupo.">

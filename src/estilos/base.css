@@ -376,3 +376,23 @@ h1, h2, h3 { line-height: 1.2; }
 .pergunta__aviso { white-space: pre-line; }
 .btn--perigo-cheio { background: var(--danger); color: #fff; border: 1px solid var(--danger); }
 .btn--perigo-cheio:hover { filter: brightness(1.05); }
+
+/* Ajustar foto (enquadrar antes de enviar) */
+.ajustar-foto__corpo { display: grid; justify-items: center; gap: 12px; }
+.ajustar-foto__palco {
+  position: relative; overflow: hidden; border-radius: 16px; background: #111; touch-action: none; cursor: grab;
+  background-image: linear-gradient(45deg, #1b1b1b 25%, transparent 25%), linear-gradient(-45deg, #1b1b1b 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1b1b1b 75%), linear-gradient(-45deg, transparent 75%, #1b1b1b 75%);
+  background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+.ajustar-foto__palco:active { cursor: grabbing; }
+.ajustar-foto__palco.carregando { display: grid; place-items: center; }
+.ajustar-foto__palco img { position: absolute; left: 50%; top: 50%; max-width: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.ajustar-foto__recorte {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, .95); border-radius: 18px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .55);
+}
+.ajustar-foto__recorte.circulo { border-radius: 50%; }
+.ajustar-foto__dica { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--muted); font-size: .84rem; }
+.ajustar-foto__controles { width: 100%; max-width: 340px; display: flex; align-items: center; gap: 6px; }
+.ajustar-foto__controles input[type=range] { flex: 1; accent-color: var(--acento, #ff5a1f); }

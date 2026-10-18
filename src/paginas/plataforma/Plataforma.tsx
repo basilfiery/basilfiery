@@ -9,7 +9,7 @@ import { useToast } from '../../componentes/Toast';
 import { useSessao } from '../../lib/sessao';
 import { gestao, msgErro, supabase } from '../../lib/supabase';
 import type { Fatura, Restaurante } from '../../lib/tipos';
-import { brl, dataHora, lerPreco } from '../../lib/util';
+import { brl, dataHora, lerPreco, mascaraPreco } from '../../lib/util';
 import { SITE } from '../../config/site';
 import '../../estilos/painel.css';
 
@@ -227,7 +227,7 @@ function ModalCobranca({ restaurante: r, aoFechar, aoSalvar }: { restaurante: Re
       <div className="form">
         <h3 style={{ margin: 0, fontSize: '1rem' }}>Plano</h3>
         <div className="form-linha">
-          <Campo rotulo="Valor mensal (R$)"><input className="input" inputMode="decimal" value={plano.valor} onChange={(e) => setPlano({ ...plano, valor: e.target.value })} placeholder="149,00" /></Campo>
+          <Campo rotulo="Valor mensal (R$)"><input className="input" inputMode="decimal" value={plano.valor} onChange={(e) => setPlano({ ...plano, valor: mascaraPreco(e.target.value) })} placeholder="149,00" /></Campo>
           <Campo rotulo="Vencimento do plano"><input className="input" type="date" value={plano.vence} onChange={(e) => setPlano({ ...plano, vence: e.target.value })} /></Campo>
           <Campo rotulo="Forma de pagamento">
             <select className="select" value={plano.forma} onChange={(e) => setPlano({ ...plano, forma: e.target.value })}>
@@ -260,7 +260,7 @@ function ModalCobranca({ restaurante: r, aoFechar, aoSalvar }: { restaurante: Re
         )}
         <div className="form-linha">
           <Campo rotulo="Referência"><input className="input" value={nova.referencia} onChange={(e) => setNova({ ...nova, referencia: e.target.value })} placeholder="Novembro/2026" /></Campo>
-          <Campo rotulo="Valor (R$)"><input className="input" inputMode="decimal" value={nova.valor} onChange={(e) => setNova({ ...nova, valor: e.target.value })} /></Campo>
+          <Campo rotulo="Valor (R$)"><input className="input" inputMode="decimal" value={nova.valor} onChange={(e) => setNova({ ...nova, valor: mascaraPreco(e.target.value) })} /></Campo>
           <Campo rotulo="Vencimento"><input className="input" type="date" value={nova.vencimento} onChange={(e) => setNova({ ...nova, vencimento: e.target.value })} /></Campo>
         </div>
         <Campo rotulo="Link para pagar (opcional)" dica="Link do boleto ou do Pix"><input className="input" value={nova.link} onChange={(e) => setNova({ ...nova, link: e.target.value })} placeholder="https://…" /></Campo>

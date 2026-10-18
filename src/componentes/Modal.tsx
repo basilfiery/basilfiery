@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cx } from '../lib/util';
@@ -13,17 +13,25 @@ interface Props {
   classe?: string;
 }
 
+/** Modais abertos, do de baixo para o de cima: só o de cima fecha com Esc. */
+const pilha: symbol[] = [];
+
 export function Modal({ aberto, aoFechar, titulo, children, rodape, largura, classe }: Props) {
+  const fecharRef = useRef(aoFechar);
+  fecharRef.current = aoFechar;
   useEffect(() => {
     if (!aberto) return;
-    const aoTeclar = (e: KeyboardEvent) => e.key === 'Escape' && aoFechar();
+    const eu = Symbol('modal');
+    pilha.push(eu);
+    const aoTeclar = (e: KeyboardEvent) => { if (e.key === 'Escape' && pilha[pilha.length - 1] === eu) fecharRef.current(); };
     document.addEventListener('keydown', aoTeclar);
     document.body.classList.add('travado');
     return () => {
       document.removeEventListener('keydown', aoTeclar);
-      document.body.classList.remove('travado');
+      pilha.splice(pilha.indexOf(eu), 1);
+      if (!pilha.length) document.body.classList.remove('travado');
     };
-  }, [aberto, aoFechar]);
+  }, [aberto]);
 
   if (!aberto) return null;
 

@@ -1679,3 +1679,7 @@
   .cfg-paginacao { justify-content: center; }
   .cfg-inicio { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Menu da empresa: situação do cardápio digital */
+.menu-item__status { padding: 2px 8px; border-radius: 999px; background: rgba(239, 68, 68, .1); color: var(--danger) !important; font-size: .72rem !important; font-weight: 700; }
+.menu-item__status.aberto { background: rgba(34, 197, 94, .12); color: var(--ok) !important; }

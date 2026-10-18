@@ -11,7 +11,7 @@ import { useSessao } from '../../lib/sessao';
 import { tocarVenda } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Pedido, ResumoCaixa, RestauranteComPapel } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, duracao, hora, inicioDoDia, lerPreco, ls, precoParaTexto, quando } from '../../lib/util';
+import { STATUS_ROTULO, brl, cx, duracao, hora, inicioDoDia, lerPreco, ls, mascaraPreco, precoParaTexto, quando } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import { VERSAO_CURTA } from '../../lib/versao';
 import { SITE } from '../../config/site';
@@ -875,7 +875,7 @@ function FolhaMeta({ atual, aoFechar, aoSalvar }: { atual: number | null; aoFech
         <p>Quanto você quer faturar este mês? A barra dourada mostra quanto falta.</p>
         <label className="dn-campo-valor">
           <span>R$</span>
-          <input inputMode="decimal" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="10.000,00" autoFocus />
+          <input inputMode="decimal" value={texto} onChange={(e) => setTexto(mascaraPreco(e.target.value))} placeholder="10.000,00" autoFocus />
         </label>
         <button className="dn-botao" disabled={!valido} onClick={() => aoSalvar(v)}>Salvar meta</button>
         {atual && <button className="dn-botao dn-botao--contorno" onClick={() => aoSalvar(null)}>Remover meta</button>}

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Camera, Trash2 } from 'lucide-react';
+import { AjustarFoto } from './AjustarFoto';
 import { Campo } from './Basicos';
 import { Modal } from './Modal';
 import { useToast } from './Toast';
@@ -28,17 +29,19 @@ export function ModalPerfil({ aoFechar }: { aoFechar: () => void }) {
   const [foto, setFoto] = useState<string | null>(s.foto);
   const [enviando, setEnviando] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [ajustar, setAjustar] = useState<File | null>(null);
 
-  async function escolherFoto(arquivo?: File) {
-    if (!arquivo || !s.usuario) return;
+  // Escolheu a foto: primeiro enquadra, depois envia o recorte
+  async function enviarRecorte(recorte: Blob) {
+    if (!s.usuario) return;
     setEnviando(true);
     try {
-      setFoto(await enviarFotoPerfil(s.usuario.id, arquivo));
+      setFoto(await enviarFotoPerfil(s.usuario.id, recorte));
+      setAjustar(null);
     } catch (e) {
       toast(msgErro(e), 'erro');
     } finally {
       setEnviando(false);
-      if (arquivoRef.current) arquivoRef.current.value = '';
     }
   }
 
@@ -78,12 +81,13 @@ export function ModalPerfil({ aoFechar }: { aoFechar: () => void }) {
           </button>
           {foto && <button className="btn btn--fantasma btn--sm" onClick={() => setFoto(null)}><Trash2 size={16} /> Remover</button>}
         </div>
-        <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => void escolherFoto(e.target.files?.[0])} />
+        <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => { const f = e.target.files?.[0]; if (f) setAjustar(f); e.target.value = ''; }} />
         <Campo rotulo="Seu nome (aparece para a equipe)">
           <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} />
         </Campo>
         <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>E-mail de acesso: {s.usuario?.email}</p>
       </div>
+      {ajustar && <AjustarFoto arquivo={ajustar} titulo="Ajustar foto de perfil" aoConfirmar={enviarRecorte} aoCancelar={() => setAjustar(null)} />}
     </Modal>
   );
 }

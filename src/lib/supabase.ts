@@ -49,7 +49,7 @@ export const ACEITA_IMAGEM = 'image/*,.heic,.heif';
 export const ACEITA_VIDEO = 'video/*,.mov,.qt,.m4v,.webm,.mkv,.avi,.3gp';
 export const LIMITE_VIDEO_MB = 50;
 
-const ehImagem = (f: File) => f.type.startsWith('image/') || EXT_IMAGEM.test(f.name);
+export const ehImagem = (f: File) => f.type.startsWith('image/') || EXT_IMAGEM.test(f.name);
 const ehVideo = (f: File) => f.type.startsWith('video/') || EXT_VIDEO.test(f.name);
 
 async function subir(caminho: string, conteudo: Blob, contentType: string) {
@@ -64,17 +64,37 @@ async function subir(caminho: string, conteudo: Blob, contentType: string) {
   return supabase.storage.from('imagens').getPublicUrl(caminho).data.publicUrl;
 }
 
-/**
- * Converte qualquer foto (inclusive HEIC do iPhone) para um formato que todo
- * navegador mostra, e reduz para no máximo 1600 px — carrega rápido no tablet.
- */
-async function prepararImagem(arquivo: File): Promise<Blob> {
-  let blob: Blob = arquivo;
-  if (/hei[cf]/i.test(arquivo.type) || /\.hei[cf]$/i.test(arquivo.name)) {
-    const { default: heic2any } = await import('heic2any');
-    const r = await heic2any({ blob: arquivo, toType: 'image/jpeg', quality: 0.9 });
-    blob = Array.isArray(r) ? r[0] : r;
+const ehHeic = (f: Blob & { name?: string }) => /hei[cf]/i.test(f.type) || /\.hei[cf]$/i.test(f.name ?? '');
+
+/** O navegador consegue desenhar esta imagem? */
+async function navegadorLe(blob: Blob) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    bmp.close();
+    return true;
+  } catch {
+    return false;
   }
+}
+
+/**
+ * Deixa a foto num formato que todo navegador mostra. HEIC do iPhone: primeiro
+ * tenta o próprio navegador (Safari lê; às vezes o arquivo é JPEG com nome .heic),
+ * depois o conversor (libheif nova, que lê as fotos dos iPhones recentes).
+ */
+export async function imagemExibivel(arquivo: Blob & { name?: string }): Promise<Blob> {
+  if (!ehHeic(arquivo) || (await navegadorLe(arquivo))) return arquivo;
+  try {
+    const { heicTo } = await import('heic-to');
+    return await heicTo({ blob: arquivo, type: 'image/jpeg', quality: 0.92 });
+  } catch {
+    throw new Error('Não foi possível ler esta foto do iPhone (HEIC). Tire um print da foto ou salve como JPG e envie de novo.');
+  }
+}
+
+/** Converte qualquer foto e reduz para no máximo 1600 px — carrega rápido no tablet. */
+async function prepararImagem(arquivo: Blob & { name?: string }): Promise<Blob> {
+  const blob = await imagemExibivel(arquivo);
   if (/svg|gif/i.test(blob.type)) return blob; // mantém vetor e animação
   try {
     const bmp = await createImageBitmap(blob);
@@ -83,6 +103,7 @@ async function prepararImagem(arquivo: File): Promise<Blob> {
     canvas.width = Math.round(bmp.width * escala);
     canvas.height = Math.round(bmp.height * escala);
     canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
     const saida = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/webp', 0.85));
     return saida ?? blob;
   } catch {
@@ -91,8 +112,8 @@ async function prepararImagem(arquivo: File): Promise<Blob> {
 }
 
 /** Envia uma imagem (qualquer formato) e devolve a URL pública. */
-export async function enviarImagem(restauranteId: string, arquivo: File, pasta: string): Promise<string> {
-  if (!ehImagem(arquivo)) throw new Error('Escolha um arquivo de imagem.');
+export async function enviarImagem(restauranteId: string, arquivo: Blob, pasta: string): Promise<string> {
+  if (arquivo instanceof File && !ehImagem(arquivo)) throw new Error('Escolha um arquivo de imagem.');
   const blob = await prepararImagem(arquivo);
   if (blob.size > 15 * 1024 * 1024) throw new Error('Imagem muito grande (máximo 15 MB).');
   const tipo = blob.type || 'image/jpeg';
@@ -101,8 +122,8 @@ export async function enviarImagem(restauranteId: string, arquivo: File, pasta: 
 }
 
 /** Foto de perfil da própria pessoa (fica em avatars/<id da pessoa>/). */
-export async function enviarFotoPerfil(userId: string, arquivo: File): Promise<string> {
-  if (!ehImagem(arquivo)) throw new Error('Escolha uma foto.');
+export async function enviarFotoPerfil(userId: string, arquivo: Blob): Promise<string> {
+  if (arquivo instanceof File && !ehImagem(arquivo)) throw new Error('Escolha uma foto.');
   const blob = await prepararImagem(arquivo);
   if (blob.size > 15 * 1024 * 1024) throw new Error('Foto muito grande (máximo 15 MB).');
   const tipo = blob.type || 'image/jpeg';

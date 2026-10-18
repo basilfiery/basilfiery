@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -666,15 +666,60 @@ export default function Painel() {
               {tema === 'claro' ? <Moon size={20} strokeWidth={1.8} /> : <Sun size={20} strokeWidth={1.8} />}
             </button>
 
-            {/* Empresa: abre o link do cardápio digital (como no Anota AI) */}
-            <button className="empresa-btn" onClick={() => setCardapioDigital(true)} aria-label="Cardápio digital e conta">
-              {avatarEmpresa}
-              <div>
-                <strong>{r.nome}</strong>
-                <small className={cx('empresa-btn__status', r.delivery_ativo && 'aberta')}>{r.delivery_ativo ? 'Delivery aberto' : PLANO_ROTULO[r.plano] ?? r.plano}</small>
-              </div>
-              <ChevronDown size={18} />
-            </button>
+            {/* Empresa: menu com cardápio digital, dados, equipe, som e troca de restaurante */}
+            <Suspenso
+              largura={300}
+              gatilho={(_, alternar) => (
+                <button className="empresa-btn" onClick={alternar} aria-label="Menu da empresa">
+                  {avatarEmpresa}
+                  <div>
+                    <strong>{r.nome}</strong>
+                    <small>{PLANO_ROTULO[r.plano] ?? r.plano}</small>
+                  </div>
+                  <ChevronDown size={18} />
+                </button>
+              )}
+            >
+              {(fechar) => (
+                <>
+                  <div className="menu-cab">
+                    {avatarEmpresa}
+                    <div><strong>{r.nome}</strong><small>{PLANO_ROTULO[r.plano] ?? r.plano} · {PAPEL_ROTULO[papel]}</small></div>
+                  </div>
+                  <div className="menu-sep" />
+                  <button className="menu-item" onClick={() => { fechar(); setCardapioDigital(true); }}>
+                    <QrCode size={18} /> Cardápio digital
+                    <small className={cx('menu-item__status', r.delivery_ativo && 'aberto')}>{r.delivery_ativo ? 'Aberto' : 'Fechado'}</small>
+                  </button>
+                  {ehGestor(papel) && (
+                    <>
+                      <Link className="menu-item" to="/painel/config/estabelecimento" onClick={fechar}><Building2 size={18} /> Dados e identidade visual</Link>
+                      <Link className="menu-item" to="/painel/equipe" onClick={fechar}><Users size={18} /> Equipe</Link>
+                    </>
+                  )}
+                  <Link className="menu-item" to="/painel/config" onClick={fechar}><Settings size={18} /> Configurações</Link>
+                  <button className="menu-item" onClick={alternarSom}>
+                    {som ? <Volume2 size={18} /> : <VolumeX size={18} />} Som de novos pedidos <small>{som ? 'Ligado' : 'Desligado'}</small>
+                  </button>
+                  <button className="menu-item menu-item--mobile" onClick={() => setTema((t) => (t === 'claro' ? 'escuro' : 'claro'))}>
+                    {tema === 'claro' ? <Moon size={18} /> : <Sun size={18} />} Tema {tema === 'claro' ? 'escuro' : 'claro'}
+                  </button>
+                  {s.restaurantes.length > 1 && (
+                    <>
+                      <div className="menu-sep" />
+                      <p className="menu-texto" style={{ paddingBottom: 4 }}>Trocar de restaurante</p>
+                      {s.restaurantes.map((x) => (
+                        <button key={x.id} className="menu-item" onClick={() => { s.escolherRestaurante(x.id); fechar(); }}>
+                          <Store size={18} /> {x.nome} {x.id === r.id && <small>atual</small>}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  <div className="menu-sep" />
+                  <button className="menu-item menu-item--perigo" onClick={() => void s.sair()}><LogOut size={18} /> Sair</button>
+                </>
+              )}
+            </Suspenso>
           </div>
         </header>
 
@@ -684,26 +729,6 @@ export default function Painel() {
             gestor={ehGestor(papel)}
             aoMudarDelivery={() => void s.recarregar()}
             aoFechar={() => setCardapioDigital(false)}
-            rodape={
-              <>
-                <div className="cd-rodape__links">
-                  {papel === 'dono' && <Link to="/painel/conta" onClick={() => setCardapioDigital(false)}><UserRound size={16} /> Minha conta</Link>}
-                  {ehGestor(papel) && <Link to="/painel/equipe" onClick={() => setCardapioDigital(false)}><Users size={16} /> Equipe</Link>}
-                  <Link to="/painel/config" onClick={() => setCardapioDigital(false)}><Settings size={16} /> Configurações</Link>
-                  <button onClick={alternarSom}>{som ? <Volume2 size={16} /> : <VolumeX size={16} />} Som {som ? 'ligado' : 'desligado'}</button>
-                  <button className="menu-item--mobile" onClick={() => setTema((t) => (t === 'claro' ? 'escuro' : 'claro'))}>{tema === 'claro' ? <Moon size={16} /> : <Sun size={16} />} Tema</button>
-                  <button className="perigo" onClick={() => void s.sair()}><LogOut size={16} /> Sair</button>
-                </div>
-                {s.restaurantes.length > 1 && (
-                  <label className="cd-rodape__rest">
-                    <Store size={16} />
-                    <select className="select" value={r.id} onChange={(e) => { s.escolherRestaurante(e.target.value); setCardapioDigital(false); }}>
-                      {s.restaurantes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                    </select>
-                  </label>
-                )}
-              </>
-            }
           />
         )}
 

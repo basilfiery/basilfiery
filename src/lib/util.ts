@@ -69,6 +69,14 @@ export function lerPreco(txt: string): number {
 
 export const precoParaTexto = (n: number) => n.toFixed(2).replace('.', ',');
 
+/** Máscara de dinheiro (estilo maquininha): digita 4990 e vira "49,90"; apagar tira o último número. */
+export function mascaraPreco(txt: string): string {
+  const d = txt.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+  if (!d) return '';
+  const c = d.padStart(3, '0');
+  return `${c.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${c.slice(-2)}`;
+}
+
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
 export const ordenarNome = <T extends { nome: string; ordem?: number }>(a: T, b: T) =>

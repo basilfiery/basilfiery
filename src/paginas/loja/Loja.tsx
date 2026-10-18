@@ -9,7 +9,7 @@ import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
-import { brl, cx, hora, lerPreco, ls } from '../../lib/util';
+import { brl, cx, hora, lerPreco, ls, mascaraPreco } from '../../lib/util';
 import { ModalProduto, nomeItem, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import '../../estilos/mesa.css';
 import '../../estilos/loja.css';
@@ -510,7 +510,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
             ))}
           </div>
           {forma === 'dinheiro' && (
-            <label className="campo"><span>Troco para quanto? (opcional)</span><input className="input" inputMode="decimal" value={troco} onChange={(e) => setTroco(e.target.value)} placeholder={`Ex.: ${brl(Math.ceil(total / 50) * 50)}`} /></label>
+            <label className="campo"><span>Troco para quanto? (opcional)</span><input className="input" inputMode="decimal" value={troco} onChange={(e) => setTroco(mascaraPreco(e.target.value))} placeholder={`Ex.: ${brl(Math.ceil(total / 50) * 50)}`} /></label>
           )}
         </fieldset>
 

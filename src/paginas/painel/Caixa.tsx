@@ -6,7 +6,7 @@ import { useToast } from '../../componentes/Toast';
 import { imprimirFechamento, imprimirMovimentoCaixa } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Caixa, MovimentoCaixa, Papel, ResumoCaixa } from '../../lib/tipos';
-import { FORMAS, brl, cx, dataHora, duracao, hora, lerPreco, podeCaixa } from '../../lib/util';
+import { FORMAS, brl, cx, dataHora, duracao, hora, lerPreco, mascaraPreco, podeCaixa } from '../../lib/util';
 import { aplicarAtualizacao } from '../../lib/versao';import { IconeForma } from '../../componentes/Pagamento';
 import { confirmar } from '../../componentes/Confirmar';
 
@@ -97,7 +97,7 @@ function CaixaFechado({ restaurante, pode, aoAberto }: { restaurante: { id: stri
       {pode ? (
         <div className="form">
           <Campo rotulo="Troco inicial na gaveta (R$)" dica="O dinheiro que já está no caixa ao começar. Pode deixar em branco se for zero.">
-            <input className="input" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
+            <input className="input" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(mascaraPreco(e.target.value))} autoFocus
               onKeyDown={(e) => e.key === 'Enter' && void abrir()} />
           </Campo>
           <button className="btn btn--sucesso btn--lg" onClick={() => void abrir()} disabled={ocupado}>
@@ -194,7 +194,7 @@ function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado 
           <div className="form">
             <div className="form-linha">
               <Campo rotulo="Dinheiro contado na gaveta (R$)" dica={`Esperado: ${brl(r.dinheiro_esperado)}`}>
-                <input className="input" inputMode="decimal" placeholder="0,00" value={contado} onChange={(e) => setContado(e.target.value)} autoFocus />
+                <input className="input" inputMode="decimal" placeholder="0,00" value={contado} onChange={(e) => setContado(mascaraPreco(e.target.value))} autoFocus />
               </Campo>
               <div className={cx('caixa__diferenca', diferenca !== null && (Math.abs(diferenca) < 0.005 ? 'ok' : diferenca > 0 ? 'sobra' : 'falta'))}>
                 <span>Diferença</span>
@@ -270,7 +270,7 @@ function Retirada({ r, restaurante, pode, aoVoltar, aoConcluir }: {
 
       <div className="form">
         <Campo rotulo="Valor da retirada (R$)">
-          <input className="input input--grande" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
+          <input className="input input--grande" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(mascaraPreco(e.target.value))} autoFocus
             onKeyDown={(e) => e.key === 'Enter' && void registrar()} />
         </Campo>
         {excede && <p className="erro-form">O valor é maior que o dinheiro esperado na gaveta ({brl(disponivel)}).</p>}

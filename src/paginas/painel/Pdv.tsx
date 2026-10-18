@@ -9,7 +9,7 @@ import { useToast } from '../../componentes/Toast';
 import { imprimirPedido } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
-import { brl, cx, lerPreco, podeCaixa } from '../../lib/util';
+import { brl, cx, lerPreco, mascaraPreco, podeCaixa, precoParaTexto } from '../../lib/util';
 import { nomeItem, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import { mascaraTelefone } from './config/Estabelecimento';
 import { usePainel } from './Painel';
@@ -320,10 +320,10 @@ export default function Pdv() {
             </div>
             {forma === 'dinheiro' && (
               <div className="pdv-troco">
-                <input className="input" inputMode="decimal" value={recebido} onChange={(e) => setRecebido(e.target.value)} placeholder="Valor recebido" aria-label="Valor recebido" />
+                <input className="input" inputMode="decimal" value={recebido} onChange={(e) => setRecebido(mascaraPreco(e.target.value))} placeholder="Valor recebido" aria-label="Valor recebido" />
                 <div className="pdv-troco__atalhos">
                   {[...new Set([Math.ceil(total), Math.ceil(total / 10) * 10, Math.ceil(total / 50) * 50, 100])].filter((v) => v >= total && v > 0).slice(0, 3).map((v) => (
-                    <button key={v} type="button" className="pdv-chip" onClick={() => setRecebido(String(v))}>{brl(v)}</button>
+                    <button key={v} type="button" className="pdv-chip" onClick={() => setRecebido(precoParaTexto(v))}>{brl(v)}</button>
                   ))}
                 </div>
                 {troco !== null && <p className={cx('pdv-troco__valor', troco < 0 && 'falta')}>{troco < 0 ? `Faltam ${brl(-troco)}` : `Troco: ${brl(troco)}`}</p>}

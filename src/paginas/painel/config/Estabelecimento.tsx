@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AtSign, Bike, Check, Copy, ImagePlus, LoaderCircle, Phone, RefreshCw, Store, Trash2 } from 'lucide-react';
+import { AjustarFoto } from '../../../componentes/AjustarFoto';
 import { useToast } from '../../../componentes/Toast';
 import { IconeForma } from '../../../componentes/Pagamento';
 import { useSessao } from '../../../lib/sessao';
 import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../../lib/supabase';
 import type { EnderecoLoja, HorarioDia, RestauranteDados } from '../../../lib/tipos';
-import { cx, lerPreco, precoParaTexto } from '../../../lib/util';
+import { cx, lerPreco, mascaraPreco, precoParaTexto } from '../../../lib/util';
 import { usePainel } from '../Painel';
 import { CampoAjuda, OpcaoChave, PaginaConfig, mudou, usePasso, type Passo } from './Layout';
 
@@ -119,9 +120,9 @@ export default function Estabelecimento() {
     }
   }
 
-  async function enviarLogo(arquivo?: File) {
-    if (!arquivo) return;
-    try { set('logo_url', await enviarImagem(r.id, arquivo, 'logo')); } catch (e) { toast(msgErro(e), 'erro'); }
+  const [ajustarLogo, setAjustarLogo] = useState<File | null>(null);
+  async function enviarLogo(recorte: Blob) {
+    try { set('logo_url', await enviarImagem(r.id, recorte, 'logo')); setAjustarLogo(null); } catch (e) { toast(msgErro(e), 'erro'); }
   }
 
   async function salvar() {
@@ -231,7 +232,8 @@ export default function Estabelecimento() {
                 {f.logo_url ? <RefreshCw size={17} /> : <ImagePlus size={17} />}
               </button>
               {f.logo_url && <button type="button" className="btn-quadrado" onClick={() => set('logo_url', null)} title="Remover logo" aria-label="Remover logo"><Trash2 size={17} /></button>}
-              <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => { void enviarLogo(e.target.files?.[0]); e.target.value = ''; }} />
+              <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => { const x = e.target.files?.[0]; if (x) setAjustarLogo(x); e.target.value = ''; }} />
+              {ajustarLogo && <AjustarFoto arquivo={ajustarLogo} formato="quadrado" titulo="Ajustar logo" aoConfirmar={enviarLogo} aoCancelar={() => setAjustarLogo(null)} />}
             </div>
             <strong>{f.nome || 'Seu estabelecimento'}</strong>
             <small>{f.segmento || 'Segmento'}</small>
@@ -317,7 +319,7 @@ export default function Estabelecimento() {
       {passo.id === 'minimo' && (
         <div className="form cfg-estreito">
           <CampoAjuda rotulo="Pedido mínimo (R$)" ajuda="Deixe 0,00 para não ter mínimo. A taxa de entrega não entra na conta.">
-            <span className="input-icone"><b>R$</b><input className="input" inputMode="decimal" value={f.minimo} onChange={(e) => set('minimo', e.target.value)} /></span>
+            <span className="input-icone"><b>R$</b><input className="input" inputMode="decimal" value={f.minimo} onChange={(e) => set('minimo', mascaraPreco(e.target.value))} /></span>
           </CampoAjuda>
         </div>
       )}
@@ -325,7 +327,7 @@ export default function Estabelecimento() {
       {passo.id === 'taxa' && (
         <div className="form cfg-estreito">
           <CampoAjuda rotulo="Taxa de entrega (R$)" ajuda="Deixe 0,00 para entrega grátis.">
-            <span className="input-icone"><Bike size={17} /><input className="input" inputMode="decimal" value={f.taxa} onChange={(e) => set('taxa', e.target.value)} /></span>
+            <span className="input-icone"><Bike size={17} /><input className="input" inputMode="decimal" value={f.taxa} onChange={(e) => set('taxa', mascaraPreco(e.target.value))} /></span>
           </CampoAjuda>
         </div>
       )}

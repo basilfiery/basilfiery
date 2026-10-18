@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { LayoutDashboard, LogOut, Plus, Store } from 'lucide-react';
+import { LayoutDashboard, LogOut, Plus, Receipt, Store, Trash2 } from 'lucide-react';
+import { confirmar } from '../../componentes/Confirmar';
 import { Campo, Logo, Switch, Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { useSessao } from '../../lib/sessao';
 import { gestao, msgErro, supabase } from '../../lib/supabase';
-import type { Restaurante } from '../../lib/tipos';
-import { dataHora } from '../../lib/util';
+import type { Fatura, Restaurante } from '../../lib/tipos';
+import { brl, dataHora, lerPreco } from '../../lib/util';
 import { SITE } from '../../config/site';
 import '../../estilos/painel.css';
 
@@ -81,6 +82,7 @@ function Restaurantes() {
   const toast = useToast();
   const [lista, setLista] = useState<Restaurante[] | null>(null);
   const [criando, setCriando] = useState(false);
+  const [cobranca, setCobranca] = useState<Restaurante | null>(null);
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.from('restaurantes').select('*').order('criado_em', { ascending: false });
@@ -138,9 +140,12 @@ function Restaurantes() {
                   <td className="muted">{dataHora(r.criado_em)}</td>
                   <td><Switch marcado={r.ativo} aoMudar={(v) => void atualizar(r, { ativo: v })} /></td>
                   <td className="num">
-                    <button className="btn btn--contorno btn--sm" onClick={() => { s.escolherRestaurante(r.id); window.location.assign('/painel'); }}>
-                      Abrir painel
-                    </button>
+                    <div className="acoes-linha" style={{ justifyContent: 'flex-end' }}>
+                      <button className="btn btn--contorno btn--sm" onClick={() => setCobranca(r)}><Receipt size={15} /> Cobrança</button>
+                      <button className="btn btn--contorno btn--sm" onClick={() => { s.escolherRestaurante(r.id); window.location.assign('/painel'); }}>
+                        Abrir painel
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -150,7 +155,120 @@ function Restaurantes() {
       )}
 
       {criando && <ModalNovoRestaurante aoFechar={() => setCriando(false)} aoCriar={() => { setCriando(false); void carregar(); void s.recarregar(); }} />}
+      {cobranca && <ModalCobranca restaurante={cobranca} aoFechar={() => setCobranca(null)} aoSalvar={() => { void carregar(); void s.recarregar(); }} />}
     </div>
+  );
+}
+
+const FORMAS_PLANO = ['Pix', 'Boleto', 'Pix ou boleto', 'Cartão de crédito'];
+
+/** Cobrança de um restaurante: valor, vencimento e forma do plano + faturas (aparecem para o dono em Minha conta). */
+function ModalCobranca({ restaurante: r, aoFechar, aoSalvar }: { restaurante: Restaurante; aoFechar: () => void; aoSalvar: () => void }) {
+  const toast = useToast();
+  const [plano, setPlano] = useState({
+    valor: r.plano_valor != null ? String(r.plano_valor).replace('.', ',') : '',
+    vence: r.plano_vence_em ?? '',
+    forma: r.plano_forma ?? 'Pix ou boleto',
+  });
+  const [faturas, setFaturas] = useState<Fatura[] | null>(null);
+  const [nova, setNova] = useState({ referencia: '', valor: '', vencimento: '', link: '' });
+  const [salvando, setSalvando] = useState(false);
+
+  const carregarFaturas = useCallback(async () => {
+    const { data } = await supabase.from('faturas').select('*').eq('restaurante_id', r.id).order('vencimento', { ascending: false });
+    setFaturas((data ?? []) as Fatura[]);
+  }, [r.id]);
+  useEffect(() => { void carregarFaturas(); }, [carregarFaturas]);
+
+  async function salvarPlano() {
+    setSalvando(true);
+    try {
+      await gestao('atualizar_restaurante', {
+        id: r.id,
+        plano_valor: plano.valor.trim() ? lerPreco(plano.valor) : null,
+        plano_vence_em: plano.vence || null,
+        plano_forma: plano.forma,
+      });
+      toast('Cobrança salva.', 'ok');
+      aoSalvar();
+    } catch (e) {
+      toast(msgErro(e), 'erro');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function lancar() {
+    const valor = lerPreco(nova.valor);
+    if (!nova.referencia.trim() || !Number.isFinite(valor) || !nova.vencimento) return toast('Preencha referência, valor e vencimento.', 'erro');
+    const { error } = await supabase.from('faturas').insert({
+      restaurante_id: r.id, referencia: nova.referencia.trim(), valor, vencimento: nova.vencimento, link: nova.link.trim() || null,
+    });
+    if (error) return toast(msgErro(error), 'erro');
+    setNova({ referencia: '', valor: '', vencimento: '', link: '' });
+    void carregarFaturas();
+  }
+
+  async function marcarPaga(f: Fatura, paga: boolean) {
+    const { error } = await supabase.from('faturas').update({ pago_em: paga ? new Date().toISOString() : null }).eq('id', f.id);
+    if (error) return toast(msgErro(error), 'erro');
+    void carregarFaturas();
+  }
+
+  async function excluir(f: Fatura) {
+    if (!(await confirmar(`Excluir a fatura "${f.referencia}"?`, { sim: 'Excluir', perigo: true }))) return;
+    const { error } = await supabase.from('faturas').delete().eq('id', f.id);
+    if (error) return toast(msgErro(error), 'erro');
+    void carregarFaturas();
+  }
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo={`Cobrança · ${r.nome}`} largura={680}>
+      <div className="form">
+        <h3 style={{ margin: 0, fontSize: '1rem' }}>Plano</h3>
+        <div className="form-linha">
+          <Campo rotulo="Valor mensal (R$)"><input className="input" inputMode="decimal" value={plano.valor} onChange={(e) => setPlano({ ...plano, valor: e.target.value })} placeholder="149,00" /></Campo>
+          <Campo rotulo="Vencimento do plano"><input className="input" type="date" value={plano.vence} onChange={(e) => setPlano({ ...plano, vence: e.target.value })} /></Campo>
+          <Campo rotulo="Forma de pagamento">
+            <select className="select" value={plano.forma} onChange={(e) => setPlano({ ...plano, forma: e.target.value })}>
+              {FORMAS_PLANO.map((x) => <option key={x}>{x}</option>)}
+            </select>
+          </Campo>
+        </div>
+        <div className="acoes-linha" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn btn--primario btn--sm" disabled={salvando} onClick={() => void salvarPlano()}>Salvar plano</button>
+        </div>
+
+        <h3 style={{ margin: '10px 0 0', fontSize: '1rem' }}>Faturas</h3>
+        {faturas && faturas.length > 0 && (
+          <div className="tabela-wrap">
+            <table className="tabela">
+              <thead><tr><th>Referência</th><th>Vencimento</th><th className="num">Valor</th><th>Paga</th><th /></tr></thead>
+              <tbody>
+                {faturas.map((f) => (
+                  <tr key={f.id}>
+                    <td>{f.referencia}</td>
+                    <td>{new Date(`${f.vencimento}T12:00:00`).toLocaleDateString('pt-BR')}</td>
+                    <td className="num">{brl(Number(f.valor))}</td>
+                    <td><Switch marcado={!!f.pago_em} aoMudar={(v) => void marcarPaga(f, v)} /></td>
+                    <td className="num"><button className="icone-btn icone-btn--perigo" onClick={() => void excluir(f)} aria-label="Excluir fatura"><Trash2 size={16} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="form-linha">
+          <Campo rotulo="Referência"><input className="input" value={nova.referencia} onChange={(e) => setNova({ ...nova, referencia: e.target.value })} placeholder="Novembro/2026" /></Campo>
+          <Campo rotulo="Valor (R$)"><input className="input" inputMode="decimal" value={nova.valor} onChange={(e) => setNova({ ...nova, valor: e.target.value })} /></Campo>
+          <Campo rotulo="Vencimento"><input className="input" type="date" value={nova.vencimento} onChange={(e) => setNova({ ...nova, vencimento: e.target.value })} /></Campo>
+        </div>
+        <Campo rotulo="Link para pagar (opcional)" dica="Link do boleto ou do Pix"><input className="input" value={nova.link} onChange={(e) => setNova({ ...nova, link: e.target.value })} placeholder="https://…" /></Campo>
+        <div className="acoes-linha" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn btn--contorno btn--sm" onClick={() => void lancar()}><Plus size={15} /> Lançar fatura</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

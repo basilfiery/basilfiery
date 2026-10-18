@@ -1,0 +1,533 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactElement } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  Banknote, Bike, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
+} from 'lucide-react';
+import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
+import { Carregando } from '../../componentes/Carregando';
+import { Modal } from '../../componentes/Modal';
+import { useToast } from '../../componentes/Toast';
+import { useAppInstalavel } from '../../lib/manifesto';
+import { msgErro, supabase } from '../../lib/supabase';
+import { brl, cx, hora, lerPreco, ls } from '../../lib/util';
+import { ModalProduto, nomeItem, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import '../../estilos/mesa.css';
+import '../../estilos/loja.css';
+
+/* =====================================================================
+   Cardápio digital para DELIVERY: /loja/<codigo>
+   Mesmo visual do cardápio da mesa; no fim, entrega ou retirada.
+   ===================================================================== */
+
+interface Loja {
+  id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string;
+  aberto: boolean; taxa: number; minimo: number; tempo: string; retirada: boolean; whatsapp: string | null; endereco: string | null;
+}
+interface Dados { restaurante: Loja; categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[] }
+interface Linha { chave: string; produto_id: string; qtd: number; obs: string }
+interface Cliente {
+  nome: string; telefone: string;
+  endereco: { rua: string; numero: string; bairro: string; complemento: string; referencia: string };
+}
+type Forma = 'pix' | 'dinheiro' | 'credito' | 'debito';
+
+const DESTAQUES = '__destaques';
+const OUTRAS = '__outras';
+const CLIENTE_VAZIO: Cliente = { nome: '', telefone: '', endereco: { rua: '', numero: '', bairro: '', complemento: '', referencia: '' } };
+const FORMAS: { id: Forma; rotulo: string; icone: ReactElement }[] = [
+  { id: 'pix', rotulo: 'Pix', icone: <span className="loja-pix">◆</span> },
+  { id: 'dinheiro', rotulo: 'Dinheiro', icone: <Banknote size={18} /> },
+  { id: 'credito', rotulo: 'Crédito', icone: <CreditCard size={18} /> },
+  { id: 'debito', rotulo: 'Débito', icone: <CreditCard size={18} /> },
+];
+const telefoneFormatado = (t: string) => {
+  const d = t.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
+};
+
+function useAlturaTela() {
+  useEffect(() => {
+    const aplicar = () => document.documentElement.style.setProperty('--altura-tela', `${window.innerHeight}px`);
+    aplicar();
+    window.addEventListener('resize', aplicar);
+    return () => window.removeEventListener('resize', aplicar);
+  }, []);
+}
+
+export default function LojaCardapio() {
+  const { codigo = '' } = useParams();
+  const navegar = useNavigate();
+  const toast = useToast();
+  useAlturaTela();
+  const [dados, setDados] = useState<Dados | null>(null);
+  const [erro, setErro] = useState('');
+  const [carrinho, setCarrinho] = useState<Linha[]>(() => ls.ler(`bf:loja:carrinho:${codigo}`, []));
+  const [catAtiva, setCatAtiva] = useState('');
+  const [subAtiva, setSubAtiva] = useState('');
+  const [produtoAberto, setProdutoAberto] = useState<ProdutoMesa | null>(null);
+  const [verCarrinho, setVerCarrinho] = useState(false);
+  const [finalizar, setFinalizar] = useState(false);
+  const listaRef = useRef<HTMLElement>(null);
+
+  const carregar = useCallback(async () => {
+    const { data, error } = await supabase.rpc('loja_cardapio', { p_codigo: codigo });
+    if (error) return setErro(msgErro(error));
+    setDados(data as Dados);
+  }, [codigo]);
+  useEffect(() => {
+    void carregar();
+    const i = setInterval(() => void carregar(), 60000);
+    return () => clearInterval(i);
+  }, [carregar]);
+  useEffect(() => ls.gravar(`bf:loja:carrinho:${codigo}`, carrinho), [carrinho, codigo]);
+  useAppInstalavel(dados ? { nome: dados.restaurante.nome, curto: dados.restaurante.nome.slice(0, 12), inicio: `/loja/${codigo}`, escopo: `/loja/${codigo}` } : null);
+
+  // Sabores de grupo e preço de subcategoria: igual ao cardápio da mesa
+  const { produtosLoja, saboresPorCategoria } = useMemo(() => {
+    const cats = new Map((dados?.categorias ?? []).map((c) => [c.id, c]));
+    const produtosLoja = (dados?.produtos ?? []).map((p) => {
+      const c = cats.get(p.categoria_id);
+      return c?.preco_grupo != null ? { ...p, preco: Number(c.preco_grupo) + Number(p.preco), prefixo: c.nome } : p;
+    });
+    const saboresPorCategoria = new Map<string, ProdutoMesa[]>();
+    for (const c of dados?.categorias ?? []) {
+      if (!c.grupo_id) continue;
+      saboresPorCategoria.set(c.id, (dados?.sabores ?? []).filter((x) => x.grupo_id === c.grupo_id).map((x) => ({
+        ...x, id: `${c.id}:${x.id}`, categoria_id: c.id, disponivel: x.disponivel && !c.esgotado,
+        preco: Number(c.preco_grupo ?? 0) + Number(x.preco), real_id: x.id, tamanho_id: c.id, prefixo: c.nome,
+      })));
+    }
+    return { produtosLoja, saboresPorCategoria };
+  }, [dados]);
+  const porId = useMemo(() => new Map([
+    ...produtosLoja.map((p) => [p.id, p] as const),
+    ...[...saboresPorCategoria.values()].flat().map((p) => [p.id, p] as const),
+  ]), [produtosLoja, saboresPorCategoria]);
+
+  if (erro && !dados) {
+    return (
+      <div className="mesa-erro">
+        <span className="mesa-erro__icone"><Store size={40} strokeWidth={1.5} /></span>
+        <h1 className="titulo">Loja não encontrada</h1>
+        <p>{erro}</p>
+        <p className="muted">Confira o link que você recebeu.</p>
+      </div>
+    );
+  }
+  if (!dados) return <Carregando texto="Carregando cardápio…" />;
+
+  const loja = dados.restaurante;
+  const categorias = dados.categorias;
+  const produtosDe = (id: string) => [...(saboresPorCategoria.get(id) ?? []), ...produtosLoja.filter((p) => p.categoria_id === id)];
+  const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
+  const subsDe = (id: string) => categorias.filter((c) => c.pai_id === id && produtosDe(c.id).length > 0);
+  const destaques = produtosLoja.filter((p) => p.destaque);
+  const secoes = [
+    ...(destaques.length ? [{ id: DESTAQUES, nome: 'Mais pedidos', emoji: null as string | null, diretos: destaques, subs: [] as CategoriaMesa[], total: destaques.length }] : []),
+    ...principais.map((c) => {
+      const subs = subsDe(c.id);
+      const diretos = produtosDe(c.id);
+      return { ...c, diretos, subs, total: diretos.length + subs.reduce((s, x) => s + produtosDe(x.id).length, 0) };
+    }).filter((c) => c.total > 0),
+  ];
+  const secao = secoes.find((c) => c.id === catAtiva) ?? secoes[0];
+  const abas = secao ? [
+    ...secao.subs.map((sub) => {
+      const precos = produtosDe(sub.id).map((x) => Number(x.preco));
+      return { id: sub.id, nome: sub.nome, emoji: sub.emoji, preco: precos.length ? Math.min(...precos) : 0 };
+    }),
+    ...(secao.subs.length && secao.diretos.length ? [{ id: OUTRAS, nome: 'Outras opções', emoji: null, preco: 0 }] : []),
+  ] : [];
+  const abaAtual = abas.some((a) => a.id === subAtiva) ? subAtiva : abas[0]?.id ?? '';
+  const lista = !secao ? [] : abaAtual === OUTRAS || !secao.subs.length ? secao.diretos : produtosDe(abaAtual);
+
+  const subtotal = carrinho.reduce((s, l) => s + (porId.get(l.produto_id)?.preco ?? 0) * l.qtd, 0);
+  const qtdItens = carrinho.reduce((s, l) => s + l.qtd, 0);
+  const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
+  const faltaMinimo = Math.max(0, Number(loja.minimo) - subtotal);
+
+  function adicionar(p: ProdutoMesa, qtd: number, obs: string) {
+    const chave = `${p.id}|${obs}`;
+    setCarrinho((c) => (c.some((l) => l.chave === chave)
+      ? c.map((l) => (l.chave === chave ? { ...l, qtd: l.qtd + qtd } : l))
+      : [...c, { chave, produto_id: p.id, qtd, obs }]));
+    toast(`${qtd}× ${nomeItem(p)} na sacola`, 'ok');
+  }
+  const mudarQtd = (chave: string, qtd: number) =>
+    setCarrinho((c) => (qtd <= 0 ? c.filter((l) => l.chave !== chave) : c.map((l) => (l.chave === chave ? { ...l, qtd } : l))));
+  const escolher = (id: string, sub = '') => { setCatAtiva(id); setSubAtiva(sub); listaRef.current?.scrollTo({ top: 0 }); };
+
+  const sacola = (
+    <div className="carrinho">
+      <h2 className="carrinho__titulo titulo">Sua sacola</h2>
+      {carrinho.length === 0 ? (
+        <div className="carrinho__vazio"><ShoppingBag size={36} /><p>Toque em um prato para adicionar.</p></div>
+      ) : (
+        <ul className="carrinho__linhas">
+          {carrinho.map((l) => {
+            const p = porId.get(l.produto_id);
+            if (!p) return null;
+            return (
+              <li key={l.chave} className="carrinho__linha">
+                <div className="carrinho__info">
+                  <strong>{nomeItem(p)}</strong>
+                  {l.obs && <small>“{l.obs}”</small>}
+                  <span>{brl(p.preco * l.qtd)}</span>
+                </div>
+                <div className="carrinho__qtd"><Stepper valor={l.qtd} min={0} max={p.estoque_max ?? 50} aoMudar={(v) => mudarQtd(l.chave, v)} /></div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div className="carrinho__rodape">
+        <div className="loja-totais">
+          <div><span>Subtotal</span><span>{brl(subtotal)}</span></div>
+          {Number(loja.taxa) > 0 && <div><span>Entrega</span><span>{brl(Number(loja.taxa))}</span></div>}
+        </div>
+        {faltaMinimo > 0 && carrinho.length > 0 && <p className="loja-aviso">Pedido mínimo {brl(Number(loja.minimo))}. Faltam {brl(faltaMinimo)}.</p>}
+        <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length || !loja.aberto || faltaMinimo > 0} onClick={() => { setVerCarrinho(false); setFinalizar(true); }}>
+          {loja.aberto ? 'Continuar' : 'Loja fechada agora'}
+        </button>
+        {carrinho.length > 0 && <button className="btn btn--fantasma btn--sm btn--bloco" onClick={() => setCarrinho([])}><Trash2 size={16} /> Esvaziar</button>}
+      </div>
+    </div>
+  );
+
+  const grade = (itens: ProdutoMesa[]) => (
+    <div className="mesa__grade">
+      {itens.map((p) => {
+        const n = qtdDoProduto(p.id);
+        return (
+          <button key={p.id} className={cx('prod', !p.disponivel && 'prod--esgotado')} disabled={!p.disponivel} onClick={() => setProdutoAberto(p)}>
+            <div className="prod__midia">
+              {p.capa === 'video' && p.video_url ? <VideoCapa p={{ ...p, video_url: p.video_url }} classe="prod__foto" /> : <FotoProduto p={p} classe="prod__foto" />}
+              {p.video_url && p.capa !== 'video' && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
+              {n > 0 && <span className="prod__no-carrinho">{n}</span>}
+              {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
+            </div>
+            <div className="prod__info">
+              <h3>{p.nome}</h3>
+              {p.descricao && <p>{p.descricao}</p>}
+              <Selos p={p} />
+              <div className="prod__rodape">
+                <strong>{brl(p.preco)}</strong>
+                {p.disponivel && <span className="prod__mais" aria-hidden="true"><Plus size={20} /></span>}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className={cx('mesa loja', qtdItens > 0 && 'mesa--com-carrinho')} style={{ '--acento': loja.cor } as CSSProperties}>
+      <header className="mesa__topo">
+        <div className="mesa__marca">
+          {loja.logo_url ? <img src={loja.logo_url} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
+          <div>
+            <strong>{loja.nome}</strong>
+            <span className={cx('loja-status', loja.aberto ? 'aberta' : 'fechada')}>{loja.aberto ? 'Aberto agora' : 'Fechado agora'}</span>
+          </div>
+        </div>
+        <UltimoPedido codigo={codigo} />
+      </header>
+
+      <div className="loja-info">
+        <span><Clock size={15} /> {loja.tempo}</span>
+        <span><Bike size={15} /> {Number(loja.taxa) > 0 ? `Entrega ${brl(Number(loja.taxa))}` : 'Entrega grátis'}</span>
+        {Number(loja.minimo) > 0 && <span><Receipt size={15} /> Mínimo {brl(Number(loja.minimo))}</span>}
+        {loja.retirada && <span><Store size={15} /> Retirada no balcão</span>}
+      </div>
+      {!loja.aberto && <div className="faixa-acesso faixa-acesso--recusado loja-fechada"><Clock size={16} /><span><b>A loja está fechada agora.</b> Você pode olhar o cardápio; os pedidos voltam quando abrir.</span></div>}
+
+      <div className="mesa__corpo">
+        <nav className="mesa__cats" aria-label="Categorias">
+          {secoes.map((c) => (
+            <button key={c.id} className={cx('mesa__cat', secao?.id === c.id && 'ativa')} onClick={() => escolher(c.id)}>
+              <span className="mesa__cat-emoji" aria-hidden="true">{c.id === DESTAQUES ? <Star size={18} fill="currentColor" /> : c.emoji}</span>
+              <span className="mesa__cat-nome">{c.nome}</span>
+              <span className="mesa__cat-qtd">{c.total}</span>
+            </button>
+          ))}
+        </nav>
+        <main className="mesa__lista" ref={listaRef}>
+          {secao ? (
+            <section key={`${secao.id}:${abaAtual}`} className="mesa__secao">
+              <header className="mesa__secao-cab">
+                <h2 className="titulo"><span className="mesa__secao-emoji" aria-hidden="true">{secao.id === DESTAQUES ? <Star size={18} fill="currentColor" /> : secao.emoji}</span> {secao.nome}</h2>
+                <span>{lista.length} {lista.length === 1 ? 'opção' : 'opções'}</span>
+              </header>
+              {abas.length > 1 && (
+                <div className="mesa__abas" role="tablist">
+                  {abas.map((a) => (
+                    <button key={a.id} role="tab" aria-selected={abaAtual === a.id} className={cx('mesa__aba', abaAtual === a.id && 'ativa')} onClick={() => setSubAtiva(a.id)}>
+                      <span>{a.emoji} {a.nome}</span>
+                      {a.preco > 0 && <small>{brl(a.preco)}</small>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {grade(lista)}
+            </section>
+          ) : <p className="vazio">O cardápio ainda está sendo preparado.</p>}
+        </main>
+        <aside className="mesa__carrinho">{sacola}</aside>
+      </div>
+
+      {qtdItens > 0 && (
+        <button className="mesa__flutuante" onClick={() => setVerCarrinho(true)}>
+          <span className="mesa__flutuante-qtd">{qtdItens}</span>
+          <span>Ver sacola</span>
+          <strong>{brl(subtotal)}</strong>
+        </button>
+      )}
+      <Modal aberto={verCarrinho} aoFechar={() => setVerCarrinho(false)} classe="mesa-modal">{sacola}</Modal>
+
+      {produtoAberto && (
+        <ModalProduto
+          key={produtoAberto.id}
+          p={produtoAberto}
+          aoFechar={() => setProdutoAberto(null)}
+          aoAdicionar={(qtd, obs) => { adicionar(produtoAberto, qtd, obs); setProdutoAberto(null); }}
+          jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
+        />
+      )}
+
+      {finalizar && (
+        <ModalFinalizar
+          codigo={codigo}
+          loja={loja}
+          carrinho={carrinho}
+          porId={porId}
+          subtotal={subtotal}
+          aoFechar={() => setFinalizar(false)}
+          aoEnviar={(acompanhar) => {
+            setCarrinho([]);
+            const ultimos = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, []);
+            ls.gravar(`bf:loja:pedidos:${codigo}`, [acompanhar, ...ultimos].slice(0, 5));
+            navegar(`/loja/${codigo}/pedido/${acompanhar}`);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Atalho para acompanhar o último pedido feito neste celular. */
+function UltimoPedido({ codigo }: { codigo: string }) {
+  const ultimo = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, [])[0];
+  if (!ultimo) return null;
+  return (
+    <Link className="btn btn--contorno loja-meu-pedido" to={`/loja/${codigo}/pedido/${ultimo}`}>
+      <Receipt size={18} /> <span className="mesa__rotulo">Meu pedido</span>
+    </Link>
+  );
+}
+
+function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoEnviar }: {
+  codigo: string;
+  loja: Loja;
+  carrinho: Linha[];
+  porId: Map<string, ProdutoMesa>;
+  subtotal: number;
+  aoFechar: () => void;
+  aoEnviar: (acompanhar: string) => void;
+}) {
+  const toast = useToast();
+  const [tipo, setTipo] = useState<'delivery' | 'retirada'>('delivery');
+  const [cli, setCli] = useState<Cliente>(() => ({ ...CLIENTE_VAZIO, ...ls.ler<Cliente>('bf:loja:cliente', CLIENTE_VAZIO) }));
+  const [forma, setForma] = useState<Forma | null>(null);
+  const [troco, setTroco] = useState('');
+  const [obs, setObs] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const taxa = tipo === 'delivery' ? Number(loja.taxa) : 0;
+  const total = subtotal + taxa;
+  const end = (k: keyof Cliente['endereco'], v: string) => setCli((c) => ({ ...c, endereco: { ...c.endereco, [k]: v } }));
+
+  async function enviar(e: FormEvent) {
+    e.preventDefault();
+    if (!forma) return toast('Escolha a forma de pagamento.', 'erro');
+    setEnviando(true);
+    ls.gravar('bf:loja:cliente', cli);
+    const { data, error } = await supabase.rpc('loja_pedido_enviar', {
+      p_codigo: codigo,
+      p_tipo: tipo,
+      p_itens: carrinho.map((l) => {
+        const p = porId.get(l.produto_id);
+        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs };
+      }),
+      p_cliente: {
+        nome: cli.nome, telefone: cli.telefone, pagamento: forma,
+        troco: forma === 'dinheiro' && troco.trim() ? String(lerPreco(troco)) : '',
+        endereco: tipo === 'delivery' ? cli.endereco : null,
+      },
+      p_obs: obs,
+    });
+    setEnviando(false);
+    if (error) return toast(msgErro(error), 'erro');
+    aoEnviar((data as { acompanhar: string }).acompanhar);
+  }
+
+  return (
+    <Modal aberto aoFechar={() => !enviando && aoFechar()} titulo="Finalizar pedido" classe="mesa-modal loja-finalizar" largura={560}>
+      <form className="loja-form" onSubmit={enviar} id="form-finalizar">
+        {loja.retirada && (
+          <div className="loja-segmento" role="radiogroup" aria-label="Como receber">
+            <button type="button" role="radio" aria-checked={tipo === 'delivery'} className={cx(tipo === 'delivery' && 'ativo')} onClick={() => setTipo('delivery')}>
+              <Bike size={20} /><span>Entrega<small>{loja.tempo}</small></span>
+            </button>
+            <button type="button" role="radio" aria-checked={tipo === 'retirada'} className={cx(tipo === 'retirada' && 'ativo')} onClick={() => setTipo('retirada')}>
+              <Store size={20} /><span>Retirar no balcão<small>sem taxa</small></span>
+            </button>
+          </div>
+        )}
+
+        <fieldset>
+          <legend>Seus dados</legend>
+          <label className="campo"><span>Nome</span><input className="input" required maxLength={80} value={cli.nome} onChange={(e) => setCli({ ...cli, nome: e.target.value })} autoComplete="name" /></label>
+          <label className="campo"><span>WhatsApp</span><input className="input" required inputMode="tel" autoComplete="tel" value={telefoneFormatado(cli.telefone)} onChange={(e) => setCli({ ...cli, telefone: e.target.value.replace(/\D/g, '') })} placeholder="(11) 98765-4321" /></label>
+        </fieldset>
+
+        {tipo === 'delivery' ? (
+          <fieldset>
+            <legend><MapPin size={16} /> Endereço de entrega</legend>
+            <div className="loja-linha">
+              <label className="campo loja-linha__grande"><span>Rua</span><input className="input" required maxLength={120} value={cli.endereco.rua} onChange={(e) => end('rua', e.target.value)} autoComplete="address-line1" /></label>
+              <label className="campo"><span>Número</span><input className="input" required maxLength={20} value={cli.endereco.numero} onChange={(e) => end('numero', e.target.value)} inputMode="numeric" /></label>
+            </div>
+            <label className="campo"><span>Bairro</span><input className="input" required maxLength={80} value={cli.endereco.bairro} onChange={(e) => end('bairro', e.target.value)} /></label>
+            <div className="loja-linha">
+              <label className="campo"><span>Complemento</span><input className="input" maxLength={80} value={cli.endereco.complemento} onChange={(e) => end('complemento', e.target.value)} placeholder="Apto, bloco…" /></label>
+              <label className="campo"><span>Referência</span><input className="input" maxLength={120} value={cli.endereco.referencia} onChange={(e) => end('referencia', e.target.value)} placeholder="Perto de…" /></label>
+            </div>
+          </fieldset>
+        ) : loja.endereco ? (
+          <p className="loja-retirada"><Store size={18} /> Retire em: <b>{loja.endereco}</b></p>
+        ) : null}
+
+        <fieldset>
+          <legend>Pagamento {tipo === 'delivery' ? 'na entrega' : 'na retirada'}</legend>
+          <div className="loja-formas">
+            {FORMAS.map((f) => (
+              <button key={f.id} type="button" className={cx(forma === f.id && 'ativo')} onClick={() => setForma(f.id)} aria-pressed={forma === f.id}>
+                {f.icone}<span>{f.rotulo}</span>{forma === f.id && <Check size={15} className="loja-formas__ok" />}
+              </button>
+            ))}
+          </div>
+          {forma === 'dinheiro' && (
+            <label className="campo"><span>Troco para quanto? (opcional)</span><input className="input" inputMode="decimal" value={troco} onChange={(e) => setTroco(e.target.value)} placeholder={`Ex.: ${brl(Math.ceil(total / 50) * 50)}`} /></label>
+          )}
+        </fieldset>
+
+        <label className="campo"><span>Observação (opcional)</span><textarea className="textarea" rows={2} maxLength={300} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: sem cebola, tocar o interfone" /></label>
+
+        <div className="loja-resumo">
+          {carrinho.map((l) => {
+            const p = porId.get(l.produto_id);
+            return p ? <div key={l.chave}><span>{l.qtd}× {nomeItem(p)}</span><span>{brl(p.preco * l.qtd)}</span></div> : null;
+          })}
+          {taxa > 0 && <div><span>Taxa de entrega</span><span>{brl(taxa)}</span></div>}
+          <div className="loja-resumo__total"><span>Total</span><strong>{brl(total)}</strong></div>
+        </div>
+        <button className="btn btn--primario btn--lg btn--bloco" disabled={enviando}>{enviando ? 'Enviando…' : `Fazer pedido · ${brl(total)}`}</button>
+      </form>
+    </Modal>
+  );
+}
+
+/* ---------- Acompanhar o pedido ---------- */
+interface StatusPedido {
+  numero: number; status: 'novo' | 'preparando' | 'pronto' | 'entregue' | 'cancelado'; tipo: 'delivery' | 'retirada';
+  total: number; taxa: number; criado_em: string; pago: boolean; forma: Forma; troco: number | null; cliente: string;
+  endereco: Cliente['endereco'] | null; itens: { nome: string; qtd: number; preco: number }[];
+  loja: { nome: string; logo_url: string | null; cor: string; whatsapp: string | null; endereco: string | null; codigo: string; tempo: string };
+}
+
+export function LojaPedido() {
+  const { codigo = '', acompanhar = '' } = useParams();
+  const [p, setP] = useState<StatusPedido | null | undefined>(undefined);
+  useAlturaTela();
+
+  useEffect(() => {
+    let vivo = true;
+    const ler = async () => {
+      const { data } = await supabase.rpc('loja_pedido_status', { p_acompanhar: acompanhar });
+      if (vivo) setP((data as StatusPedido | null) ?? null);
+    };
+    void ler();
+    const i = setInterval(() => void ler(), 8000);
+    return () => { vivo = false; clearInterval(i); };
+  }, [acompanhar]);
+
+  if (p === undefined) return <Carregando texto="Carregando seu pedido…" />;
+  if (p === null) {
+    return (
+      <div className="mesa-erro">
+        <span className="mesa-erro__icone"><Receipt size={40} strokeWidth={1.5} /></span>
+        <h1 className="titulo">Pedido não encontrado</h1>
+        <Link className="btn btn--primario btn--lg" to={`/loja/${codigo}`}>Ver o cardápio</Link>
+      </div>
+    );
+  }
+
+  const entrega = p.tipo === 'delivery';
+  const etapas = [
+    { id: 'novo', rotulo: 'Pedido recebido', dica: 'A loja já viu o seu pedido.' },
+    { id: 'preparando', rotulo: 'Em preparo', dica: 'Está sendo preparado agora.' },
+    { id: 'pronto', rotulo: entrega ? 'Saiu para entrega' : 'Pronto para retirar', dica: entrega ? 'Está a caminho.' : 'Pode vir buscar no balcão.' },
+    { id: 'entregue', rotulo: entrega ? 'Entregue' : 'Retirado', dica: 'Bom apetite!' },
+  ];
+  const atual = etapas.findIndex((e) => e.id === p.status);
+  const whats = p.loja.whatsapp ? `https://wa.me/${p.loja.whatsapp.replace(/\D/g, '').replace(/^(?!55)/, '55')}?text=${encodeURIComponent(`Olá! Sobre o meu pedido #${p.numero}.`)}` : '';
+
+  return (
+    <div className="loja-pedido" style={{ '--acento': p.loja.cor } as CSSProperties}>
+      <header className="loja-pedido__topo">
+        {p.loja.logo_url ? <img src={p.loja.logo_url} alt="" /> : <span className="mesa__logo mesa__logo--letra">{p.loja.nome.charAt(0)}</span>}
+        <div><strong>{p.loja.nome}</strong><small>Pedido #{p.numero} · {hora(p.criado_em)}</small></div>
+      </header>
+
+      {p.status === 'cancelado' ? (
+        <section className="loja-pedido__cartao loja-pedido__cancelado">
+          <h1>Pedido cancelado</h1>
+          <p>A loja cancelou este pedido. Fale com ela para saber mais.</p>
+        </section>
+      ) : (
+        <section className="loja-pedido__cartao">
+          <span className="loja-pedido__selo">{entrega ? <Bike size={16} /> : <Store size={16} />} {entrega ? 'Entrega' : 'Retirada'} · {p.loja.tempo}</span>
+          <h1>{etapas[Math.max(0, atual)].rotulo}</h1>
+          <p>{etapas[Math.max(0, atual)].dica}</p>
+          <ol className="loja-etapas">
+            {etapas.map((e, i) => (
+              <li key={e.id} className={cx(i < atual && 'feita', i === atual && 'atual')}>
+                <span>{i < atual ? <Check size={14} /> : i + 1}</span>{e.rotulo}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <section className="loja-pedido__cartao">
+        <h2>Resumo</h2>
+        <div className="loja-resumo">
+          {p.itens.map((i, n) => <div key={n}><span>{i.qtd}× {i.nome}</span><span>{brl(i.qtd * Number(i.preco))}</span></div>)}
+          {Number(p.taxa) > 0 && <div><span>Taxa de entrega</span><span>{brl(Number(p.taxa))}</span></div>}
+          <div className="loja-resumo__total"><span>Total</span><strong>{brl(Number(p.total))}</strong></div>
+        </div>
+        <p className="loja-pedido__linha"><Banknote size={16} /> {FORMAS.find((f) => f.id === p.forma)?.rotulo} {entrega ? 'na entrega' : 'na retirada'}{p.troco ? ` · troco para ${brl(Number(p.troco))}` : ''}{p.pago ? ' · pago' : ''}</p>
+        {entrega && p.endereco && <p className="loja-pedido__linha"><MapPin size={16} /> {p.endereco.rua}, {p.endereco.numero} · {p.endereco.bairro}{p.endereco.complemento ? ` · ${p.endereco.complemento}` : ''}</p>}
+        {!entrega && p.loja.endereco && <p className="loja-pedido__linha"><Store size={16} /> Retirada em {p.loja.endereco}</p>}
+      </section>
+
+      <div className="loja-pedido__acoes">
+        {whats && <a className="btn btn--contorno btn--lg" href={whats} target="_blank" rel="noopener"><MessageCircle size={18} /> Falar com a loja</a>}
+        <Link className="btn btn--primario btn--lg" to={`/loja/${codigo}`}><UtensilsCrossed size={18} /> Fazer outro pedido</Link>
+      </div>
+      <p className="loja-pedido__nota">Esta página se atualiza sozinha.</p>
+    </div>
+  );
+}

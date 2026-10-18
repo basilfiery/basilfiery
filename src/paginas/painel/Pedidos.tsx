@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Ban, Check, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MoreVertical, Plus, Printer,
-  SlidersHorizontal, UtensilsCrossed, X,
+  Ban, Bike, Check, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MapPin, MessageCircle, MoreVertical, Plus, Printer, SlidersHorizontal, Store, UtensilsCrossed, Wallet, X,
 } from 'lucide-react';
 import { FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -10,8 +9,9 @@ import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
 import { imprimirPedido } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Mesa, Pedido, StatusPedido } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, hora, minutosDesde, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
+import type { FormaPagamento, Mesa, Pedido, StatusPedido } from '../../lib/tipos';
+import { SeletorPagamento } from '../../componentes/Pagamento';
+import { STATUS_ROTULO, brl, cx, hora, minutosDesde, ordenarNome, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 import { confirmar } from '../../componentes/Confirmar';
 
@@ -299,10 +299,10 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
       <header className="cp__topo">
         <strong className="cp__num">#{p.numero}</strong>
         <TempoPedido p={p} agora={agora} />
-        <span className="cp__tipo"><UtensilsCrossed size={13} /> Mesa</span>
+        <span className={cx('cp__tipo', p.tipo !== 'mesa' && 'cp__tipo--casa')}>{iconeTipo(p, 13)} {ROTULO_TIPO[p.tipo ?? 'mesa']}</span>
       </header>
       <div className="cp__cliente">
-        {p.mesa_nome}
+        {p.tipo && p.tipo !== 'mesa' ? <>{p.cliente_nome}{p.endereco?.bairro && <small className="cp__bairro">{p.endereco.bairro}</small>}</> : p.mesa_nome}
         {p.precisa_preparo === false && <span className="cp__selo" title="Bebidas ou itens prontos: não passa pela cozinha"><GlassWater size={13} /> Sem preparo</span>}
       </div>
       <ul className="cp__itens">
@@ -328,6 +328,56 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
       </footer>
     </article>
   );
+}
+
+/* ---------------- Delivery / retirada ---------------- */
+const ROTULO_TIPO: Record<string, string> = { mesa: 'Mesa', delivery: 'Delivery', retirada: 'Retirada' };
+const FORMA_ROTULO: Record<string, string> = { pix: 'Pix', dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito' };
+const iconeTipo = (p: Pedido, t: number) =>
+  p.tipo === 'delivery' ? <Bike size={t} /> : p.tipo === 'retirada' ? <Store size={t} /> : <UtensilsCrossed size={t} />;
+
+function DadosCliente({ p }: { p: Pedido }) {
+  const tel = (p.cliente_telefone ?? '').replace(/\D/g, '');
+  const e = p.endereco;
+  return (
+    <section className="dp__cliente">
+      <h3 className="dp__titulo">Cliente</h3>
+      <div className="dp__cliente-linha">
+        <strong>{p.cliente_nome}</strong>
+        {tel && <a className="btn btn--contorno btn--sm" href={`https://wa.me/${tel.length <= 11 ? `55${tel}` : tel}`} target="_blank" rel="noopener"><MessageCircle size={15} /> {tel.replace(/^(\d{2})(\d+)(\d{4})$/, '($1) $2-$3')}</a>}
+      </div>
+      {e ? (
+        <p className="dp__endereco"><MapPin size={15} /> <span>{e.rua}, {e.numero}{e.complemento ? ` · ${e.complemento}` : ''}<br />{e.bairro}{e.referencia ? <><br /><em>Ref.: {e.referencia}</em></> : null}</span></p>
+      ) : <p className="dp__endereco"><Store size={15} /> <span>Cliente vai retirar no balcão</span></p>}
+      <p className="dp__endereco"><Wallet size={15} /> <span>{FORMA_ROTULO[p.forma_pagamento ?? ''] ?? '—'} {p.tipo === 'delivery' ? 'na entrega' : 'na retirada'}{p.troco_para ? ` · levar troco para ${brl(Number(p.troco_para))}` : ''}</span></p>
+    </section>
+  );
+}
+
+/** Receber um pedido de delivery/retirada (não tem conta de mesa). */
+function ReceberPedido({ p }: { p: Pedido }) {
+  const toast = useToast();
+  const { papel, caixa, abrirCaixa, recarregarCaixa, atualizarPedido } = usePainel();
+  const [ocupado, setOcupado] = useState(false);
+  if (!podeCaixa(papel)) return null;
+  if (!caixa) {
+    return (
+      <div className="pagamento pagamento--fechado">
+        <span>O caixa está fechado. Abra o caixa para receber este pedido.</span>
+        <button className="btn btn--primario btn--sm" onClick={abrirCaixa}><Wallet size={16} /> Abrir caixa</button>
+      </div>
+    );
+  }
+  async function receber(forma: FormaPagamento) {
+    setOcupado(true);
+    const { error } = await supabase.rpc('pedido_receber', { p_pedido: p.id, p_forma: forma });
+    setOcupado(false);
+    if (error) return toast(msgErro(error), 'erro');
+    atualizarPedido(p.id, { pago_em: new Date().toISOString() });
+    recarregarCaixa();
+    toast(`Pedido #${p.numero} recebido.`, 'ok');
+  }
+  return <SeletorPagamento total={Number(p.total)} ocupado={ocupado} aoReceber={(f) => void receber(f)} />;
 }
 
 /* ---------------- Visualização em lista ---------------- */
@@ -395,7 +445,7 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
   const qtdItens = p.pedido_itens.reduce((s, i) => s + i.qtd, 0);
 
   const historico: { titulo: string; detalhe: string; quando: string; feito: boolean }[] = [
-    { titulo: 'Pedido recebido', detalhe: `Pelo tablet da ${p.mesa_nome}`, quando: p.criado_em, feito: true },
+    { titulo: 'Pedido recebido', detalhe: p.tipo && p.tipo !== 'mesa' ? 'Pelo cardápio digital (delivery)' : `Pelo tablet da ${p.mesa_nome}`, quando: p.criado_em, feito: true },
   ];
   if (p.impresso_em) historico.push({ titulo: 'Impresso na cozinha', detalhe: 'Impressão automática do caixa', quando: p.impresso_em, feito: true });
   if (p.status !== 'novo') {
@@ -448,13 +498,15 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
 
             <section className="dp__totais">
               <div><span>Subtotal ({qtdItens} {qtdItens === 1 ? 'item' : 'itens'})</span><span>{brl(subtotal)}</span></div>
+              {Number(p.taxa_entrega) > 0 && <div><span>Taxa de entrega</span><span>{brl(Number(p.taxa_entrega))}</span></div>}
               <div className="dp__total"><span>Total</span><span>{brl(p.total)}</span></div>
             </section>
 
             <section className="dp__linha">
               <span>Tipo de pedido</span>
-              <span className="dp__chip"><UtensilsCrossed size={15} /> Mesa · {p.mesa_nome}</span>
+              <span className="dp__chip">{iconeTipo(p, 15)} {p.tipo && p.tipo !== 'mesa' ? ROTULO_TIPO[p.tipo] : `Mesa · ${p.mesa_nome}`}</span>
             </section>
+            {p.tipo && p.tipo !== 'mesa' && <DadosCliente p={p} />}
             <section className="dp__linha">
               <span>Preparo</span>
               {p.precisa_preparo === false
@@ -467,6 +519,7 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
                 ? <span className="badge badge--verde">Paga às {hora(p.pago_em)}</span>
                 : <span className="badge badge--amarelo">Em aberto</span>}
             </section>
+            {p.tipo && p.tipo !== 'mesa' && !p.pago_em && p.status !== 'cancelado' && <ReceberPedido p={p} />}
             <section className="dp__linha">
               <span>Feito às</span>
               <span>{hora(p.criado_em)} · há {tempoDesde(p.criado_em, agora)}</span>

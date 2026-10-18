@@ -1,0 +1,98 @@
+/* =====================================================================
+   Cardápio delivery (/loja/<codigo>) — usa a base do cardápio da mesa
+   ===================================================================== */
+.loja { grid-template-rows: auto auto auto minmax(0, 1fr); }
+.loja-status { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 700; }
+.loja-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.loja-status.aberta { color: var(--ok) !important; }
+.loja-status.fechada { color: var(--danger) !important; }
+.loja-info {
+  display: flex; gap: 8px 18px; flex-wrap: wrap; align-items: center;
+  padding: 10px max(20px, env(safe-area-inset-right)) 10px max(20px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--line); background: var(--bg-2); color: var(--muted); font-size: .86rem;
+}
+.loja-info span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.loja-info svg { color: var(--acento); }
+.loja-fechada { cursor: default; }
+.loja-meu-pedido { min-height: 44px; gap: 8px; text-decoration: none; }
+.loja-totais { display: grid; gap: 4px; color: var(--muted); font-size: .92rem; }
+.loja-totais div { display: flex; justify-content: space-between; }
+.loja-aviso { margin: 0; padding: 8px 10px; border-radius: 10px; background: rgba(255, 204, 102, .1); color: var(--warn); font-size: .86rem; text-align: center; }
+@media (max-width: 720px), (max-height: 520px) and (orientation: landscape) {
+  .loja-info { padding: 8px 12px; gap: 6px 14px; font-size: .8rem; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .loja-info::-webkit-scrollbar { display: none; }
+}
+
+/* Finalizar */
+.loja-form { display: grid; gap: 18px; }
+.loja-form fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 12px; }
+.loja-form legend { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 0; font-weight: 700; font-size: 1rem; color: var(--text); }
+.loja-form legend svg { color: var(--acento); }
+.loja-form .input, .loja-form .textarea { font-size: max(16px, 1rem); }
+.loja-linha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.loja-linha .loja-linha__grande { grid-column: span 1; }
+.loja-linha:first-of-type { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); }
+.loja-segmento { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.loja-segmento button {
+  display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; cursor: pointer; text-align: left;
+  border: 1.5px solid var(--line-2); background: var(--bg-2); color: var(--text); font: inherit; font-weight: 700;
+}
+.loja-segmento button span { display: grid; gap: 2px; }
+.loja-segmento button small { color: var(--muted); font-weight: 500; font-size: .8rem; }
+.loja-segmento button svg { flex: none; color: var(--muted); }
+.loja-segmento button.ativo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 12%, var(--bg-2)); }
+.loja-segmento button.ativo svg { color: var(--acento); }
+.loja-formas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.loja-formas button {
+  position: relative; display: grid; justify-items: center; gap: 6px; padding: 12px 6px; border-radius: 14px; cursor: pointer;
+  border: 1.5px solid var(--line-2); background: var(--bg-2); color: var(--text); font: inherit; font-size: .88rem; font-weight: 600;
+}
+.loja-formas button.ativo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 12%, var(--bg-2)); }
+.loja-formas__ok { position: absolute; top: 6px; right: 6px; color: var(--acento); }
+.loja-pix { font-size: 1.05rem; color: #32bcad; line-height: 1; }
+.loja-retirada { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--bg-2); color: var(--muted); }
+.loja-retirada b { color: var(--text); }
+.loja-resumo { display: grid; gap: 8px; padding: 14px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); }
+.loja-resumo > div { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: .95rem; }
+.loja-resumo > div > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.loja-resumo__total { padding-top: 8px; border-top: 1px dashed var(--line-2); color: var(--text) !important; font-size: 1.05rem !important; }
+.loja-resumo__total strong { font-size: 1.3rem; }
+@media (max-width: 420px) {
+  .loja-formas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .loja-segmento button { padding: 12px 10px; gap: 8px; font-size: .92rem; }
+}
+
+/* Acompanhar o pedido */
+.loja-pedido {
+  min-height: var(--altura-tela, 100vh); max-width: 560px; margin: 0 auto; display: grid; align-content: start; gap: 14px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+}
+.loja-pedido__topo { display: flex; align-items: center; gap: 12px; padding: 6px 0 4px; }
+.loja-pedido__topo img, .loja-pedido__topo .mesa__logo { width: 48px; height: 48px; border-radius: 14px; object-fit: cover; }
+.loja-pedido__topo div { display: grid; }
+.loja-pedido__topo strong { font-size: 1.1rem; }
+.loja-pedido__topo small { color: var(--muted); }
+.loja-pedido__cartao { display: grid; gap: 10px; padding: 18px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }
+.loja-pedido__cartao h1 { margin: 0; font-family: var(--titulo); font-size: 1.7rem; }
+.loja-pedido__cartao h2 { margin: 0; font-size: 1.05rem; }
+.loja-pedido__cartao > p { margin: 0; color: var(--muted); }
+.loja-pedido__selo { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--acento) 15%, transparent); color: var(--acento); font-size: .82rem; font-weight: 700; }
+.loja-pedido__cancelado { border-color: rgba(255, 107, 107, .35); background: rgba(255, 107, 107, .06); }
+.loja-etapas { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 0; }
+.loja-etapas li { position: relative; display: flex; align-items: center; gap: 12px; padding: 9px 0; color: var(--muted-2); font-weight: 600; }
+.loja-etapas li > span {
+  position: relative; z-index: 1; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--surface-2); color: var(--muted); font-size: .8rem; font-weight: 800;
+}
+.loja-etapas li:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 34px; bottom: -6px; width: 2px; background: var(--line); }
+.loja-etapas li.feita { color: var(--text); }
+.loja-etapas li.feita > span { background: var(--ok); color: #fff; }
+.loja-etapas li.feita::after { background: var(--ok); }
+.loja-etapas li.atual { color: var(--text); }
+.loja-etapas li.atual > span { background: var(--acento); color: #fff; box-shadow: 0 0 0 5px color-mix(in srgb, var(--acento) 25%, transparent); animation: pulso-etapa 1.8s ease-in-out infinite; }
+@keyframes pulso-etapa { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--acento) 10%, transparent); } }
+.loja-pedido__linha { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--muted); font-size: .92rem; }
+.loja-pedido__linha svg { flex: none; margin-top: 2px; color: var(--acento); }
+.loja-pedido__acoes { display: grid; gap: 10px; }
+.loja-pedido__acoes .btn { gap: 8px; text-decoration: none; }
+.loja-pedido__nota { margin: 0; text-align: center; color: var(--muted-2); font-size: .8rem; }

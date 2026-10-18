@@ -12,9 +12,34 @@ export interface Restaurante {
   plano: string;
   ativo: boolean;
   criado_em: string;
-  /** Código curto do link do app do garçom (/g/<codigo>) */
+  /** Código curto dos links próprios: app do garçom (/g/<codigo>) e delivery (/loja/<codigo>) */
   codigo: string;
+  /** Delivery: aceitando pedidos de casa agora */
+  delivery_ativo: boolean;
+  delivery_taxa: number;
+  delivery_minimo: number;
+  delivery_tempo: string;
+  retirada_ativa: boolean;
+  whatsapp: string | null;
+  endereco: string | null;
+  /** Plano (preenchido pela plataforma) */
+  plano_valor: number | null;
+  plano_vence_em: string | null;
+  plano_forma: string | null;
 }
+
+export interface Fatura {
+  id: string;
+  restaurante_id: string;
+  referencia: string;
+  valor: number;
+  vencimento: string;
+  pago_em: string | null;
+  link: string | null;
+  criado_em: string;
+}
+
+export interface EnderecoEntrega { rua: string; numero: string; bairro: string; complemento?: string | null; referencia?: string | null }
 
 export interface RestauranteComPapel extends Restaurante {
   papel: Papel;
@@ -118,6 +143,14 @@ export interface Pedido {
   pago_em: string | null;
   /** false = só itens prontos (bebidas): ao aceitar vai direto para "Prontos" */
   precisa_preparo: boolean;
+  /** mesa | delivery | retirada */
+  tipo: 'mesa' | 'delivery' | 'retirada';
+  cliente_nome: string | null;
+  cliente_telefone: string | null;
+  endereco: EnderecoEntrega | null;
+  forma_pagamento: 'dinheiro' | 'pix' | 'credito' | 'debito' | null;
+  troco_para: number | null;
+  taxa_entrega: number;
   pedido_itens: PedidoItem[];
 }
 

@@ -16,7 +16,7 @@ import { useNovaVersao } from '../../lib/versao';
 import { useAppInstalavel } from '../../lib/manifesto';
 import '../../estilos/mesa.css';
 
-interface ProdutoMesa {
+export interface ProdutoMesa {
   id: string;
   categoria_id: string;
   nome: string;
@@ -38,12 +38,12 @@ interface ProdutoMesa {
   prefixo?: string;
 }
 
-interface SaborMesa extends ProdutoMesa { grupo_id: string }
+export interface SaborMesa extends ProdutoMesa { grupo_id: string }
 
 /** Nome do item no pedido: "Pizza P · Calabresa" quando é sabor de um tamanho. */
-const nomeItem = (p: ProdutoMesa) => (p.prefixo ? `${p.prefixo} · ${p.nome}` : p.nome);
+export const nomeItem = (p: ProdutoMesa) => (p.prefixo ? `${p.prefixo} · ${p.nome}` : p.nome);
 
-interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null; grupo_id?: string | null; preco_grupo?: number | null; esgotado?: boolean }
+export interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null; grupo_id?: string | null; preco_grupo?: number | null; esgotado?: boolean }
 
 interface DadosMesa {
   restaurante: { id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string };
@@ -796,7 +796,7 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
   );
 }
 
-function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
+export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho }: {
   p: ProdutoMesa;
   aoFechar: () => void;
   aoAdicionar: (qtd: number, obs: string) => void;

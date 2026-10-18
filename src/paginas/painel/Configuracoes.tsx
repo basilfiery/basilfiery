@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BellRing, Check, CircleCheck, ConciergeBell, ImagePlus, Play, Printer, Store } from 'lucide-react';
+import { BellRing, Bike, Check, CircleCheck, ConciergeBell, ImagePlus, Play, Printer, Store } from 'lucide-react';
 import { Campo, Switch } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, programaDesktop, type ConfigImpressao } from '../../lib/impressao';
@@ -7,7 +7,9 @@ import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../li
 import { useSessao } from '../../lib/sessao';
 import { SONS_CHAMADO, definirSom, somLigado, tocarAlerta, tocarChamado, type SomChamado } from '../../lib/som';
 import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../lib/supabase';
-import { cx, ehGestor } from '../../lib/util';
+import { cx, ehGestor, lerPreco, precoParaTexto } from '../../lib/util';
+import { LinkCopiavel } from '../../componentes/Link';
+import { linkLoja } from '../../componentes/CardapioDigital';
 import { VERSAO_CURTA } from '../../lib/versao';
 import { usePainel } from './Painel';
 
@@ -20,6 +22,7 @@ export default function Configuracoes() {
       <div className="pagina__cab"><h1 className="titulo">Configurações</h1></div>
       <div className="config-grade">
         {ehGestor(papel) && <CartaoRestaurante key={restaurante.id} />}
+        {ehGestor(papel) && <CartaoDelivery key={`d-${restaurante.id}`} />}
         <CartaoImpressora />
         <CartaoNotificacoes />
         <CartaoSomChamado />
@@ -86,6 +89,55 @@ function CartaoRestaurante() {
           </div>
         </Campo>
         <button className="btn btn--primario" disabled={!nome.trim() || salvando} onClick={() => void salvar()}>Salvar</button>
+      </div>
+    </section>
+  );
+}
+
+/** Delivery: taxa, pedido mínimo, tempo e retirada (o link fica no botão da empresa, lá em cima). */
+function CartaoDelivery() {
+  const { restaurante: r } = usePainel();
+  const s = useSessao();
+  const toast = useToast();
+  const [f, setF] = useState({
+    ativo: r.delivery_ativo,
+    taxa: precoParaTexto(Number(r.delivery_taxa ?? 0)),
+    minimo: precoParaTexto(Number(r.delivery_minimo ?? 0)),
+    tempo: r.delivery_tempo ?? '40 a 60 min',
+    retirada: r.retirada_ativa ?? true,
+  });
+  const [salvando, setSalvando] = useState(false);
+  const link = linkLoja(r.codigo);
+
+  async function salvar() {
+    const taxa = f.taxa.trim() ? lerPreco(f.taxa) : 0;
+    const minimo = f.minimo.trim() ? lerPreco(f.minimo) : 0;
+    if (!Number.isFinite(taxa) || taxa < 0 || !Number.isFinite(minimo) || minimo < 0) return toast('Valor inválido. Ex.: 5,00', 'erro');
+    setSalvando(true);
+    const { error } = await supabase.from('restaurantes').update({
+      delivery_ativo: f.ativo, delivery_taxa: taxa, delivery_minimo: minimo,
+      delivery_tempo: f.tempo.trim() || '40 a 60 min', retirada_ativa: f.retirada,
+    }).eq('id', r.id);
+    setSalvando(false);
+    if (error) return toast(msgErro(error), 'erro');
+    toast('Delivery salvo.', 'ok');
+    void s.recarregar();
+  }
+
+  return (
+    <section className="card">
+      <h2 className="card__titulo"><Bike size={20} /> Delivery (pedidos de casa)</h2>
+      <div className="form">
+        <Switch marcado={f.ativo} aoMudar={(v) => setF({ ...f, ativo: v })}>Loja aberta para pedidos de casa</Switch>
+        <LinkCopiavel link={link} />
+        <div className="form-linha">
+          <Campo rotulo="Taxa de entrega (R$)" dica="0 = entrega grátis"><input className="input" inputMode="decimal" value={f.taxa} onChange={(e) => setF({ ...f, taxa: e.target.value })} /></Campo>
+          <Campo rotulo="Pedido mínimo (R$)"><input className="input" inputMode="decimal" value={f.minimo} onChange={(e) => setF({ ...f, minimo: e.target.value })} /></Campo>
+        </div>
+        <Campo rotulo="Tempo de entrega" dica="Ex.: 40 a 60 min"><input className="input" maxLength={30} value={f.tempo} onChange={(e) => setF({ ...f, tempo: e.target.value })} /></Campo>
+        <Switch marcado={f.retirada} aoMudar={(v) => setF({ ...f, retirada: v })}>Cliente pode retirar no balcão</Switch>
+        <p className="muted" style={{ margin: 0, fontSize: '.84rem' }}>WhatsApp e endereço do restaurante ficam em Minha conta › Informações pessoais.</p>
+        <button className="btn btn--primario" disabled={salvando} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </section>
   );

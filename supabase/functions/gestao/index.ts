@@ -147,6 +147,10 @@ const acoes: Record<string, (req: Request, c: Corpo) => Promise<unknown>> = {
     const mudancas: Corpo = {};
     if (typeof c.ativo === 'boolean') mudancas.ativo = c.ativo;
     if (typeof c.plano === 'string') mudancas.plano = c.plano;
+    // Cobrança do plano (aparece para o dono em Minha conta)
+    if ('plano_valor' in c) mudancas.plano_valor = c.plano_valor === null || c.plano_valor === '' ? null : Number(c.plano_valor);
+    if ('plano_vence_em' in c) mudancas.plano_vence_em = c.plano_vence_em || null;
+    if ('plano_forma' in c) mudancas.plano_forma = typeof c.plano_forma === 'string' && c.plano_forma.trim() ? c.plano_forma.trim().slice(0, 40) : null;
     const { error } = await admin.from('restaurantes').update(mudancas).eq('id', c.id);
     if (error) throw error;
     return { ok: true };

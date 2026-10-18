@@ -18,6 +18,8 @@ const Mesa = tela(() => import('./paginas/mesa/Mesa'));
 const Garcom = tela(() => import('./paginas/garcom/Garcom'));
 const AppGarcom = tela(() => import('./paginas/garcom/AppGarcom'));
 const Dono = tela(() => import('./paginas/dono/Dono'));
+const Loja = tela(() => import('./paginas/loja/Loja'));
+const LojaPedido = tela(() => import('./paginas/loja/Loja').then((m) => ({ default: m.LojaPedido })));
 const AppGarcomInicio = tela(() => import('./paginas/garcom/AppGarcom').then((m) => ({ default: m.AppGarcomInicio })));
 const Plataforma = tela(() => import('./paginas/plataforma/Plataforma'));
 const Painel = tela(() => import('./paginas/painel/Painel'));
@@ -28,6 +30,7 @@ const Estoque = tela(() => import('./paginas/painel/Estoque'));
 const Equipe = tela(() => import('./paginas/painel/Equipe'));
 const Garcons = tela(() => import('./paginas/painel/Garcons'));
 const Configuracoes = tela(() => import('./paginas/painel/Configuracoes'));
+const Conta = tela(() => import('./paginas/painel/Conta'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
 
 export default function App() {
@@ -38,6 +41,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/mesa/:token" element={<Mesa />} />
         <Route path="/dono" element={<Dono />} />
+        <Route path="/loja/:codigo" element={<Loja />} />
+        <Route path="/loja/:codigo/pedido/:acompanhar" element={<LojaPedido />} />
         <Route path="/g" element={<AppGarcomInicio />} />
         <Route path="/g/:codigo" element={<AppGarcom />} />
         <Route path="/garcom" element={<ExigeLogin><Garcom /></ExigeLogin>} />
@@ -51,6 +56,8 @@ export default function App() {
           <Route path="garcons" element={<Garcons />} />
           <Route path="equipe" element={<Equipe />} />
           <Route path="config" element={<Configuracoes />} />
+          <Route path="conta" element={<Conta />} />
+          <Route path="conta/:aba" element={<Conta />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

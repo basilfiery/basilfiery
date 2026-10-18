@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, ChevronDown, CircleUserRound, ChevronsUpDown, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
 import { Logo, Switch } from '../../componentes/Basicos';
 import { Avatar, ModalPerfil, iniciais } from '../../componentes/Perfil';
 import { AcessosPendentes } from '../../componentes/AcessosMesa';
+import { ModalCardapioDigital } from '../../componentes/CardapioDigital';
 import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
 import {
@@ -44,7 +45,7 @@ export interface ContextoPainel {
 export const usePainel = () => useOutletContext<ContextoPainel>();
 
 const TODOS: Papel[] = ['dono', 'gerente', 'caixa', 'garcom'];
-const MENU: { para: string; icone: LucideIcon; rotulo: string; papeis: Papel[]; fim?: boolean }[] = [
+const MENU: { para: string; icone: LucideIcon; rotulo: string; papeis: Papel[]; fim?: boolean; filhos?: { para: string; rotulo: string }[] }[] = [
   { para: '/painel', icone: ClipboardList, rotulo: 'Pedidos', papeis: TODOS, fim: true },
   { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
   { para: '/painel/cardapio', icone: BookOpen, rotulo: 'Cardápio', papeis: ['dono', 'gerente'] },
@@ -53,6 +54,15 @@ const MENU: { para: string; icone: LucideIcon; rotulo: string; papeis: Papel[]; 
   { para: '/painel/garcons', icone: UserRound, rotulo: 'Garçons', papeis: ['dono', 'gerente'] },
   { para: '/painel/equipe', icone: Users, rotulo: 'Equipe', papeis: ['dono', 'gerente'] },
   { para: '/painel/config', icone: Settings, rotulo: 'Configurações', papeis: TODOS },
+  {
+    para: '/painel/conta', icone: CircleUserRound, rotulo: 'Minha conta', papeis: ['dono'],
+    filhos: [
+      { para: '/painel/conta', rotulo: 'Geral' },
+      { para: '/painel/conta/pessoais', rotulo: 'Informações pessoais' },
+      { para: '/painel/conta/pagamento', rotulo: 'Formas de pagamento' },
+      { para: '/painel/conta/faturas', rotulo: 'Fatura' },
+    ],
+  },
 ];
 
 const PLANO_ROTULO: Record<string, string> = {
@@ -69,6 +79,7 @@ export default function Painel() {
   const s = useSessao();
   const toast = useToast();
   const [perfilAberto, setPerfilAberto] = useState(false);
+  const [cardapioDigital, setCardapioDigital] = useState(false);
   const [permissaoNotif, setPermissaoNotif] = useState<NotificationPermission | 'indisponivel'>(
     () => ('Notification' in window ? Notification.permission : 'indisponivel'),
   );
@@ -298,7 +309,16 @@ export default function Painel() {
               <m.icone size={20} strokeWidth={1.8} />
               <span>{m.rotulo}</span>
               {m.para === '/painel' && novos > 0 && <b className="lateral__contador">{novos}</b>}
+              {m.filhos && <ChevronDown size={16} className={cx('lateral__seta', local.pathname.startsWith(m.para) && 'aberta')} />}
             </NavLink>
+          ))}
+          {/* Subopções abertas embaixo (ex.: Minha conta › Geral, Informações pessoais…) */}
+          {itens.filter((m) => m.filhos && local.pathname.startsWith(m.para)).map((m) => (
+            <div key={`${m.para}-filhos`} className="lateral__filhos">
+              {m.filhos!.map((f) => (
+                <NavLink key={f.para} to={f.para} end className={({ isActive }) => cx('lateral__filho', isActive && 'ativo')}>{f.rotulo}</NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -488,58 +508,46 @@ export default function Painel() {
               {tema === 'claro' ? <Moon size={20} strokeWidth={1.8} /> : <Sun size={20} strokeWidth={1.8} />}
             </button>
 
-            {/* Empresa */}
-            <Suspenso
-              largura={290}
-              gatilho={(_, alternar) => (
-                <button className="empresa-btn" onClick={alternar} aria-label="Menu da empresa">
-                  {avatarEmpresa}
-                  <div>
-                    <strong>{r.nome}</strong>
-                    <small>{PLANO_ROTULO[r.plano] ?? r.plano}</small>
-                  </div>
-                  <ChevronDown size={18} />
-                </button>
-              )}
-            >
-              {(fechar) => (
-                <>
-                  <div className="menu-cab">
-                    {avatarEmpresa}
-                    <div><strong>{r.nome}</strong><small>{PLANO_ROTULO[r.plano] ?? r.plano} · {PAPEL_ROTULO[papel]}</small></div>
-                  </div>
-                  <div className="menu-sep" />
-                  {ehGestor(papel) && (
-                    <>
-                      <Link className="menu-item" to="/painel/config" onClick={fechar}><Building2 size={18} /> Dados e identidade visual</Link>
-                      <Link className="menu-item" to="/painel/equipe" onClick={fechar}><Users size={18} /> Equipe</Link>
-                    </>
-                  )}
-                  <Link className="menu-item" to="/painel/config" onClick={fechar}><Settings size={18} /> Configurações</Link>
-                  <button className="menu-item" onClick={alternarSom}>
-                    {som ? <Volume2 size={18} /> : <VolumeX size={18} />} Som de novos pedidos <small>{som ? 'Ligado' : 'Desligado'}</small>
-                  </button>
-                  <button className="menu-item menu-item--mobile" onClick={() => setTema((t) => (t === 'claro' ? 'escuro' : 'claro'))}>
-                    {tema === 'claro' ? <Moon size={18} /> : <Sun size={18} />} Tema {tema === 'claro' ? 'escuro' : 'claro'}
-                  </button>
-                  {s.restaurantes.length > 1 && (
-                    <>
-                      <div className="menu-sep" />
-                      <p className="menu-texto" style={{ paddingBottom: 4 }}>Trocar de restaurante</p>
-                      {s.restaurantes.map((x) => (
-                        <button key={x.id} className="menu-item" onClick={() => { s.escolherRestaurante(x.id); fechar(); }}>
-                          <Store size={18} /> {x.nome} {x.id === r.id && <small>atual</small>}
-                        </button>
-                      ))}
-                    </>
-                  )}
-                  <div className="menu-sep" />
-                  <button className="menu-item menu-item--perigo" onClick={() => void s.sair()}><LogOut size={18} /> Sair</button>
-                </>
-              )}
-            </Suspenso>
+            {/* Empresa: abre o link do cardápio digital (como no Anota AI) */}
+            <button className="empresa-btn" onClick={() => setCardapioDigital(true)} aria-label="Cardápio digital e conta">
+              {avatarEmpresa}
+              <div>
+                <strong>{r.nome}</strong>
+                <small className={cx('empresa-btn__status', r.delivery_ativo && 'aberta')}>{r.delivery_ativo ? 'Delivery aberto' : PLANO_ROTULO[r.plano] ?? r.plano}</small>
+              </div>
+              <ChevronDown size={18} />
+            </button>
           </div>
         </header>
+
+        {cardapioDigital && (
+          <ModalCardapioDigital
+            restaurante={r}
+            gestor={ehGestor(papel)}
+            aoMudarDelivery={() => void s.recarregar()}
+            aoFechar={() => setCardapioDigital(false)}
+            rodape={
+              <>
+                <div className="cd-rodape__links">
+                  {papel === 'dono' && <Link to="/painel/conta" onClick={() => setCardapioDigital(false)}><UserRound size={16} /> Minha conta</Link>}
+                  {ehGestor(papel) && <Link to="/painel/equipe" onClick={() => setCardapioDigital(false)}><Users size={16} /> Equipe</Link>}
+                  <Link to="/painel/config" onClick={() => setCardapioDigital(false)}><Settings size={16} /> Configurações</Link>
+                  <button onClick={alternarSom}>{som ? <Volume2 size={16} /> : <VolumeX size={16} />} Som {som ? 'ligado' : 'desligado'}</button>
+                  <button className="menu-item--mobile" onClick={() => setTema((t) => (t === 'claro' ? 'escuro' : 'claro'))}>{tema === 'claro' ? <Moon size={16} /> : <Sun size={16} />} Tema</button>
+                  <button className="perigo" onClick={() => void s.sair()}><LogOut size={16} /> Sair</button>
+                </div>
+                {s.restaurantes.length > 1 && (
+                  <label className="cd-rodape__rest">
+                    <Store size={16} />
+                    <select className="select" value={r.id} onChange={(e) => { s.escolherRestaurante(e.target.value); setCardapioDigital(false); }}>
+                      {s.restaurantes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                    </select>
+                  </label>
+                )}
+              </>
+            }
+          />
+        )}
 
         <AcessosPendentes acessos={vivo.acessos} agora={agora} variante="painel" aoResponder={vivo.removerAcesso} />
         {!desktop && permissaoNotif === 'default' && (

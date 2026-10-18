@@ -6,7 +6,7 @@ import { useToast } from '../../componentes/Toast';
 import { imprimirFechamento, imprimirMovimentoCaixa } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Caixa, MovimentoCaixa, Papel, ResumoCaixa } from '../../lib/tipos';
-import { FORMAS, brl, cx, dataHora, hora, lerPreco, podeCaixa } from '../../lib/util';
+import { FORMAS, brl, cx, dataHora, duracao, hora, lerPreco, podeCaixa } from '../../lib/util';
 import { aplicarAtualizacao } from '../../lib/versao';import { IconeForma } from '../../componentes/Pagamento';
 import { confirmar } from '../../componentes/Confirmar';
 
@@ -175,8 +175,8 @@ function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado 
       <div className="caixa__estado caixa__estado--aberto">
         <Wallet size={28} />
         <div>
-          <strong>Aberto às {hora(r.aberto_em)}{r.aberto_por_nome ? ` por ${r.aberto_por_nome}` : ''}</strong>
-          <span>{new Date(r.aberto_em).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })} · troco inicial {brl(r.valor_inicial)}</span>
+          <strong>Aberto há {duracao(r.aberto_em)}{r.aberto_por_nome ? ` por ${r.aberto_por_nome}` : ''}</strong>
+          <span>{new Date(r.aberto_em).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}, às {hora(r.aberto_em)} · troco inicial {brl(r.valor_inicial)}</span>
         </div>
       </div>
 

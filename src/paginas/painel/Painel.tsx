@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, ChevronsUpDown, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Moon, Package, Printer, RefreshCw, Search, Settings, ShieldCheck, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -18,7 +18,7 @@ import { useSessao } from '../../lib/sessao';
 import { definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, MesaAcesso, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
-import { PAPEL_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
+import { PAPEL_ROTULO, brl, cx, descreverChamado, duracao, ehGestor, ls, podeCaixa, quando, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
 import '../../estilos/painel.css';
@@ -415,8 +415,8 @@ export default function Painel() {
                     <div className="menu-cab">
                       <span className="avatar avatar--ok"><Wallet size={18} /></span>
                       <div>
-                        <strong>Caixa aberto</strong>
-                        <small>Desde {hora(caixa.aberto_em)}{caixa.aberto_por_nome ? ` · ${caixa.aberto_por_nome}` : ''}</small>
+                        <strong>Caixa aberto <span className="tempo-caixa"><Clock size={12} /> há {duracao(caixa.aberto_em, agora)}</span></strong>
+                        <small>Aberto {quando(caixa.aberto_em)}{caixa.aberto_por_nome ? ` · ${caixa.aberto_por_nome}` : ''}</small>
                       </div>
                     </div>
                     <div className="menu-numeros">

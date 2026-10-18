@@ -26,6 +26,29 @@ export const hora = (iso: string) =>
 export const dataHora = (iso: string) =>
   new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+/** Quando foi: "hoje, 14:24", "ontem, 22:10" ou "sex., 17/10 · 14:24". */
+export function quando(iso: string) {
+  const d = new Date(iso);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dia = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const h = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (dia === hoje.getTime()) return `hoje, ${h}`;
+  if (dia === hoje.getTime() - 86400000) return `ontem, ${h}`;
+  return `${d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })} · ${h}`;
+}
+
+/** Tempo corrido: "45 min", "3h 12min", "1 dia e 4h". */
+export function duracao(iso: string, agora = Date.now()) {
+  const min = Math.max(0, Math.floor((agora - new Date(iso).getTime()) / 60000));
+  if (min < 1) return 'menos de 1 min';
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return min % 60 ? `${h}h ${String(min % 60).padStart(2, '0')}min` : `${h}h`;
+  const dias = Math.floor(h / 24);
+  return `${dias} ${dias === 1 ? 'dia' : 'dias'}${h % 24 ? ` e ${h % 24}h` : ''}`;
+}
+
 export function minutosDesde(iso: string, agora = Date.now()) {
   return Math.max(0, Math.floor((agora - new Date(iso).getTime()) / 60000));
 }

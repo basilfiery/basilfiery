@@ -1164,3 +1164,7 @@
 .sub-linha .preco-editavel:hover { border-color: var(--line-2); }
 .sub-linha .preco-editavel input { width: 64px; }
 .sub-linha .preco-editavel input::placeholder { color: var(--muted-2); font-weight: 500; }
+.tempo-caixa {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; vertical-align: 1px;
+  background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); font-size: .72rem; font-weight: 700;
+}

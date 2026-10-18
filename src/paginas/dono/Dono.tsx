@@ -11,7 +11,7 @@ import { useSessao } from '../../lib/sessao';
 import { tocarVenda } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Pedido, ResumoCaixa, RestauranteComPapel } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, hora, inicioDoDia, lerPreco, ls, precoParaTexto } from '../../lib/util';
+import { STATUS_ROTULO, brl, cx, duracao, hora, inicioDoDia, lerPreco, ls, precoParaTexto, quando } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import { VERSAO_CURTA } from '../../lib/versao';
 import { SITE } from '../../config/site';
@@ -479,7 +479,7 @@ function Inicio({ rest, nome, foto, oculto, setOculto, valor, versao, ir, aoSino
         <div className={cx('dn-faixa', caixa && 'dn-faixa--ok')}>
           <span className="dn-faixa__icone">{caixa ? <Wallet size={17} /> : <Lock size={17} />}</span>
           {caixa ? (
-            <span><b>Caixa aberto desde {hora(caixa.aberto_em)}</b><small>{valor(Number(caixa.recebido))} recebido · {valor(Number(caixa.em_aberto.total))} em mesas abertas</small></span>
+            <span><b>Caixa aberto há {duracao(caixa.aberto_em)}</b><small>Desde {quando(caixa.aberto_em)} · {valor(Number(caixa.recebido))} recebido · {valor(Number(caixa.em_aberto.total))} em mesas abertas</small></span>
           ) : (
             <span><b>Caixa fechado</b><small>Abra o caixa no computador para receber as contas.</small></span>
           )}

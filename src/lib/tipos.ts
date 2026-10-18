@@ -46,6 +46,8 @@ export interface Restaurante {
   ads_gads: string | null;
   /** Modelos de impressão (cabeçalho, logo, CNPJ, rodapé…) */
   impressao?: import('./impressao').ConfigImpressaoLoja | null;
+  /** Cartão fidelidade do delivery */
+  fidelidade?: { ativo?: boolean; meta?: number; premio?: string; minimo?: number } | null;
 }
 
 export interface HorarioDia { aberto: boolean; de: string; ate: string }
@@ -133,6 +135,8 @@ export interface Produto {
   grupo_id: string | null;
   /** Acabou por agora: aparece "Esgotado" no tablet e não pode ser pedido */
   esgotado: boolean;
+  /** Preço "de" (riscado): maior que o preço = item em promoção */
+  preco_de?: number | null;
 }
 
 /** Grupo de sabores compartilhado entre tamanhos (Pizza P, M, G…). */

@@ -23,6 +23,8 @@ export interface ProdutoMesa {
   nome: string;
   descricao: string;
   preco: number;
+  /** Preço "de" (riscado) quando está em promoção */
+  preco_de?: number | null;
   emoji: string | null;
   imagem_url: string | null;
   video_url: string | null;
@@ -473,7 +475,7 @@ export default function Mesa() {
               {p.descricao && <p>{p.descricao}</p>}
               <Selos p={p} />
               <div className="prod__rodape">
-                <strong>{brl(p.preco)}</strong>
+                <span className="prod__precos">{p.preco_de ? <s>{brl(Number(p.preco_de))}</s> : null}<strong>{brl(p.preco)}</strong></span>
                 {p.disponivel && <span className="prod__mais" aria-hidden="true"><Plus size={20} /></span>}
               </div>
             </div>

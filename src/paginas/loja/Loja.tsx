@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactElement } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  AtSign, Banknote, Bike, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
+  AtSign, BadgePercent, Banknote, Bike, Gift, House, ReceiptText, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -28,7 +28,16 @@ interface Loja {
   descricao?: string | null; rodape?: string | null; obs?: boolean; formas?: Forma[];
   horarios?: { aberto: boolean; de: string; ate: string }[] | null;
   ads?: { pixel?: string; ga4?: string; gads?: string };
+  fidelidade?: { meta: number; premio: string | null; minimo: number } | null;
 }
+
+type AbaLoja = 'inicio' | 'promocoes' | 'fidelidade' | 'pedidos';
+const ABAS_LOJA: { id: AbaLoja; rotulo: string }[] = [
+  { id: 'inicio', rotulo: 'Início' }, { id: 'promocoes', rotulo: 'Promoções' },
+  { id: 'fidelidade', rotulo: 'Fidelidade' }, { id: 'pedidos', rotulo: 'Pedidos' },
+];
+const iconeAba = (id: AbaLoja, n = 22) =>
+  id === 'inicio' ? <House size={n} /> : id === 'promocoes' ? <BadgePercent size={n} /> : id === 'fidelidade' ? <Gift size={n} /> : <ReceiptText size={n} />;
 
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 
@@ -132,6 +141,9 @@ export default function LojaCardapio() {
   const [verCarrinho, setVerCarrinho] = useState(false);
   const [finalizar, setFinalizar] = useState(false);
   const listaRef = useRef<HTMLElement>(null);
+  const [params, setParams] = useSearchParams();
+  const abaLoja = (ABAS_LOJA.some((a) => a.id === params.get('aba')) ? params.get('aba') : 'inicio') as AbaLoja;
+  const irAba = (id: AbaLoja) => { setParams(id === 'inicio' ? {} : { aba: id }); window.scrollTo({ top: 0 }); };
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.rpc('loja_cardapio', { p_codigo: codigo });
@@ -276,7 +288,7 @@ export default function LojaCardapio() {
               {p.descricao && <p>{p.descricao}</p>}
               <Selos p={p} />
               <div className="prod__rodape">
-                <strong>{brl(p.preco)}</strong>
+                <span className="prod__precos">{p.preco_de ? <s>{brl(Number(p.preco_de))}</s> : null}<strong>{brl(p.preco)}</strong></span>
                 {p.disponivel && <span className="prod__mais" aria-hidden="true"><Plus size={20} /></span>}
               </div>
             </div>
@@ -296,7 +308,6 @@ export default function LojaCardapio() {
             <span className={cx('loja-status', loja.aberto ? 'aberta' : 'fechada')}>{loja.aberto ? 'Aberto agora' : 'Fechado agora'}</span>
           </div>
         </div>
-        <UltimoPedido codigo={codigo} />
       </header>
 
       <div className="loja-info">
@@ -312,6 +323,21 @@ export default function LojaCardapio() {
         </div>
       )}
 
+      {abaLoja !== 'inicio' ? (
+        <main className="loja-aba">
+          {abaLoja === 'promocoes' && (() => {
+            const promo = produtosLoja.filter((p) => p.preco_de && p.disponivel);
+            return (
+              <section className="mesa__secao">
+                <header className="mesa__secao-cab"><h2 className="titulo"><BadgePercent size={22} /> Promoções</h2><span>{promo.length} {promo.length === 1 ? 'oferta' : 'ofertas'}</span></header>
+                {promo.length ? grade(promo) : <AbaVazia icone={<BadgePercent size={30} />} titulo="Nenhuma promoção hoje" texto="Volte mais tarde: as ofertas da loja aparecem aqui." />}
+              </section>
+            );
+          })()}
+          {abaLoja === 'fidelidade' && <AbaFidelidade codigo={codigo} loja={loja} />}
+          {abaLoja === 'pedidos' && <AbaPedidos codigo={codigo} loja={loja} />}
+        </main>
+      ) : (
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias">
           {secoes.map((c) => (
@@ -362,6 +388,17 @@ export default function LojaCardapio() {
         </main>
         <aside className="mesa__carrinho">{sacola}</aside>
       </div>
+      )}
+
+      {/* Barra de baixo, como nos apps de delivery */}
+      <nav className="loja-nav" aria-label="Menu da loja">
+        {ABAS_LOJA.map((a) => (
+          <button key={a.id} type="button" className={cx('loja-nav__item', abaLoja === a.id && 'ativo')} onClick={() => irAba(a.id)} aria-current={abaLoja === a.id ? 'page' : undefined}>
+            {iconeAba(a.id)}
+            <span>{a.rotulo}</span>
+          </button>
+        ))}
+      </nav>
 
       {qtdItens > 0 && (
         <button className="mesa__flutuante" onClick={() => setVerCarrinho(true)}>
@@ -395,7 +432,7 @@ export default function LojaCardapio() {
           aoEnviar={(acompanhar) => {
             setCarrinho([]);
             const ultimos = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, []);
-            ls.gravar(`bf:loja:pedidos:${codigo}`, [acompanhar, ...ultimos].slice(0, 5));
+            ls.gravar(`bf:loja:pedidos:${codigo}`, [acompanhar, ...ultimos].slice(0, 30));
             navegar(`/loja/${codigo}/pedido/${acompanhar}`);
           }}
         />
@@ -404,14 +441,120 @@ export default function LojaCardapio() {
   );
 }
 
-/** Atalho para acompanhar o último pedido feito neste celular. */
-function UltimoPedido({ codigo }: { codigo: string }) {
-  const ultimo = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, [])[0];
-  if (!ultimo) return null;
+function AbaVazia({ icone, titulo, texto, children }: { icone: ReactElement; titulo: string; texto: string; children?: ReactElement }) {
   return (
-    <Link className="btn btn--contorno loja-meu-pedido" to={`/loja/${codigo}/pedido/${ultimo}`}>
-      <Receipt size={18} /> <span className="mesa__rotulo">Meu pedido</span>
-    </Link>
+    <div className="loja-vazio">
+      <span>{icone}</span>
+      <strong>{titulo}</strong>
+      <p>{texto}</p>
+      {children}
+    </div>
+  );
+}
+
+/** Cartão de fidelidade: a cada N pedidos, um prêmio. Conta pelo telefone usado nos pedidos. */
+function AbaFidelidade({ codigo, loja }: { codigo: string; loja: Loja }) {
+  const toast = useToast();
+  const salvo = ls.ler<Cliente>('bf:loja:cliente', CLIENTE_VAZIO).telefone;
+  const [tel, setTel] = useState(salvo);
+  const [res, setRes] = useState<{ pontos: number; resgates: number } | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const f = loja.fidelidade;
+
+  const consultar = useCallback(async (telefone: string) => {
+    if (telefone.replace(/\D/g, '').length < 10) return;
+    setCarregando(true);
+    const { data, error } = await supabase.rpc('loja_fidelidade', { p_codigo: codigo, p_telefone: telefone });
+    setCarregando(false);
+    if (error) return toast(msgErro(error), 'erro');
+    const d = data as { ativo: boolean; pontos?: number; resgates?: number };
+    if (d.ativo) setRes({ pontos: d.pontos ?? 0, resgates: d.resgates ?? 0 });
+  }, [codigo, toast]);
+  useEffect(() => { if (f && salvo) void consultar(salvo); }, [f, salvo, consultar]);
+
+  if (!f) return <AbaVazia icone={<Gift size={30} />} titulo="Programa de fidelidade" texto="Esta loja ainda não tem cartão fidelidade." />;
+  const pontos = Math.min(res?.pontos ?? 0, f.meta);
+  const completo = (res?.pontos ?? 0) >= f.meta;
+
+  return (
+    <section className="fid">
+      <div className="fid__cartao">
+        <div className="fid__topo">
+          {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="fid__letra">{loja.nome.charAt(0)}</span>}
+          <div><small>Cartão fidelidade</small><strong>{loja.nome}</strong></div>
+        </div>
+        <p className="fid__regra">A cada <b>{f.meta} pedidos</b>{Number(f.minimo) > 0 ? ` acima de ${brl(Number(f.minimo))}` : ''}, você ganha:</p>
+        <p className="fid__premio"><Gift size={18} /> {f.premio || 'um prêmio da casa'}</p>
+        <div className="fid__selos" style={{ gridTemplateColumns: `repeat(${f.meta <= 10 ? 5 : 6}, 1fr)` }}>
+          {Array.from({ length: f.meta }, (_, i) => (
+            <span key={i} className={cx('fid__selo', i < pontos && 'ok', i === f.meta - 1 && 'ultimo')}>
+              {i < pontos ? <Check size={16} strokeWidth={3} /> : i === f.meta - 1 ? <Gift size={15} /> : i + 1}
+            </span>
+          ))}
+        </div>
+        {res && (
+          <p className="fid__status">
+            {completo ? <><b>Parabéns!</b> Você completou o cartão. Avise a loja no próximo pedido para receber o prêmio.</>
+              : <>Faltam <b>{f.meta - pontos} {f.meta - pontos === 1 ? 'pedido' : 'pedidos'}</b> para o prêmio.</>}
+            {res.resgates > 0 && <small> Você já ganhou {res.resgates} {res.resgates === 1 ? 'vez' : 'vezes'}.</small>}
+          </p>
+        )}
+      </div>
+      <form className="fid__tel" onSubmit={(e) => { e.preventDefault(); void consultar(tel); }}>
+        <label className="campo"><span>Seu WhatsApp (o mesmo dos pedidos)</span>
+          <input className="input" inputMode="tel" value={telefoneFormatado(tel)} onChange={(e) => setTel(e.target.value.replace(/\D/g, ''))} placeholder="(11) 98765-4321" />
+        </label>
+        <button className="btn btn--primario" disabled={carregando || tel.replace(/\D/g, '').length < 10}>{carregando ? 'Consultando…' : res ? 'Atualizar' : 'Ver meus pontos'}</button>
+      </form>
+    </section>
+  );
+}
+
+const ROTULO_STATUS: Record<string, string> = { novo: 'Pedido recebido', preparando: 'Em preparo', pronto: 'Pronto', entregue: 'Entregue', cancelado: 'Cancelado' };
+
+/** Pedidos feitos neste celular. */
+function AbaPedidos({ codigo, loja }: { codigo: string; loja: Loja }) {
+  const [lista, setLista] = useState<(StatusPedido & { acompanhar: string })[] | null>(null);
+  useEffect(() => {
+    const tokens = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, []);
+    void Promise.all(tokens.map(async (a) => {
+      const { data } = await supabase.rpc('loja_pedido_status', { p_acompanhar: a });
+      return data ? { ...(data as StatusPedido), acompanhar: a } : null;
+    })).then((l) => setLista(l.filter((x): x is StatusPedido & { acompanhar: string } => !!x)));
+  }, [codigo]);
+
+  if (!lista) return <div className="spinner" style={{ margin: '50px auto' }} />;
+  if (!lista.length) {
+    return (
+      <AbaVazia icone={<ReceiptText size={30} />} titulo="Você ainda não fez pedidos" texto="Os pedidos feitos neste celular aparecem aqui para você acompanhar." />
+    );
+  }
+  return (
+    <section className="mesa__secao">
+      <header className="mesa__secao-cab"><h2 className="titulo"><ReceiptText size={22} /> Meus pedidos</h2><span>{lista.length}</span></header>
+      <ul className="meus-pedidos">
+        {lista.map((p) => (
+          <li key={p.acompanhar} className="meu-pedido">
+            <div className="meu-pedido__topo">
+              {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
+              <div>
+                <strong>{loja.nome}</strong>
+                <small>{new Date(p.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+              </div>
+            </div>
+            <p className="meu-pedido__linha">
+              <span className={cx('meu-pedido__ponto', `meu-pedido__ponto--${p.status}`)} />
+              {p.status === 'entregue' ? (p.tipo === 'delivery' ? 'Entrega realizada' : 'Retirado') : ROTULO_STATUS[p.status] ?? p.status} · Pedido #{p.numero}
+            </p>
+            <p className="meu-pedido__itens">{p.itens.map((i) => `${i.qtd}× ${i.nome}`).join(', ')}</p>
+            <div className="meu-pedido__base">
+              <span>Total: <b>{brl(Number(p.total))}</b></span>
+              <Link className="btn btn--contorno btn--sm" to={`/loja/${codigo}/pedido/${p.acompanhar}`}>Detalhe do pedido</Link>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Clock, ImagePlus, Search, Star, Trash2 } from 'lucide-react';
-import { FotoProduto, Switch } from '../../../componentes/Basicos';
+import { FotoProduto, Stepper, Switch } from '../../../componentes/Basicos';
 import { linkLoja } from '../../../componentes/CardapioDigital';
 import { LinkCopiavel, QrCartao } from '../../../componentes/Link';
 import { useToast } from '../../../componentes/Toast';
 import { useSessao } from '../../../lib/sessao';
 import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../../lib/supabase';
 import type { Categoria, Produto } from '../../../lib/tipos';
-import { brl, cx } from '../../../lib/util';
+import { brl, cx, lerPreco, mascaraPreco, precoParaTexto } from '../../../lib/util';
 import { usePainel } from '../Painel';
 import { CampoAjuda, OpcaoChave, PaginaConfig, mudou, usePasso, type Passo } from './Layout';
 
@@ -17,6 +17,7 @@ const PASSOS: Passo[] = [
   { id: 'descricao', rotulo: 'Descrição e rodapé', dica: 'Textos que o cliente lê no cardápio' },
   { id: 'destaques', rotulo: 'Produtos em destaque', dica: 'Aparecem primeiro, na aba “Mais pedidos”' },
   { id: 'esgotados', rotulo: 'Produtos esgotados', dica: 'O que acabou por agora não pode ser pedido' },
+  { id: 'fidelidade', rotulo: 'Cartão fidelidade', dica: 'A cada tantos pedidos, o cliente ganha um prêmio' },
   { id: 'link', rotulo: 'Link do cardápio', dica: 'Divulgue no WhatsApp, Instagram e na porta da loja' },
 ];
 const CORES = ['#ff5a1f', '#e63946', '#d6336c', '#7048e8', '#1c7ed6', '#0b7285', '#0ca678', '#5c940d', '#f08c00', '#212529'];
@@ -32,6 +33,8 @@ export default function CardapioDigitalConfig() {
   const inicial = () => ({
     ativo: r.delivery_ativo, obs: r.loja_obs ?? true, cor: r.cor, capa: r.loja_capa_url,
     descricao: r.loja_descricao ?? '', slogan: r.slogan ?? '', rodape: r.loja_rodape ?? '',
+    fid_ativo: !!r.fidelidade?.ativo, fid_meta: Number(r.fidelidade?.meta ?? 10), fid_premio: r.fidelidade?.premio ?? '',
+    fid_minimo: r.fidelidade?.minimo ? precoParaTexto(Number(r.fidelidade.minimo)) : '',
   });
   const [base, setBase] = useState(inicial);
   const [f, setF] = useState(base);
@@ -43,6 +46,7 @@ export default function CardapioDigitalConfig() {
     const { error } = await supabase.from('restaurantes').update({
       delivery_ativo: f.ativo, loja_obs: f.obs, cor: f.cor, loja_capa_url: f.capa,
       loja_descricao: f.descricao.trim() || null, slogan: f.slogan.trim() || null, loja_rodape: f.rodape.trim() || null,
+      fidelidade: { ativo: f.fid_ativo, meta: f.fid_meta, premio: f.fid_premio.trim().slice(0, 120), minimo: f.fid_minimo.trim() ? lerPreco(f.fid_minimo) : 0 },
     }).eq('id', r.id);
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
@@ -82,7 +86,7 @@ export default function CardapioDigitalConfig() {
       passos={PASSOS}
       atual={passo}
       aoPasso={irPasso}
-      salvar={['configuracoes', 'cor', 'descricao'].includes(passo.id) || mudou(f, base) ? { sujo: mudou(f, base), salvando, aoSalvar: () => void salvar() } : undefined}
+      salvar={['configuracoes', 'cor', 'descricao', 'fidelidade'].includes(passo.id) || mudou(f, base) ? { sujo: mudou(f, base), salvando, aoSalvar: () => void salvar() } : undefined}
       lateral={previa || undefined}
     >
       {passo.id === 'configuracoes' && (
@@ -136,6 +140,23 @@ export default function CardapioDigitalConfig() {
       )}
 
       {(passo.id === 'destaques' || passo.id === 'esgotados') && <ListaProdutos modo={passo.id} />}
+
+      {passo.id === 'fidelidade' && (
+        <div className="form">
+          <OpcaoChave titulo="Cartão fidelidade ligado" dica="Aparece na aba “Fidelidade” do cardápio digital. Conta os pedidos pelo WhatsApp do cliente." marcado={f.fid_ativo} aoMudar={(v) => set('fid_ativo', v)} />
+          <div className={cx('cfg-linha', !f.fid_ativo && 'cfg-apagado')}>
+            <CampoAjuda rotulo="A cada quantos pedidos?" ajuda="Ex.: 10 pedidos = 1 prêmio.">
+              <Stepper valor={f.fid_meta} min={2} max={30} aoMudar={(v) => set('fid_meta', v)} />
+            </CampoAjuda>
+            <CampoAjuda rotulo="Valor mínimo do pedido (R$)" ajuda="Pedidos abaixo disso não contam. Vazio = todos contam.">
+              <input className="input" inputMode="decimal" value={f.fid_minimo} onChange={(e) => set('fid_minimo', mascaraPreco(e.target.value))} placeholder="0,00" />
+            </CampoAjuda>
+          </div>
+          <CampoAjuda rotulo="Prêmio" ajuda="O que o cliente ganha ao completar o cartão. Você entrega e marca em Configurações › Meus clientes.">
+            <input className="input" value={f.fid_premio} maxLength={120} onChange={(e) => set('fid_premio', e.target.value)} placeholder="Ex.: Uma pizza broto grátis" />
+          </CampoAjuda>
+        </div>
+      )}
 
       {passo.id === 'link' && (
         <div className="cfg-link">

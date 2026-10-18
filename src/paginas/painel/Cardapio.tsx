@@ -269,6 +269,7 @@ export default function Cardapio() {
     comCategoria && (p.grupo_id ? `Sabor · ${grupoDe(p.grupo_id)?.nome ?? 'grupo'}` : nomeCat(p.categoria_id)),
     p.descricao && !comCategoria && p.descricao,
     adic.vinculos.some((v) => v.produto_id === p.id) && `adicionais: ${adic.vinculos.filter((v) => v.produto_id === p.id).sort((a, b) => a.ordem - b.ordem).map((v) => adic.grupos.find((g) => g.id === v.grupo_id)?.nome).filter(Boolean).join(', ')}`,
+    p.preco_de && Number(p.preco_de) > Number(p.preco) && `promoção (de ${brl(Number(p.preco_de))})`,
     p.video_url && 'vídeo',
     p.controla_estoque && `estoque ${p.estoque}`,
     !p.precisa_preparo && 'sem preparo',
@@ -1062,6 +1063,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
     nome: produto?.nome ?? '',
     descricao: produto?.descricao ?? '',
     preco: produto ? precoParaTexto(produto.preco) : '',
+    preco_de: produto?.preco_de ? precoParaTexto(Number(produto.preco_de)) : '',
     categoria_id: produto?.categoria_id ?? categoriaPadrao ?? '',
     emoji: produto?.emoji ?? '',
     imagem_url: produto?.imagem_url ?? null as string | null,
@@ -1116,6 +1118,8 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
   async function salvar() {
     // Sabor: o preço é só o acréscimo (vazio = R$ 0,00)
     const preco = ehSabor && !f.preco.trim() ? 0 : lerPreco(f.preco);
+    const precoDe = f.preco_de.trim() ? lerPreco(f.preco_de) : null;
+    if (precoDe !== null && (!Number.isFinite(precoDe) || precoDe <= preco)) return toast('O preço "de" precisa ser maior que o preço atual (ex.: de 59,90 por 49,90).', 'erro');
     if (!f.nome.trim()) return toast('Informe o nome.', 'erro');
     if (!Number.isFinite(preco) || preco < 0) return toast('Preço inválido. Ex.: 49,90', 'erro');
     setSalvando(true);
@@ -1123,6 +1127,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
       nome: f.nome.trim(),
       descricao: f.descricao.trim(),
       preco,
+      preco_de: ehSabor ? null : precoDe,
       categoria_id: ehSabor ? null : f.categoria_id || null,
       grupo_id: ehSabor ? grupo?.id ?? produto?.grupo_id ?? null : null,
       esgotado,
@@ -1247,6 +1252,11 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
           <Campo rotulo={ehSabor ? 'Acréscimo (opcional)' : 'Preço (R$)'} dica={ehSabor ? 'Somado ao preço do tamanho. Ex.: 5,00 para sabor especial.' : undefined}>
             <input className="input" inputMode="decimal" value={f.preco} onChange={(e) => mudar('preco', mascaraPreco(e.target.value))} placeholder={ehSabor ? '0,00' : '49,90'} />
           </Campo>
+          {!ehSabor && (
+            <Campo rotulo="Preço antes (promoção)" dica="Opcional. Ex.: de 59,90 por 49,90. Vazio = sem promoção.">
+              <input className="input" inputMode="decimal" value={f.preco_de} onChange={(e) => mudar('preco_de', mascaraPreco(e.target.value))} placeholder="0,00" />
+            </Campo>
+          )}
           {ehSabor ? (
             <Campo rotulo="Grupo" dica="O preço vem de cada tamanho que usa este grupo.">
               <div className="input input--leitura"><Layers size={16} /> {grupo?.nome ?? 'Grupo de sabores'}</div>

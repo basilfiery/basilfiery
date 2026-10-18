@@ -1930,3 +1930,9 @@
   .compra-pessoa__acoes { width: 100%; justify-content: flex-end; }
 }
 .lateral__contador--alerta { background: #f59f00 !important; color: #fff !important; }
+
+/* Fidelidade em "Meus clientes" e no Cardápio digital */
+.cfg-fid { position: relative; display: inline-flex; align-items: center; width: 110px; height: 22px; overflow: hidden; border-radius: 999px; background: var(--bg-2); }
+.cfg-fid i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: color-mix(in srgb, var(--acento) 35%, transparent); }
+.cfg-fid small { position: relative; width: 100%; text-align: center; font-size: .74rem; font-weight: 800; }
+.cfg-apagado { opacity: .5; pointer-events: none; }

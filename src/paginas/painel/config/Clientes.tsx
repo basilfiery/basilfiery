@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, MessageCircle, Search, Users } from 'lucide-react';
+import { Download, Gift, MessageCircle, Search, Users } from 'lucide-react';
+import { confirmar } from '../../../componentes/Confirmar';
 import { useToast } from '../../../componentes/Toast';
 import { msgErro, supabase } from '../../../lib/supabase';
 import { brl, cx } from '../../../lib/util';
@@ -8,7 +9,7 @@ import { mascaraTelefone } from './Estabelecimento';
 import { PaginaConfig } from './Layout';
 import { Paginacao } from './HistoricoPedidos';
 
-interface Cliente { telefone: string; nome: string | null; pedidos: number; total: number; primeiro: string; ultimo: string; bairro: string | null }
+interface Cliente { telefone: string; nome: string | null; pedidos: number; total: number; primeiro: string; ultimo: string; bairro: string | null; fidelidade: number }
 type Ordem = 'ultimo' | 'pedidos' | 'total' | 'nome';
 
 const data = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -17,6 +18,15 @@ const whatsapp = (tel: string) => `https://wa.me/${tel.length <= 11 ? `55${tel}`
 export default function Clientes() {
   const { restaurante: r } = usePainel();
   const toast = useToast();
+  const fid = r.fidelidade?.ativo ? { meta: Number(r.fidelidade.meta ?? 10), premio: r.fidelidade.premio ?? 'prêmio' } : null;
+  const [recarga, setRecarga] = useState(0);
+  async function resgatar(c: Cliente) {
+    if (!fid || !(await confirmar(`Entregar "${fid.premio}" para ${c.nome ?? 'o cliente'}? O cartão dele volta a zero.`, { sim: 'Entreguei o prêmio' }))) return;
+    const { error } = await supabase.rpc('fidelidade_resgatar', { p_rest: r.id, p_telefone: c.telefone });
+    if (error) return toast(msgErro(error), 'erro');
+    toast('Prêmio registrado. Cartão zerado.', 'ok');
+    setRecarga((n) => n + 1);
+  }
   const [lista, setLista] = useState<Cliente[] | null>(null);
   const [busca, setBusca] = useState('');
   const [ordem, setOrdem] = useState<Ordem>('ultimo');
@@ -26,9 +36,9 @@ export default function Clientes() {
   useEffect(() => {
     void supabase.rpc('clientes_listar', { p_rest: r.id }).then(({ data: d, error }) => {
       if (error) { toast(msgErro(error), 'erro'); setLista([]); return; }
-      setLista(((d ?? []) as Cliente[]).map((c) => ({ ...c, pedidos: Number(c.pedidos), total: Number(c.total) })));
+      setLista(((d ?? []) as Cliente[]).map((c) => ({ ...c, pedidos: Number(c.pedidos), total: Number(c.total), fidelidade: Number(c.fidelidade ?? 0) })));
     });
-  }, [r.id, toast]);
+  }, [r.id, toast, recarga]);
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
@@ -85,7 +95,7 @@ export default function Clientes() {
       ) : (
         <div className="cfg-tabela">
           <table>
-            <thead><tr><th>Cliente</th><th>WhatsApp</th><th className="num">Pedidos</th><th className="num">Total gasto</th><th>Último pedido</th><th>Bairro</th><th aria-label="Ações" /></tr></thead>
+            <thead><tr><th>Cliente</th><th>WhatsApp</th><th className="num">Pedidos</th><th className="num">Total gasto</th><th>Último pedido</th><th>Bairro</th>{fid && <th>Fidelidade</th>}<th aria-label="Ações" /></tr></thead>
             <tbody>
               {pag.map((c) => (
                 <tr key={c.telefone}>
@@ -95,6 +105,13 @@ export default function Clientes() {
                   <td data-rotulo="Total gasto" className="num">{brl(c.total)}</td>
                   <td data-rotulo="Último pedido">{data(c.ultimo)}</td>
                   <td data-rotulo="Bairro" className={cx(!c.bairro && 'muted')}>{c.bairro ?? '—'}</td>
+                  {fid && (
+                    <td data-rotulo="Fidelidade">
+                      {c.fidelidade >= fid.meta
+                        ? <button className="btn btn--sucesso btn--sm" onClick={() => void resgatar(c)}><Gift size={14} /> Entregar prêmio</button>
+                        : <span className="cfg-fid"><i style={{ width: `${(c.fidelidade / fid.meta) * 100}%` }} /><small>{c.fidelidade}/{fid.meta}</small></span>}
+                    </td>
+                  )}
                   <td className="acao"><a className="btn btn--contorno btn--sm" href={whatsapp(c.telefone)} target="_blank" rel="noopener"><MessageCircle size={15} /> Conversar</a></td>
                 </tr>
               ))}

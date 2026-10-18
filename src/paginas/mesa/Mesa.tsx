@@ -552,6 +552,7 @@ export default function Mesa() {
 
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias" ref={catsRef}>
+          {/* Só as categorias; as subcategorias aparecem como abas no conteúdo */}
           {secoes.map((c) => (
             <Fragment key={c.id}>
               <button
@@ -564,16 +565,6 @@ export default function Mesa() {
                 <span className="mesa__cat-nome">{c.nome}</span>
                 <span className="mesa__cat-qtd">{c.total}</span>
               </button>
-              {/* Tamanhos/subcategorias logo abaixo, como as demais: um toque e já vê */}
-              {c.subs.map((sub) => (
-                <button
-                  key={sub.id}
-                  className={cx('mesa__subcat', secao?.id === c.id && abaAtual === sub.id && 'ativa')}
-                  onClick={() => escolherCategoria(c.id, sub.id)}
-                >
-                  {sub.emoji} {sub.nome}
-                </button>
-              ))}
             </Fragment>
           ))}
         </nav>

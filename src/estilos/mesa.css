@@ -12,6 +12,9 @@
   -webkit-text-size-adjust: 100%;
 }
 @supports (height: 100dvh) { .mesa { height: 100dvh; } }
+/* O cardápio inteiro fica parado: só as categorias e os itens rolam (e "esticam") com o dedo */
+html:has(.mesa), body:has(.mesa) { height: 100%; overflow: hidden; overscroll-behavior: none; }
+.mesa { position: fixed; inset: 0 0 auto; }
 .mesa textarea, .mesa input { user-select: text; -webkit-user-select: text; }
 
 /* ---------- Topo ---------- */
@@ -495,9 +498,14 @@
 .galeria { position: relative; margin: 0 -20px 16px; }
 .galeria__trilho { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .galeria__trilho::-webkit-scrollbar { display: none; }
-.galeria__item { flex: 0 0 100%; height: min(46vh, 400px); display: grid; place-items: center; scroll-snap-align: center; overflow: hidden; transition: background .3s; }
-.galeria__item img, .galeria__item video { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
-.galeria__item video { width: 100%; height: 100%; }
+/* Quadro 16:9: foto deitada preenche (como antes); quadrada ou em pé aparece inteira, centralizada, com as laterais na cor do fundo */
+.galeria__item { position: relative; flex: 0 0 100%; aspect-ratio: 16 / 9; scroll-snap-align: center; overflow: hidden; transition: background .3s; }
+.galeria__item img, .galeria__item video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
+.galeria__item.larga img, .galeria__item.larga video { object-fit: cover; }
+/* Celular deitado: a foto quadrada cabe inteira acima do botão Adicionar */
+@media (max-height: 520px) and (orientation: landscape) {
+  .galeria__item:not(.larga) { max-height: max(150px, calc(100dvh - 210px)); }
+}
 .galeria__seta {
   position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; display: grid; place-items: center;
   border: 0; border-radius: 50%; background: rgba(0, 0, 0, .45); color: #fff; backdrop-filter: blur(6px); cursor: pointer;

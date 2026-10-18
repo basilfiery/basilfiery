@@ -989,19 +989,28 @@ function useCorDeFundo(url: string | null) {
 function SlideGaleria({ item, ativo, p }: { item: { tipo: 'imagem' | 'video'; url: string }; ativo: boolean; p: ProdutoMesa }) {
   const cor = useCorDeFundo(item.tipo === 'imagem' ? item.url : p.imagem_url);
   const ref = useRef<HTMLVideoElement>(null);
+  const [larga, setLarga] = useState(() => midiasLargas.get(item.url) ?? false);
+  const medir = (w: number, h: number) => {
+    const v = h > 0 && w / h >= 1.5;
+    midiasLargas.set(item.url, v);
+    setLarga(v);
+  };
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
     if (ativo) void v.play().catch(() => {}); else v.pause();
   }, [ativo]);
   return (
-    <div className="galeria__item" style={{ background: item.tipo === 'video' ? '#000' : cor }}>
+    <div className={cx('galeria__item', larga && 'larga')} style={{ background: item.tipo === 'video' ? '#000' : cor }}>
       {item.tipo === 'video'
-        ? <video ref={ref} src={item.url} poster={p.imagem_url ?? undefined} muted loop playsInline controls autoPlay={ativo} />
-        : <img src={item.url} alt={p.nome} draggable={false} />}
+        ? <video ref={ref} src={item.url} poster={p.imagem_url ?? undefined} muted loop playsInline controls autoPlay={ativo} onLoadedMetadata={(e) => medir(e.currentTarget.videoWidth, e.currentTarget.videoHeight)} />
+        : <img src={item.url} alt={p.nome} draggable={false} onLoad={(e) => medir(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} />}
     </div>
   );
 }
+
+/** Fotos/vídeos deitados (16:9) preenchem o quadro; quadrados ou em pé aparecem inteiros. */
+const midiasLargas = new Map<string, boolean>();
 
 /** Fotos e vídeos do produto, inteiros (sem cortar), deslizando para o lado. */
 function GaleriaProduto({ p }: { p: ProdutoMesa }) {

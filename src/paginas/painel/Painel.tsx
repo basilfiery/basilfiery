@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
@@ -754,7 +754,7 @@ export default function Painel() {
         )}
 
         <main className={cx('painel__conteudo', (naTelaDePedidos || local.pathname === '/painel/pdv') && permitido && 'painel__conteudo--cheio')}>
-          {permitido ? <Outlet context={ctx} /> : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}
+          {permitido ? <Suspense fallback={<div className="carregando"><div className="spinner" /></div>}><Outlet context={ctx} /></Suspense> : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}
         </main>
       </div>
 

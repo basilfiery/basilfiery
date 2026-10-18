@@ -1,5 +1,5 @@
-import { lazy, Suspense, type ComponentType } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useEffect, type ComponentType } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Carregando } from './componentes/Carregando';
 import { ExigeLogin } from './lib/sessao';
 import { recarregarUmaVez } from './lib/carregamento';
@@ -34,7 +34,25 @@ const Conta = tela(() => import('./paginas/painel/Conta'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
 const Pdv = tela(() => import('./paginas/painel/Pdv'));
 
+/** Telas do painel: baixadas em segundo plano para trocar de aba sem esperar. */
+const TELAS_PAINEL = [
+  () => import('./paginas/painel/Pedidos'), () => import('./paginas/painel/Mesas'), () => import('./paginas/painel/Pdv'),
+  () => import('./paginas/painel/Cardapio'), () => import('./paginas/painel/Estoque'), () => import('./paginas/painel/Relatorios'),
+  () => import('./paginas/painel/Garcons'), () => import('./paginas/painel/Equipe'), () => import('./paginas/painel/Configuracoes'),
+  () => import('./paginas/painel/Conta'),
+];
+
+function usePrecarregarPainel() {
+  const noPainel = useLocation().pathname.startsWith('/painel');
+  useEffect(() => {
+    if (!noPainel) return;
+    const t = setTimeout(() => TELAS_PAINEL.forEach((carregar) => void carregar().catch(() => {})), 800);
+    return () => clearTimeout(t);
+  }, [noPainel]);
+}
+
 export default function App() {
+  usePrecarregarPainel();
   return (
     <Suspense fallback={<Carregando />}>
       <Routes>

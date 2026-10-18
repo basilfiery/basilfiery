@@ -23,7 +23,7 @@ limparParametroDeRecarga();
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErroGeral>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ProvedorToast>
           <ProvedorSessao>
             <ProvedorConfirmar>

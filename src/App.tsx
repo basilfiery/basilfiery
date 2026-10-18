@@ -34,6 +34,8 @@ const Conta = tela(() => import('./paginas/painel/Conta'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
 const Pdv = tela(() => import('./paginas/painel/Pdv'));
 const Compras = tela(() => import('./paginas/painel/Compras'));
+const Aparencia = tela(() => import('./paginas/painel/Aparencia'));
+const AppsCelular = tela(() => import('./paginas/painel/AppsCelular'));
 const ListaCompras = tela(() => import('./paginas/compras/ListaCompras'));
 
 /** Telas do painel: baixadas em segundo plano para trocar de aba sem esperar. */
@@ -41,7 +43,7 @@ const TELAS_PAINEL = [
   () => import('./paginas/painel/Pedidos'), () => import('./paginas/painel/Mesas'), () => import('./paginas/painel/Pdv'),
   () => import('./paginas/painel/Cardapio'), () => import('./paginas/painel/Estoque'), () => import('./paginas/painel/Relatorios'),
   () => import('./paginas/painel/Garcons'), () => import('./paginas/painel/Equipe'), () => import('./paginas/painel/Configuracoes'),
-  () => import('./paginas/painel/Conta'), () => import('./paginas/painel/Compras'),
+  () => import('./paginas/painel/Conta'), () => import('./paginas/painel/Compras'), () => import('./paginas/painel/Aparencia'),
 ];
 
 function usePrecarregarPainel() {
@@ -65,6 +67,7 @@ export default function App() {
         <Route path="/loja/:codigo" element={<Loja />} />
         <Route path="/loja/:codigo/pedido/:acompanhar" element={<LojaPedido />} />
         <Route path="/lista/:codigo" element={<ListaCompras />} />
+        <Route path="/colaboradores/:codigo" element={<ListaCompras />} />
         <Route path="/g" element={<AppGarcomInicio />} />
         <Route path="/g/:codigo" element={<AppGarcom />} />
         <Route path="/garcom" element={<ExigeLogin><Garcom /></ExigeLogin>} />
@@ -74,6 +77,8 @@ export default function App() {
           <Route path="mesas" element={<Mesas />} />
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="cardapio" element={<Cardapio />} />
+          <Route path="cardapio/aparencia" element={<Aparencia />} />
+          <Route path="apps" element={<AppsCelular />} />
           <Route path="estoque" element={<Estoque />} />
           <Route path="garcons" element={<Garcons />} />
           <Route path="equipe" element={<Equipe />} />

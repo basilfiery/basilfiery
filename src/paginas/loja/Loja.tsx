@@ -10,8 +10,9 @@ import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco } from '../../lib/util';
-import { ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
+import { destravarSom, tocarEnviado } from '../../lib/som';
 import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaRaio, type Ponto } from '../../lib/mapa';
 import '../../estilos/mesa.css';
 import '../../estilos/loja.css';
@@ -25,7 +26,7 @@ interface Loja {
   id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string;
   aberto: boolean; taxa: number; minimo: number; tempo: string; retirada: boolean; whatsapp: string | null; endereco: string | null;
   /** Chave "Cardápio ativado" (aberto = ligado e dentro do horário) */
-  ligado?: boolean; entrega?: boolean; segmento?: string | null; instagram?: string | null; capa_url?: string | null;
+  ligado?: boolean; entrega?: boolean; segmento?: string | null; instagram?: string | null; capa_url?: string | null; capa_video_url?: string | null;
   descricao?: string | null; rodape?: string | null; obs?: boolean; formas?: Forma[];
   horarios?: { aberto: boolean; de: string; ate: string }[] | null;
   ads?: { pixel?: string; ga4?: string; gads?: string };
@@ -154,6 +155,7 @@ export default function LojaCardapio() {
   const [verCarrinho, setVerCarrinho] = useState(false);
   const [finalizar, setFinalizar] = useState(false);
   const listaRef = useRef<HTMLElement>(null);
+  const [capaRecolhida, setCapaRecolhida] = useState(false);
   const [params, setParams] = useSearchParams();
   const abaLoja = (ABAS_LOJA.some((a) => a.id === params.get('aba')) ? params.get('aba') : 'inicio') as AbaLoja;
   const irAba = (id: AbaLoja) => { setParams(id === 'inicio' ? {} : { aba: id }); window.scrollTo({ top: 0 }); };
@@ -352,6 +354,8 @@ export default function LojaCardapio() {
           {abaLoja === 'pedidos' && <AbaPedidos codigo={codigo} loja={loja} />}
         </main>
       ) : (
+      <>
+      <CapaCardapio imagem={loja.capa_url} video={loja.capa_video_url} recolhida={capaRecolhida} />
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias">
           {secoes.map((c) => (
@@ -362,11 +366,10 @@ export default function LojaCardapio() {
             </button>
           ))}
         </nav>
-        <main className="mesa__lista" ref={listaRef}>
-          {secao?.id === secoes[0]?.id && (loja.capa_url || loja.descricao) && (
+        <main className="mesa__lista" ref={listaRef} onScroll={(e) => setCapaRecolhida(e.currentTarget.scrollTop > 40)}>
+          {secao?.id === secoes[0]?.id && loja.descricao && (
             <div className="loja-hero">
-              {loja.capa_url && <img className="loja-hero__capa" src={loja.capa_url} alt="" />}
-              {loja.descricao && <p className="loja-hero__desc">{loja.descricao}</p>}
+              <p className="loja-hero__desc">{loja.descricao}</p>
             </div>
           )}
           {secao ? (
@@ -402,6 +405,7 @@ export default function LojaCardapio() {
         </main>
         <aside className="mesa__carrinho">{sacola}</aside>
       </div>
+      </>
       )}
 
       {/* Barra de baixo, como nos apps de delivery */}
@@ -629,6 +633,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
+    destravarSom(); // ainda dentro do toque: libera o áudio do celular
     if (!forma) return toast('Escolha a forma de pagamento.', 'erro');
     if (tipo === 'delivery' && modo === 'bairro' && !bairroEscolhido) return toast('Escolha o seu bairro na lista.', 'erro');
     if (tipo === 'delivery' && modo === 'raio' && !local) return toast('Toque em “Calcular entrega” para confirmar o endereço.', 'erro');
@@ -654,6 +659,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
     if (error) return toast(msgErro(error), 'erro');
     const feito = data as { acompanhar: string; total: number };
     rastrear('Purchase', Number(feito.total), feito.acompanhar);
+    tocarEnviado();
     aoEnviar(feito.acompanhar);
   }
 

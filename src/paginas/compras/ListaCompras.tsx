@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, Clock, Flame, Hourglass, LogOut, Plus, ShoppingCart, Store, X } from 'lucide-react';
+import { Check, Clock, Eye, EyeOff, Flame, Hourglass, LogOut, Plus, Store, UsersRound, X } from 'lucide-react';
 import { Carregando } from '../../componentes/Carregando';
 import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
@@ -21,7 +21,6 @@ interface Item {
 }
 interface Eu { pessoa: { nome: string; setor: string; status: 'pendente' | 'ativo' | 'bloqueado' }; loja: Loja; itens: Item[] }
 
-const SETORES = ['Cozinha', 'Bar', 'Salão', 'Caixa', 'Limpeza', 'Entregas', 'Outro'];
 const SUGESTOES: Record<string, string[]> = {
   Cozinha: ['Tomate', 'Cebola', 'Mussarela', 'Pimentão', 'Cheiro-verde', 'Carne', 'Frango', 'Calabresa', 'Presunto', 'Farinha de trigo', 'Óleo', 'Ovos', 'Batata', 'Molho de tomate'],
   Bar: ['Gelo', 'Limão', 'Refrigerante', 'Cerveja', 'Água mineral', 'Açúcar', 'Copo descartável', 'Canudo'],
@@ -36,6 +35,7 @@ const sessaoInvalida = (e: unknown) => /SESSAO_INVALIDA/.test(msgErro(e));
 export default function ListaCompras() {
   const { codigo = '' } = useParams();
   const chave = `bf:lista:${codigo}`;
+  const base = window.location.pathname.startsWith('/lista') ? '/lista' : '/colaboradores';
   const [token, setToken] = useState<string>(() => ls.ler(chave, ''));
   const [loja, setLoja] = useState<Loja | null | undefined>(undefined);
   const [eu, setEu] = useState<Eu | null>(null);
@@ -46,7 +46,7 @@ export default function ListaCompras() {
     return () => { delete document.documentElement.dataset.tema; };
   }, []);
   useEffect(() => { void supabase.rpc('compras_loja', { p_codigo: codigo }).then(({ data }) => setLoja((data as Loja | null) ?? null)); }, [codigo]);
-  useAppInstalavel(loja ? { nome: `Compras · ${loja.nome}`, curto: 'Compras', inicio: `/lista/${codigo}`, escopo: `/lista/${codigo}` } : null);
+  useAppInstalavel(loja ? { nome: `Colaboradores · ${loja.nome}`, curto: 'Colaboradores', inicio: `${base}/${codigo}`, escopo: `${base}/${codigo}` } : null);
 
   const sair = useCallback(() => { ls.gravar(chave, ''); setToken(''); setEu(null); }, [chave]);
   const atualizar = useCallback(async () => {
@@ -83,7 +83,7 @@ export default function ListaCompras() {
         {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="lista__letra">{loja.nome.charAt(0)}</span>}
         <div>
           <strong>{loja.nome}</strong>
-          <small>Lista de compras da equipe</small>
+          <small>App dos colaboradores</small>
         </div>
         {eu && <button className="lista__sair" onClick={sair} aria-label="Sair"><LogOut size={18} /></button>}
       </header>
@@ -105,21 +105,15 @@ export default function ListaCompras() {
 
 function Entrada({ codigo, aoEntrar }: { codigo: string; aoEntrar: (token: string) => void }) {
   const toast = useToast();
-  const [modo, setModo] = useState<'cadastro' | 'entrar'>('cadastro');
-  const [nome, setNome] = useState('');
-  const [setor, setSetor] = useState('Cozinha');
-  const [pin, setPin] = useState('');
-  const [pin2, setPin2] = useState('');
+  const [usuario, setUsuario] = useState('');
+  const [senha, setSenha] = useState('');
+  const [ver, setVer] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
-    if (!/^\d{4,6}$/.test(pin)) return toast('A senha precisa ter de 4 a 6 números.', 'erro');
-    if (modo === 'cadastro' && pin !== pin2) return toast('As senhas não são iguais.', 'erro');
     setEnviando(true);
-    const { data, error } = modo === 'cadastro'
-      ? await supabase.rpc('compras_cadastrar', { p_codigo: codigo, p_nome: nome, p_setor: setor, p_pin: pin })
-      : await supabase.rpc('compras_entrar', { p_codigo: codigo, p_nome: nome, p_pin: pin });
+    const { data, error } = await supabase.rpc('compras_entrar', { p_codigo: codigo, p_nome: usuario, p_pin: senha });
     setEnviando(false);
     if (error) return toast(msgErro(error), 'erro');
     aoEntrar(data as string);
@@ -128,32 +122,21 @@ function Entrada({ codigo, aoEntrar }: { codigo: string; aoEntrar: (token: strin
   return (
     <form className="lista__entrada" onSubmit={enviar}>
       <div className="lista__boas">
-        <span className="lista__icone-grande"><ShoppingCart size={32} /></span>
-        <h1>{modo === 'cadastro' ? 'Faça seu cadastro' : 'Entrar'}</h1>
-        <p>{modo === 'cadastro' ? 'Uma vez só. Depois é só abrir este link e anotar o que precisa repor.' : 'Use o nome e a senha que você cadastrou.'}</p>
+        <span className="lista__icone-grande"><UsersRound size={32} /></span>
+        <h1>App dos colaboradores</h1>
+        <p>Entre com o usuário e a senha que o responsável mandou para você.</p>
       </div>
-      <div className="lista__modos">
-        <button type="button" className={cx(modo === 'cadastro' && 'ativo')} onClick={() => setModo('cadastro')}>Primeiro acesso</button>
-        <button type="button" className={cx(modo === 'entrar' && 'ativo')} onClick={() => setModo('entrar')}>Já tenho cadastro</button>
-      </div>
-      <label className="campo"><span>Seu nome</span><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} autoComplete="name" placeholder="Ex.: Maria Silva" required /></label>
-      {modo === 'cadastro' && (
-        <div className="campo">
-          <span>Onde você trabalha?</span>
-          <div className="lista__chips">
-            {SETORES.map((x) => <button type="button" key={x} className={cx('lista__chip', setor === x && 'ativo')} onClick={() => setSetor(x)}>{x}</button>)}
-          </div>
-        </div>
-      )}
-      <label className="campo"><span>{modo === 'cadastro' ? 'Crie uma senha (4 a 6 números)' : 'Senha'}</span>
-        <input className="input lista__pin" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" type="password" autoComplete={modo === 'cadastro' ? 'new-password' : 'current-password'} placeholder="••••" required />
+      <label className="campo"><span>Usuário</span>
+        <input className="input" value={usuario} onChange={(e) => setUsuario(e.target.value)} maxLength={60} autoComplete="username" autoCapitalize="none" placeholder="Ex.: maria.souza" required />
       </label>
-      {modo === 'cadastro' && (
-        <label className="campo"><span>Repita a senha</span>
-          <input className="input lista__pin" value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" type="password" autoComplete="new-password" placeholder="••••" required />
-        </label>
-      )}
-      <button className="btn btn--primario btn--lg btn--bloco" disabled={enviando || nome.trim().length < 2}>{enviando ? 'Aguarde…' : modo === 'cadastro' ? 'Cadastrar' : 'Entrar'}</button>
+      <label className="campo"><span>Senha</span>
+        <span className="lista__senha">
+          <input className="input" value={senha} onChange={(e) => setSenha(e.target.value)} type={ver ? 'text' : 'password'} autoComplete="current-password" required />
+          <button type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? 'Esconder senha' : 'Ver senha'}>{ver ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+        </span>
+      </label>
+      <button className="btn btn--primario btn--lg btn--bloco" disabled={enviando || !usuario.trim() || !senha}>{enviando ? 'Entrando…' : 'Entrar'}</button>
+      <p className="lista__rodape-ajuda">Não tem acesso? Peça ao responsável para criar o seu.</p>
     </form>
   );
 }

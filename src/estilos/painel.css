@@ -2008,3 +2008,75 @@
 .galeria-painel__add { width: 76px; height: 76px; display: grid; place-items: center; align-content: center; gap: 2px; border: 1px dashed var(--line-2); border-radius: 10px; background: var(--bg-2); color: var(--muted); font-size: .74rem; font-weight: 700; }
 .galeria-painel__add:hover:not(:disabled) { border-color: var(--acento); color: var(--acento); }
 .galeria-painel__add .spinner { width: 20px; height: 20px; border-width: 2px; }
+
+/* =====================================================================
+   Aparência do cardápio
+   ===================================================================== */
+.ap-logo { display: grid; justify-items: start; gap: 10px; }
+.ap-logo__foto { width: 110px; height: 110px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: var(--bg-2); color: var(--muted-2); }
+.ap-logo__foto img { width: 100%; height: 100%; object-fit: cover; }
+.ap-capas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ap-capas .campo > span { display: inline-flex; align-items: center; gap: 6px; }
+.ap-capa {
+  display: grid; place-items: center; aspect-ratio: 16 / 7; overflow: hidden; cursor: pointer;
+  border: 1.5px dashed var(--line-2); border-radius: 14px; background: var(--bg-2); color: var(--muted); text-align: center;
+}
+.ap-capa > span { display: grid; justify-items: center; gap: 6px; padding: 12px; font-weight: 600; }
+.ap-capa small { font-weight: 400; font-size: .78rem; color: var(--muted-2); }
+.ap-capa.cheia { border-style: solid; cursor: default; background: #000; }
+.ap-capa img, .ap-capa video { width: 100%; height: 100%; object-fit: cover; }
+.ap-previa { display: grid; justify-items: center; gap: 8px; }
+.ap-previa > small { color: var(--muted); font-size: .76rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+.ap-previa__cel { width: 240px; min-height: 440px; overflow: hidden; border: 8px solid #1d1d22; border-radius: 32px; background: #121010; color: #fff; box-shadow: 0 20px 50px rgba(0, 0, 0, .2); }
+.ap-previa__topo { display: flex; align-items: center; gap: 8px; padding: 12px 10px; }
+.ap-previa__logo { width: 34px; height: 34px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 9px; background: var(--cor-previa); color: #fff; font-weight: 800; }
+.ap-previa__logo img { width: 100%; height: 100%; object-fit: cover; }
+.ap-previa__topo div { display: grid; line-height: 1.2; }
+.ap-previa__topo strong { font-size: .76rem; }
+.ap-previa__topo em { color: #5ec27a; font-size: .6rem; font-style: normal; font-weight: 700; }
+.ap-previa__capa { height: 96px; background: #000; }
+.ap-previa__capa img, .ap-previa__capa video { width: 100%; height: 100%; object-fit: cover; }
+.ap-previa__cats { display: flex; gap: 5px; padding: 10px; }
+.ap-previa__cats i { height: 18px; flex: 1; border-radius: 999px; background: #2a2523; }
+.ap-previa__cats i.ativa { background: var(--cor-previa); }
+.ap-previa__desc { margin: 0 10px 8px; color: #b3a69b; font-size: .6rem; line-height: 1.4; }
+.ap-previa__itens { display: grid; gap: 7px; padding: 0 10px 12px; }
+.ap-previa__itens div { display: flex; align-items: center; gap: 8px; padding: 7px; border: 1px solid #2a2523; border-radius: 10px; background: #1f1b19; }
+.ap-previa__itens span { flex: 1; display: grid; gap: 5px; }
+.ap-previa__itens span i { height: 6px; border-radius: 3px; background: #3a312c; }
+.ap-previa__itens span i + i { width: 45%; background: color-mix(in srgb, var(--cor-previa) 60%, #000); }
+.ap-previa__itens b { width: 36px; height: 36px; flex: none; border-radius: 7px; background: #2a2523; }
+.ap-previa__itens em { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: var(--cor-previa); color: #fff; font-size: .8rem; font-style: normal; font-weight: 700; }
+@media (max-width: 760px) { .ap-capas { grid-template-columns: minmax(0, 1fr); } }
+
+/* Apps no celular */
+.apps__lista { display: grid; gap: 14px; }
+.app-cartao { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; }
+.app-cartao__corpo { display: grid; gap: 12px; min-width: 0; }
+.app-cartao__corpo p { margin: -6px 0 0; font-size: .9rem; }
+.app-cartao__icone { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--acento) 13%, transparent); color: var(--acento); }
+.apps__passos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.apps__passos div { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--bg-2); }
+.apps__passos span { color: var(--muted); font-size: .88rem; line-height: 1.5; }
+.apps__passos svg { vertical-align: -2px; }
+@media (max-width: 760px) { .app-cartao, .apps__passos { grid-template-columns: minmax(0, 1fr); } }
+
+/* Colaboradores */
+.colab-novo { display: grid; gap: 12px; }
+.colab-novo > p { margin: -6px 0 0; font-size: .9rem; }
+.colab-novo__form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; align-items: end; }
+.colab-novo__setores { grid-column: 1 / -1; }
+.colab-novo__gerar { position: absolute; right: 6px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.colab-novo__gerar:hover { background: var(--hover); color: var(--text); }
+.colab-novo__criar { grid-column: 1 / -1; justify-self: start; }
+.colab-acesso {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--ok) 8%, var(--surface));
+  animation: subir .25s;
+}
+.colab-acesso > div:first-child { display: grid; gap: 3px; }
+.colab-acesso strong { display: inline-flex; align-items: center; gap: 6px; }
+.colab-acesso small { color: var(--muted); }
+.compra__zap { display: inline-flex; align-items: center; gap: 3px; color: var(--ok); font-weight: 600; text-decoration: none; }
+.compra__zap:hover { text-decoration: underline; }
+@media (max-width: 760px) { .colab-novo__form { grid-template-columns: minmax(0, 1fr); } }

@@ -38,6 +38,8 @@ export interface Restaurante {
   /** Cardápio digital */
   loja_obs: boolean;
   loja_capa_url: string | null;
+  /** Vídeo de capa do cardápio (em cima das categorias) */
+  capa_video_url?: string | null;
   loja_descricao: string | null;
   loja_rodape: string | null;
   /** Anúncios (IDs públicos) */

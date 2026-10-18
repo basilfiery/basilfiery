@@ -66,3 +66,8 @@
 .lista__itens strong em { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 999px; background: rgba(247, 103, 7, .12); color: #e8590c; font-size: .7rem; font-style: normal; font-weight: 800; text-transform: uppercase; }
 .lista__itens small { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: .78rem; }
 .lista__itens li > button { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border: 0; border-radius: 10px; background: var(--bg-2); color: var(--muted); }
+
+.lista__senha { position: relative; display: flex; }
+.lista__senha .input { flex: 1; padding-right: 48px; }
+.lista__senha button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--muted); }
+.lista__rodape-ajuda { text-align: center; font-size: .86rem; }

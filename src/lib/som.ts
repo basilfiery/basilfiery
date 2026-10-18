@@ -44,6 +44,17 @@ export function tocarAlerta(tipo: keyof typeof MELODIAS = 'pedido') {
   if ('vibrate' in navigator) navigator.vibrate?.([200, 100, 200]);
 }
 
+/** Confirmação discreta de "pedido enviado" (cliente): duas notas suaves, curtinhas. */
+export function tocarEnviado() {
+  destravarSom();
+  if (!ctx) return;
+  const c = ctx;
+  const t = c.currentTime + 0.02;
+  nota(c, t, 1046.5, 0.32, 'sine', 0.22, [[2, 0.03]]);
+  nota(c, t + 0.12, 1568, 0.55, 'sine', 0.2, [[2, 0.025]]);
+  if ('vibrate' in navigator) navigator.vibrate?.(35);
+}
+
 /* ---------- Toques do "chamar garçom" (escolhidos pelo restaurante) ---------- */
 export type SomChamado = 'campainha' | 'sino' | 'alerta' | 'marimba';
 

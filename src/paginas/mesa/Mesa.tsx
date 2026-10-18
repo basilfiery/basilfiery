@@ -15,6 +15,7 @@ import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
 import { useNovaVersao } from '../../lib/versao';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { sugerirObs } from '../../lib/sugestoes';
+import { destravarSom, tocarEnviado } from '../../lib/som';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import '../../estilos/mesa.css';
 
@@ -61,7 +62,7 @@ export const nomeItem = (p: ProdutoMesa) => (p.prefixo ? `${p.prefixo} · ${p.no
 export interface CategoriaMesa { id: string; nome: string; emoji: string | null; pai_id?: string | null; grupo_id?: string | null; preco_grupo?: number | null; esgotado?: boolean }
 
 interface DadosMesa {
-  restaurante: { id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string };
+  restaurante: { id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string; capa_url?: string | null; capa_video_url?: string | null };
   mesa: { id: string; nome: string };
   categorias: CategoriaMesa[];
   produtos: ProdutoMesa[];
@@ -137,6 +138,7 @@ export default function Mesa() {
   const [pedindoAcesso, setPedindoAcesso] = useState(false);
   const acaoDepois = useRef<(() => void) | null>(null);
   const listaRef = useRef<HTMLDivElement>(null);
+  const [capaRecolhida, setCapaRecolhida] = useState(false);
   const catsRef = useRef<HTMLElement>(null);
   useAlturaTela();
   // "Adicionar à tela de início" guarda esta mesa (e não o painel do sistema)
@@ -351,6 +353,7 @@ export default function Mesa() {
   }
 
   async function enviar() {
+    destravarSom(); // ainda dentro do toque: libera o áudio do celular
     setEnviando(true);
     const { data, error } = await supabase.rpc('mesa_pedido_enviar', {
       p_token: token,
@@ -377,6 +380,7 @@ export default function Mesa() {
     setVerCarrinho(false);
     const r = data as { numero: number; numeros?: number[] };
     setSucesso(r.numeros?.length ? r.numeros : [r.numero]);
+    tocarEnviado();
     void carregar(true);
   }
 
@@ -570,6 +574,8 @@ export default function Mesa() {
 
       <FaixaAcesso acesso={acesso} mesa={mesa.nome} aoAbrir={() => setVerAbrir(true)} />
 
+      <CapaCardapio imagem={restaurante.capa_url} video={restaurante.capa_video_url} recolhida={capaRecolhida} />
+
       <div className="mesa__corpo">
         <nav className="mesa__cats" aria-label="Categorias" ref={catsRef}>
           {/* Só as categorias; as subcategorias aparecem como abas no conteúdo */}
@@ -589,7 +595,7 @@ export default function Mesa() {
           ))}
         </nav>
 
-        <main className="mesa__lista" ref={listaRef}>
+        <main className="mesa__lista" ref={listaRef} onScroll={(e) => setCapaRecolhida(e.currentTarget.scrollTop > 40)}>
           {secao ? (() => {
             const lista = abaAtual === OUTRAS || !secao.subs.length ? secao.diretos : produtosDe(abaAtual);
             const iAba = abas.findIndex((a) => a.id === abaAtual);
@@ -931,6 +937,18 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
         </label>
       )}
     </Modal>
+  );
+}
+
+/** Capa do estabelecimento (vídeo ou foto deitada) em cima das categorias; recolhe ao rolar os produtos. */
+export function CapaCardapio({ imagem, video, recolhida }: { imagem?: string | null; video?: string | null; recolhida?: boolean }) {
+  if (!imagem && !video) return null;
+  return (
+    <div className={cx('capa-cardapio', recolhida && 'recolhida')} aria-hidden="true">
+      {video
+        ? <video src={video} poster={imagem ?? undefined} autoPlay muted loop playsInline ref={(v) => { if (v) { v.muted = true; v.setAttribute('muted', ''); } }} />
+        : <img src={imagem!} alt="" />}
+    </div>
   );
 }
 

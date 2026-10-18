@@ -59,14 +59,23 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
       { para: '/painel', icone: ClipboardList, rotulo: 'Pedidos', papeis: TODOS, fim: true },
       { para: '/painel/pdv', icone: ShoppingBasket, rotulo: 'Pedidos balcão (PDV)', curto: 'PDV', papeis: TODOS },
       { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
-      { para: '/painel/cardapio', icone: BookOpen, rotulo: 'Gestor de cardápio', curto: 'Cardápio', papeis: GESTORES },
+      {
+        para: '/painel/cardapio', icone: BookOpen, rotulo: 'Gestor de cardápio', curto: 'Cardápio', papeis: GESTORES,
+        filhos: [
+          { para: '/painel/cardapio', rotulo: 'Itens e categorias' },
+          { para: '/painel/cardapio/aparencia', rotulo: 'Aparência do cardápio', novo: true },
+        ],
+      },
       { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: CAIXA },
       { para: '/painel/compras', icone: ShoppingCart, rotulo: 'Lista de compras', curto: 'Compras', papeis: TODOS },
     ],
   },
   {
     titulo: 'Análises',
-    itens: [{ para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: CAIXA }],
+    itens: [
+      { para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: CAIXA },
+      { para: '/painel/apps', icone: Smartphone, rotulo: 'Apps no celular', papeis: GESTORES },
+    ],
   },
   {
     titulo: 'Equipe',

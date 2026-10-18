@@ -509,3 +509,13 @@
 .galeria__pontos button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: rgba(0, 0, 0, .3); box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); transition: width .2s; cursor: pointer; }
 .galeria__pontos button.ativo { width: 22px; background: var(--acento); }
 @media (hover: none) { .galeria__seta { display: none; } }
+
+/* ---------- Capa do estabelecimento (em cima das categorias) ---------- */
+.mesa { display: flex; flex-direction: column; }
+.mesa > .mesa__corpo { flex: 1; min-height: 0; }
+.capa-cardapio { position: relative; flex: none; height: clamp(120px, 30vw, 280px); overflow: hidden; background: #000; transition: height .35s ease, opacity .35s ease; }
+.capa-cardapio img, .capa-cardapio video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.capa-cardapio::after { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(transparent, rgba(0, 0, 0, .35)); pointer-events: none; }
+.capa-cardapio.recolhida { height: 0; opacity: 0; }
+@media (max-height: 520px) and (orientation: landscape) { .capa-cardapio { height: 26vh; } }
+@media (min-width: 1100px) { .capa-cardapio { height: clamp(160px, 18vw, 300px); } }

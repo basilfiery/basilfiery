@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
-  Check, CheckCheck, CircleAlert, Clock, Flame, MessageCircle, Plus, Printer, RotateCcw, ShoppingCart, Trash2, UserCheck, UserX, Users,
+  Check, CheckCheck, CircleAlert, Clock, Flame, KeyRound, MessageCircle, Plus, Printer, RefreshCw, RotateCcw, ShoppingCart, Smartphone, Trash2, UserCheck, UserPlus, UserX, Users, X,
 } from 'lucide-react';
 import { Switch } from '../../componentes/Basicos';
 import { confirmar } from '../../componentes/Confirmar';
@@ -19,13 +19,22 @@ import { usePainel } from './Painel';
 
 export interface ItemCompra {
   id: string; restaurante_id: string; nome: string; quantidade: string | null; obs: string | null; setor: string | null;
-  urgente: boolean; pessoa_id: string | null; pedido_por: string | null; status: 'pendente' | 'comprado';
+  urgente: boolean; pessoa_id: string | null; pedido_por: string | null; pedido_tel?: string | null; status: 'pendente' | 'comprado';
   criado_em: string; comprado_em: string | null; comprado_por: string | null;
 }
-interface PessoaCompra { id: string; nome: string; setor: string; status: 'pendente' | 'ativo' | 'bloqueado'; criado_em: string; ultimo_acesso: string | null }
+interface PessoaCompra {
+  id: string; nome: string; setor: string; status: 'pendente' | 'ativo' | 'bloqueado'; criado_em: string; ultimo_acesso: string | null;
+  telefone: string | null; login: string | null;
+}
+const SETORES = ['Cozinha', 'Bar', 'Salão', 'Caixa', 'Limpeza', 'Entregas', 'Outro'];
+const telFmt = (t: string) => t.replace(/^(\d{2})(\d+)(\d{4})$/, '($1) $2-$3');
+const zap = (t: string) => `https://wa.me/${t.length <= 11 ? `55${t}` : t}`;
+const senhaNova = () => String(Math.floor(100000 + Math.random() * 900000));
+const usuarioDe = (nome: string) => nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/).slice(0, 2).join('.').replace(/[^a-z0-9.]/g, '').slice(0, 30);
 
 type Aba = 'comprar' | 'comprados' | 'equipe';
-export const linkListaCompras = (codigo: string) => `${window.location.origin}/lista/${codigo}`;
+export const linkColaboradores = (codigo: string) => `${window.location.origin}/colaboradores/${codigo}`;
+export const linkListaCompras = linkColaboradores;
 
 export default function Compras() {
   const { restaurante: r, papel } = usePainel();
@@ -34,7 +43,7 @@ export default function Compras() {
   const agora = useAgora(60000);
   const gestor = ehGestor(papel);
   const podeMarcar = podeCaixa(papel);
-  const [aba, setAba] = useState<Aba>('comprar');
+  const [aba, setAba] = useState<Aba>(() => (new URLSearchParams(window.location.search).get('aba') === 'equipe' ? 'equipe' : 'comprar'));
   const [itens, setItens] = useState<ItemCompra[] | null>(null);
   const [comprados, setComprados] = useState<ItemCompra[]>([]);
   const [pessoas, setPessoas] = useState<PessoaCompra[]>([]);
@@ -46,7 +55,7 @@ export default function Compras() {
     const [a, b, c] = await Promise.all([
       supabase.from('compras_itens').select('*').eq('restaurante_id', r.id).eq('status', 'pendente').order('criado_em', { ascending: false }),
       supabase.from('compras_itens').select('*').eq('restaurante_id', r.id).eq('status', 'comprado').gte('comprado_em', desde).order('comprado_em', { ascending: false }).limit(300),
-      gestor ? supabase.from('compras_pessoas').select('id, nome, setor, status, criado_em, ultimo_acesso').eq('restaurante_id', r.id).order('criado_em') : Promise.resolve({ data: [] }),
+      gestor ? supabase.from('compras_pessoas').select('id, nome, setor, status, criado_em, ultimo_acesso, telefone, login').eq('restaurante_id', r.id).order('criado_em') : Promise.resolve({ data: [] }),
     ]);
     setItens((a.data ?? []) as ItemCompra[]);
     setComprados((b.data ?? []) as ItemCompra[]);
@@ -203,7 +212,11 @@ export default function Compras() {
                         <div className="compra__info">
                           <strong>{i.nome}{i.quantidade && <span className="compra__qtd">{i.quantidade}</span>}{i.urgente && <span className="compra__urgente"><Flame size={12} /> Urgente</span>}</strong>
                           {i.obs && <small className="compra__obs">{i.obs}</small>}
-                          <small><Clock size={12} /> {i.pedido_por ?? 'Equipe'} · {tempoDesde(i.criado_em, agora)}</small>
+                          <small>
+                            <Clock size={12} /> {i.pedido_por ?? 'Equipe'}
+                            {i.pedido_tel && <> · <a className="compra__zap" href={zap(i.pedido_tel)} target="_blank" rel="noopener"><MessageCircle size={12} /> {telFmt(i.pedido_tel)}</a></>}
+                            {' · '}{tempoDesde(i.criado_em, agora)}
+                          </small>
                         </div>
                         {podeMarcar && <button className="icone-btn icone-btn--perigo" onClick={() => void apagar(i)} aria-label="Tirar da lista" title="Tirar da lista"><Trash2 size={16} /></button>}
                       </li>
@@ -249,42 +262,130 @@ export default function Compras() {
         )
       )}
 
-      {aba === 'equipe' && gestor && (
-        <div className="compras__equipe">
-          <section className="card compras__link">
-            <div>
-              <h2 className="card__titulo"><Users size={19} /> Link para a equipe</h2>
-              <p className="muted">Mande para cada funcionário (cozinha, bar, limpeza…). Ele se cadastra com nome e senha de 4 números, você libera aqui, e ele passa a mandar o que precisa repor.</p>
-              <LinkCopiavel link={link} />
-              <a className="btn btn--primario" target="_blank" rel="noopener"
-                href={`https://wa.me/?text=${encodeURIComponent(`Olá! A partir de agora, o que precisar repor para amanhã você coloca aqui (cadastre-se uma vez): ${link}`)}`}>
-                <MessageCircle size={17} /> Enviar link pelo WhatsApp
-              </a>
-            </div>
-            <QrCartao link={link} legenda="Lista de compras da equipe" arquivo={`qr-lista-compras-${r.codigo}`} />
-          </section>
+      {aba === 'equipe' && gestor && <EquipeColaboradores pessoas={pessoas} link={link} nomeLoja={r.nome} aoMudar={() => void carregar()} aoStatus={pessoaStatus} aoExcluir={pessoaExcluir} />}
+    </div>
+  );
+}
 
-          {pessoas.length === 0 ? (
-            <p className="cfg-vazio">Ninguém se cadastrou ainda. Envie o link acima.</p>
-          ) : (
-            <ul className="compras__pessoas">
-              {[...pessoas].sort((a, b) => ['pendente', 'ativo', 'bloqueado'].indexOf(a.status) - ['pendente', 'ativo', 'bloqueado'].indexOf(b.status)).map((p) => (
-                <li key={p.id} className={cx('compra-pessoa', p.status)}>
-                  <span className="compra-pessoa__avatar">{p.nome.charAt(0).toUpperCase()}</span>
-                  <div className="compra-pessoa__info">
-                    <strong>{p.nome} <span className={`compra-pessoa__status compra-pessoa__status--${p.status}`}>{p.status === 'pendente' ? 'Aguardando liberação' : p.status === 'ativo' ? 'Liberado' : 'Desligado'}</span></strong>
-                    <small>{p.setor} · {p.ultimo_acesso ? `usou ${tempoDesde(p.ultimo_acesso, agora)}` : `cadastrou ${tempoDesde(p.criado_em, agora)}`}</small>
-                  </div>
-                  <div className="compra-pessoa__acoes">
-                    {p.status !== 'ativo' && <button className="btn btn--primario btn--sm" onClick={() => void pessoaStatus(p, 'ativo')}><UserCheck size={15} /> {p.status === 'pendente' ? 'Liberar' : 'Religar'}</button>}
-                    {p.status === 'ativo' && <button className="btn btn--contorno btn--sm" onClick={() => void pessoaStatus(p, 'bloqueado')}><UserX size={15} /> Desligar</button>}
-                    <button className="icone-btn icone-btn--perigo" onClick={() => void pessoaExcluir(p)} aria-label={`Excluir ${p.nome}`} title="Excluir"><Trash2 size={16} /></button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+/* ---------- App dos colaboradores: você cria o acesso de cada um ---------- */
+function EquipeColaboradores({ pessoas, link, nomeLoja, aoMudar, aoStatus, aoExcluir }: {
+  pessoas: PessoaCompra[];
+  link: string;
+  nomeLoja: string;
+  aoMudar: () => void;
+  aoStatus: (p: PessoaCompra, s: PessoaCompra['status']) => Promise<void>;
+  aoExcluir: (p: PessoaCompra) => Promise<void>;
+}) {
+  const { restaurante: r } = usePainel();
+  const toast = useToast();
+  const agora = useAgora(60000);
+  const [novo, setNovo] = useState({ nome: '', telefone: '', setor: 'Cozinha', login: '', senha: senhaNova(), loginMexido: false });
+  const [criando, setCriando] = useState(false);
+  const [acesso, setAcesso] = useState<{ nome: string; telefone: string | null; login: string; senha: string } | null>(null);
+
+  const mensagem = (a: { nome: string; login: string; senha: string }) =>
+    `Olá, ${a.nome.split(' ')[0]}! Este é o app dos colaboradores da ${nomeLoja}, para mandar o que precisa repor:\n${link}\n\nUsuário: ${a.login}\nSenha: ${a.senha}\n\nDica: salve na tela de início do celular.`;
+
+  async function criar(e: FormEvent) {
+    e.preventDefault();
+    setCriando(true);
+    const { error } = await supabase.rpc('colaborador_criar', {
+      p_rest: r.id, p_nome: novo.nome, p_telefone: novo.telefone, p_setor: novo.setor, p_login: novo.login, p_senha: novo.senha,
+    });
+    setCriando(false);
+    if (error) return toast(msgErro(error), 'erro');
+    setAcesso({ nome: novo.nome.trim(), telefone: novo.telefone.replace(/\D/g, '') || null, login: novo.login, senha: novo.senha });
+    setNovo({ nome: '', telefone: '', setor: novo.setor, login: '', senha: senhaNova(), loginMexido: false });
+    aoMudar();
+  }
+
+  async function trocarSenha(p: PessoaCompra) {
+    if (!(await confirmar(`Gerar uma senha nova para ${p.nome}? A antiga para de funcionar.`, { sim: 'Gerar senha' }))) return;
+    const senha = senhaNova();
+    const { error } = await supabase.rpc('colaborador_senha', { p_rest: r.id, p_id: p.id, p_senha: senha });
+    if (error) return toast(msgErro(error), 'erro');
+    setAcesso({ nome: p.nome, telefone: p.telefone, login: p.login ?? p.nome, senha });
+  }
+
+  return (
+    <div className="compras__equipe">
+      <section className="card colab-novo">
+        <h2 className="card__titulo"><UserPlus size={19} /> Novo colaborador</h2>
+        <p className="muted">Você cria o usuário e a senha e manda pelo WhatsApp. Ele entra no app dos colaboradores e já pode mandar o que precisa repor.</p>
+        <form className="colab-novo__form" onSubmit={criar}>
+          <label className="campo"><span>Nome</span>
+            <input className="input" required maxLength={60} value={novo.nome} placeholder="Ex.: Maria Souza"
+              onChange={(e) => setNovo((x) => ({ ...x, nome: e.target.value, login: x.loginMexido ? x.login : usuarioDe(e.target.value) }))} />
+          </label>
+          <label className="campo"><span>WhatsApp</span>
+            <input className="input" inputMode="tel" value={telFmt(novo.telefone)} placeholder="(00) 00000-0000" onChange={(e) => setNovo({ ...novo, telefone: e.target.value.replace(/\D/g, '').slice(0, 11) })} />
+          </label>
+          <div className="campo colab-novo__setores"><span>Setor</span>
+            <div className="acoes-linha">{SETORES.map((x) => <button type="button" key={x} className={cx('pdv-sub', novo.setor === x && 'ativa')} onClick={() => setNovo({ ...novo, setor: x })}>{x}</button>)}</div>
+          </div>
+          <label className="campo"><span>Usuário</span>
+            <input className="input" required value={novo.login} placeholder="maria.souza" onChange={(e) => setNovo({ ...novo, login: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 30), loginMexido: true })} />
+          </label>
+          <label className="campo"><span>Senha</span>
+            <span className="input-icone input-icone--fim">
+              <input className="input" required minLength={4} maxLength={30} value={novo.senha} onChange={(e) => setNovo({ ...novo, senha: e.target.value })} />
+              <button type="button" className="colab-novo__gerar" onClick={() => setNovo({ ...novo, senha: senhaNova() })} title="Gerar outra"><RefreshCw size={15} /></button>
+            </span>
+          </label>
+          <button className="btn btn--primario colab-novo__criar" disabled={criando || novo.nome.trim().length < 2 || novo.login.length < 3}>{criando ? 'Criando…' : 'Criar acesso'}</button>
+        </form>
+      </section>
+
+      {acesso && (
+        <section className="colab-acesso">
+          <div>
+            <strong><KeyRound size={17} /> Acesso de {acesso.nome}</strong>
+            <span>Usuário: <b>{acesso.login}</b> · Senha: <b>{acesso.senha}</b></span>
+            <small>Anote ou envie agora: a senha não aparece de novo.</small>
+          </div>
+          <div className="acoes-linha">
+            <a className="btn btn--primario btn--sm" target="_blank" rel="noopener"
+              href={`https://wa.me/${acesso.telefone ? (acesso.telefone.length <= 11 ? `55${acesso.telefone}` : acesso.telefone) : ''}?text=${encodeURIComponent(mensagem(acesso))}`}>
+              <MessageCircle size={15} /> Enviar pelo WhatsApp
+            </a>
+            <button className="icone-btn" onClick={() => setAcesso(null)} aria-label="Fechar"><X size={16} /></button>
+          </div>
+        </section>
+      )}
+
+      <section className="card compras__link">
+        <div>
+          <h2 className="card__titulo"><Smartphone size={19} /> Link do app dos colaboradores</h2>
+          <p className="muted">É o mesmo link para todos. Cada um entra com o próprio usuário e senha.</p>
+          <LinkCopiavel link={link} />
         </div>
+        <QrCartao link={link} legenda="App dos colaboradores" arquivo={`qr-colaboradores-${r.codigo}`} />
+      </section>
+
+      {pessoas.length === 0 ? (
+        <p className="cfg-vazio">Nenhum colaborador ainda. Crie o primeiro acima.</p>
+      ) : (
+        <ul className="compras__pessoas">
+          {[...pessoas].sort((a, b) => ['pendente', 'ativo', 'bloqueado'].indexOf(a.status) - ['pendente', 'ativo', 'bloqueado'].indexOf(b.status)).map((p) => (
+            <li key={p.id} className={cx('compra-pessoa', p.status)}>
+              <span className="compra-pessoa__avatar">{p.nome.charAt(0).toUpperCase()}</span>
+              <div className="compra-pessoa__info">
+                <strong>{p.nome} <span className={`compra-pessoa__status compra-pessoa__status--${p.status}`}>{p.status === 'pendente' ? 'Aguardando liberação' : p.status === 'ativo' ? 'Liberado' : 'Desligado'}</span></strong>
+                <small>
+                  {p.setor}{p.login && <> · usuário <b>{p.login}</b></>}
+                  {p.telefone && <> · <a className="compra__zap" href={zap(p.telefone)} target="_blank" rel="noopener"><MessageCircle size={12} /> {telFmt(p.telefone)}</a></>}
+                  {' · '}{p.ultimo_acesso ? `usou ${tempoDesde(p.ultimo_acesso, agora)}` : 'ainda não entrou'}
+                </small>
+              </div>
+              <div className="compra-pessoa__acoes">
+                {p.status !== 'ativo' && <button className="btn btn--primario btn--sm" onClick={() => void aoStatus(p, 'ativo')}><UserCheck size={15} /> {p.status === 'pendente' ? 'Liberar' : 'Religar'}</button>}
+                {p.status === 'ativo' && <button className="btn btn--contorno btn--sm" onClick={() => void trocarSenha(p)}><KeyRound size={15} /> Nova senha</button>}
+                {p.status === 'ativo' && <button className="btn btn--fantasma btn--sm" onClick={() => void aoStatus(p, 'bloqueado')}><UserX size={15} /> Desligar</button>}
+                <button className="icone-btn icone-btn--perigo" onClick={() => void aoExcluir(p)} aria-label={`Excluir ${p.nome}`} title="Excluir"><Trash2 size={16} /></button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

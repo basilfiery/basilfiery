@@ -17,6 +17,7 @@ import { useAppInstalavel } from '../../lib/manifesto';
 import { sugerirObs } from '../../lib/sugestoes';
 import { destravarSom, tocarAviso, tocarEnviado } from '../../lib/som';
 import { fraseCancelamento } from '../../lib/cancelamento';
+import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import '../../estilos/mesa.css';
 
@@ -167,6 +168,8 @@ export default function Mesa() {
     const i = setInterval(() => void carregar(true), 60000);
     return () => clearInterval(i);
   }, [carregar]);
+  // Mudou algo no painel (banner, preço, esgotado…): atualiza na hora
+  useCardapioAoVivo(dados?.restaurante.id, () => void carregar(true));
 
   useEffect(() => ls.gravar(`bf:carrinho:${token}`, carrinho), [carrinho, token]);
 
@@ -915,6 +918,22 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
 
   const qtdDe = (id: string) => escolhas.find((e) => e.id === id)?.qtd ?? 0;
   const totalGrupo = (g: GrupoAdicionalMesa) => g.opcoes.reduce((s, o) => s + qtdDe(o.id), 0);
+  // Adicionais em etapas (funil): um grupo por vez, na ordem cadastrada
+  const [etapa, setEtapa] = useState(0);
+  const passos = grupos.length;
+  const ultima = passos === 0 || etapa >= passos - 1;
+  const gAtual = passos ? grupos[Math.min(etapa, passos - 1)] : null;
+  const subir = () => requestAnimationFrame(() => document.querySelector('.modal-produto .modal__corpo')?.scrollTo({ top: 0, behavior: 'smooth' }));
+  function irPara(i: number) {
+    setTentou(false);
+    setEtapa(i);
+    subir();
+  }
+  function avancar() {
+    if (gAtual && totalGrupo(gAtual) < gAtual.minimo) { setTentou(true); return; }
+    irPara(etapa + 1);
+  }
+
   function mudar(g: GrupoAdicionalMesa, o: OpcaoAdicional, nova: number) {
     setEscolhas((atual) => {
       let l = atual;
@@ -923,16 +942,81 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       l = l.filter((e) => e.id !== o.id);
       return nova > 0 ? [...l, { id: o.id, qtd: nova }] : l;
     });
+    // Escolha única: já segue para a próxima etapa
+    const i = grupos.indexOf(g);
+    if (g.maximo === 1 && nova > 0 && i === etapa && i < passos - 1) {
+      setTimeout(() => {
+        setTentou(false);
+        setEtapa((e) => (e === i ? i + 1 : e));
+        subir();
+      }, 380);
+    }
   }
 
   function confirmar() {
     if (calc.faltando) {
+      // Volta para a etapa que ficou sem escolha
+      const i = grupos.findIndex((g) => totalGrupo(g) < g.minimo);
+      if (i >= 0 && i !== etapa) setEtapa(i);
       setTentou(true);
-      document.querySelector('.adic-grupo.falta')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      subir();
       return;
     }
     aoAdicionar(qtd, obs.trim(), grupos.length ? { escolhas, extra: calc.extra, texto: calc.texto } : undefined);
   }
+
+  const grupo = (g: GrupoAdicionalMesa) => {
+    const total = totalGrupo(g);
+    const cheio = total >= g.maximo;
+    const falta = total < g.minimo;
+    return (
+      <section key={g.id} className={cx('adic-grupo', 'funil-entra', tentou && falta && 'falta')}>
+        <header className="adic-grupo__cab">
+          <div>
+            <strong>{g.nome}</strong>
+            <small>{regraGrupo(g)}{g.calculo !== 'soma' && g.maximo > 1 ? ` · ${g.calculo === 'maior' ? 'vale o preço do mais caro' : 'vale a média dos preços'}` : ''}</small>
+          </div>
+          <span className="adic-grupo__contagem">{total}/{g.maximo}</span>
+          {g.minimo > 0 && <span className={cx('adic-grupo__selo', !falta && 'ok')}>{falta ? 'Obrigatório' : <><Check size={13} /> Pronto</>}</span>}
+        </header>
+        <ul className="adic-opcoes">
+          {g.opcoes.map((o) => {
+            const n = qtdDe(o.id);
+            const bloqueada = !o.disponivel || (cheio && n === 0 && g.maximo > 1);
+            const unico = g.maximo === 1;
+            return (
+              <li key={o.id} className={cx('adic-opcao', n > 0 && 'marcada', bloqueada && 'bloqueada')}>
+                <button
+                  type="button"
+                  className="adic-opcao__toque"
+                  disabled={bloqueada && n === 0}
+                  onClick={() => (unico ? mudar(g, o, n ? 0 : 1) : o.repetir ? (!cheio && mudar(g, o, n + 1)) : mudar(g, o, n ? 0 : 1))}
+                >
+                  {o.imagem_url && <img src={o.imagem_url} alt="" className="adic-opcao__foto" />}
+                  <span className="adic-opcao__texto">
+                    <strong>{o.nome}</strong>
+                    {o.descricao && <small>{o.descricao}</small>}
+                    {!o.disponivel ? <em className="adic-opcao__esgotado">Esgotado</em> : Number(o.preco) > 0 && <em>+ {brl(Number(o.preco))}</em>}
+                  </span>
+                  {!(o.repetir && n > 0 && !unico) && <span className={cx('adic-opcao__marca', unico && 'radio')}>{n > 0 && <Check size={14} strokeWidth={3} />}</span>}
+                </button>
+                {o.repetir && n > 0 && !unico && (
+                  <div className="adic-opcao__qtd">
+                    <button type="button" onClick={() => mudar(g, o, n - 1)} aria-label={`Menos ${o.nome}`}><Minus size={15} /></button>
+                    <span>{n}</span>
+                    <button type="button" disabled={cheio} onClick={() => mudar(g, o, n + 1)} aria-label={`Mais ${o.nome}`}><Plus size={15} /></button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  };
+
+  const faltaAqui = !!gAtual && totalGrupo(gAtual) < gAtual.minimo;
+  const pular = !!gAtual && gAtual.minimo === 0 && totalGrupo(gAtual) === 0;
 
   return (
     <Modal
@@ -942,73 +1026,68 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       largura={620}
       rodape={
         <div className="modal-produto__rodape">
-          <Stepper valor={qtd} min={1} max={Math.max(1, max)} aoMudar={setQtd} grande />
-          <button className={cx('btn btn--primario btn--lg', calc.faltando && 'btn--esperando')} disabled={max < 1} onClick={confirmar}>
-            {max < 1 ? 'Sem mais unidades' : `Adicionar · ${brl(unitario * qtd)}`}
-          </button>
+          {!ultima ? (
+            <>
+              {etapa > 0 && (
+                <button type="button" className="btn btn--contorno btn--lg funil-voltar" onClick={() => irPara(etapa - 1)} aria-label="Voltar para a etapa anterior">
+                  <ChevronRight size={20} style={{ transform: 'rotate(180deg)' }} />
+                </button>
+              )}
+              <button className={cx('btn btn--primario btn--lg funil-seguir', faltaAqui && 'btn--esperando')} onClick={avancar}>
+                {pular ? `Pular ${gAtual!.nome.toLowerCase()}` : 'Continuar'}
+                <small className="funil-seguir__prox">Próximo: {grupos[etapa + 1].nome}</small>
+              </button>
+            </>
+          ) : (
+            <>
+              <Stepper valor={qtd} min={1} max={Math.max(1, max)} aoMudar={setQtd} grande />
+              <button className={cx('btn btn--primario btn--lg', calc.faltando && 'btn--esperando')} disabled={max < 1} onClick={confirmar}>
+                {max < 1 ? 'Sem mais unidades' : `Adicionar · ${brl(unitario * qtd)}`}
+              </button>
+            </>
+          )}
         </div>
       }
     >
-      <GaleriaProduto p={p} />
-      {p.prefixo && <p className="modal-produto__tamanho">{p.prefixo}</p>}
-      <h2 className="titulo modal-produto__nome">{p.nome}</h2>
-      <Selos p={p} />
-      <p className="modal-produto__desc">{p.descricao}</p>
-      <p className="modal-produto__preco">{brl(p.preco)}{calc.extra > 0 && <small> + {brl(calc.extra)} em adicionais</small>}</p>
-      {p.estoque_max !== null && p.estoque_max <= 5 && <p className="modal-produto__aviso">Últimas {p.estoque_max} unidades!</p>}
+      {etapa === 0 ? (
+        <>
+          <GaleriaProduto p={p} />
+          {p.prefixo && <p className="modal-produto__tamanho">{p.prefixo}</p>}
+          <h2 className="titulo modal-produto__nome">{p.nome}</h2>
+          <Selos p={p} />
+          <p className="modal-produto__desc">{p.descricao}</p>
+          <p className="modal-produto__preco">{brl(p.preco)}{calc.extra > 0 && <small> + {brl(calc.extra)} em adicionais</small>}</p>
+          {p.estoque_max !== null && p.estoque_max <= 5 && <p className="modal-produto__aviso">Últimas {p.estoque_max} unidades!</p>}
+        </>
+      ) : (
+        /* Etapas seguintes: o produto fica resumido no topo, com o que já foi escolhido */
+        <div className="funil-produto">
+          <FotoProduto p={p} classe="funil-produto__foto" />
+          <div className="funil-produto__info">
+            <strong>{p.prefixo ? `${p.prefixo} · ${p.nome}` : p.nome}</strong>
+            {calc.texto && <small>{calc.texto}</small>}
+          </div>
+          <b>{brl(unitario)}</b>
+        </div>
+      )}
 
-      {grupos.map((g) => {
-        const total = totalGrupo(g);
-        const cheio = total >= g.maximo;
-        const falta = total < g.minimo;
-        return (
-          <section key={g.id} className={cx('adic-grupo', tentou && falta && 'falta')}>
-            <header className="adic-grupo__cab">
-              <div>
-                <strong>{g.nome}</strong>
-                <small>{regraGrupo(g)}{g.calculo !== 'soma' && g.maximo > 1 ? ` · ${g.calculo === 'maior' ? 'vale o preço do mais caro' : 'vale a média dos preços'}` : ''}</small>
-              </div>
-              <span className="adic-grupo__contagem">{total}/{g.maximo}</span>
-              {g.minimo > 0 && <span className={cx('adic-grupo__selo', !falta && 'ok')}>{falta ? 'Obrigatório' : <><Check size={13} /> Pronto</>}</span>}
-            </header>
-            <ul className="adic-opcoes">
-              {g.opcoes.map((o) => {
-                const n = qtdDe(o.id);
-                const bloqueada = !o.disponivel || (cheio && n === 0 && g.maximo > 1);
-                const unico = g.maximo === 1;
-                return (
-                  <li key={o.id} className={cx('adic-opcao', n > 0 && 'marcada', bloqueada && 'bloqueada')}>
-                    <button
-                      type="button"
-                      className="adic-opcao__toque"
-                      disabled={bloqueada && n === 0}
-                      onClick={() => (unico ? mudar(g, o, n ? 0 : 1) : o.repetir ? (!cheio && mudar(g, o, n + 1)) : mudar(g, o, n ? 0 : 1))}
-                    >
-                      {o.imagem_url && <img src={o.imagem_url} alt="" className="adic-opcao__foto" />}
-                      <span className="adic-opcao__texto">
-                        <strong>{o.nome}</strong>
-                        {o.descricao && <small>{o.descricao}</small>}
-                        {!o.disponivel ? <em className="adic-opcao__esgotado">Esgotado</em> : Number(o.preco) > 0 && <em>+ {brl(Number(o.preco))}</em>}
-                      </span>
-                      {!(o.repetir && n > 0 && !unico) && <span className={cx('adic-opcao__marca', unico && 'radio')}>{n > 0 && <Check size={14} strokeWidth={3} />}</span>}
-                    </button>
-                    {o.repetir && n > 0 && !unico && (
-                      <div className="adic-opcao__qtd">
-                        <button type="button" onClick={() => mudar(g, o, n - 1)} aria-label={`Menos ${o.nome}`}><Minus size={15} /></button>
-                        <span>{n}</span>
-                        <button type="button" disabled={cheio} onClick={() => mudar(g, o, n + 1)} aria-label={`Mais ${o.nome}`}><Plus size={15} /></button>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        );
-      })}
-      {tentou && calc.faltando && <p className="adic-falta">{calc.faltando}</p>}
+      {passos > 1 && (
+        <ol className="funil-passos" aria-label="Etapas">
+          {grupos.map((g, i) => (
+            <li key={g.id} className={cx(i < etapa && 'feito', i === etapa && 'atual')}>
+              <button type="button" disabled={i > etapa} onClick={() => irPara(i)} aria-current={i === etapa ? 'step' : undefined}>
+                <span>{i < etapa ? <Check size={12} strokeWidth={3} /> : i + 1}</span><em className="funil-passos__nome">{g.nome}</em>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
 
-      {!semObs && (
+      {gAtual && grupo(gAtual)}
+      {tentou && faltaAqui && <p className="adic-falta">{gAtual!.minimo === 1 ? `Escolha 1 opção em "${gAtual!.nome}" para continuar` : `Escolha pelo menos ${gAtual!.minimo} em "${gAtual!.nome}" para continuar`}</p>}
+      {tentou && ultima && !faltaAqui && calc.faltando && <p className="adic-falta">{calc.faltando}</p>}
+
+      {ultima && !semObs && (
         <label className="campo">
           <span>Alguma observação?</span>
           <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder={p.dica_obs || sugerirObs(p.nome, p.prefixo, p.descricao)} />

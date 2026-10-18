@@ -14,6 +14,7 @@ import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, pr
 import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
 import { destravarSom, tocarEnviado } from '../../lib/som';
 import { fraseCancelamento } from '../../lib/cancelamento';
+import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaRaio, type Ponto } from '../../lib/mapa';
 import '../../estilos/mesa.css';
 import '../../estilos/loja.css';
@@ -198,6 +199,8 @@ export default function LojaCardapio() {
     const i = setInterval(() => void carregar(), 60000);
     return () => clearInterval(i);
   }, [carregar]);
+  // Mudou algo no painel (banner, preço, esgotado…): atualiza na hora
+  useCardapioAoVivo(dados?.restaurante.id, () => void carregar());
   useEffect(() => ls.gravar(`bf:loja:carrinho:${codigo}`, carrinho), [carrinho, codigo]);
   const ads = dados?.restaurante.ads;
   useEffect(() => { if (ads) iniciarAnuncios(ads); }, [ads]);

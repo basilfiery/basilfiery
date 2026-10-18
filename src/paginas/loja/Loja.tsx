@@ -9,7 +9,7 @@ import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
-import { brl, cx, hora, lerPreco, ls, mascaraPreco } from '../../lib/util';
+import { brl, cx, hora, lerPreco, ls, mascaraPreco, useAgora } from '../../lib/util';
 import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
 import { destravarSom, tocarEnviado } from '../../lib/som';
@@ -57,17 +57,44 @@ const iconeAba = (id: AbaLoja, n = 22) =>
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 
 /** Quando a loja abre de novo (pelos horários cadastrados). */
-function proximaAbertura(h: NonNullable<Loja['horarios']>): string | null {
-  const agora = new Date();
-  const hhmm = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
-  for (let i = 0; i < 7; i++) {
-    const dia = (agora.getDay() + i) % 7;
-    const x = h[dia];
-    if (!x?.aberto) continue;
-    if (i === 0 && x.de <= hhmm) continue;
-    return i === 0 ? `Abre hoje às ${x.de}` : i === 1 ? `Abre amanhã às ${x.de}` : `Abre ${DIAS[dia]} às ${x.de}`;
+function dataAbertura(h: NonNullable<Loja['horarios']>, agora = new Date()): Date | null {
+  for (let i = 0; i < 8; i++) {
+    const dia = new Date(agora);
+    dia.setDate(agora.getDate() + i);
+    const x = h[dia.getDay()];
+    if (!x?.aberto || !/^\d{1,2}:\d{2}/.test(x.de)) continue;
+    const [hh, mm] = x.de.split(':').map(Number);
+    dia.setHours(hh, mm, 0, 0);
+    if (dia.getTime() > agora.getTime()) return dia;
   }
   return null;
+}
+
+const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+/** "Abre hoje às 18:00", "Abre amanhã às 18:00", "Abre sexta às 18:00" */
+function proximaAbertura(h: NonNullable<Loja['horarios']>): string | null {
+  const agora = new Date();
+  const d = dataAbertura(h, agora);
+  if (!d) return null;
+  const dias = Math.round((new Date(d).setHours(0, 0, 0, 0) - new Date(agora).setHours(0, 0, 0, 0)) / 864e5);
+  return dias === 0 ? `Abre hoje às ${hhmm(d)}` : dias === 1 ? `Abre amanhã às ${hhmm(d)}` : `Abre ${DIAS[d.getDay()]} às ${hhmm(d)}`;
+}
+
+/** Cabeçalho da loja fechada: "Abre às 18:00 · faltam 45 min" (atualiza sozinho). */
+function StatusLoja({ loja }: { loja: Loja }) {
+  const agora = useAgora(20000);
+  if (loja.aberto) return <span className="loja-status aberta">Aberto agora</span>;
+  const d = loja.ligado && loja.horarios ? dataAbertura(loja.horarios, new Date(agora)) : null;
+  if (!d) return <span className="loja-status fechada">Fechado agora</span>;
+  const min = Math.max(1, Math.ceil((d.getTime() - agora) / 60000));
+  const amanha = new Date(d).setHours(0, 0, 0, 0) !== new Date(agora).setHours(0, 0, 0, 0);
+  const falta = min < 60 ? `${min} min` : min < 24 * 60 ? `${Math.floor(min / 60)}h${min % 60 ? ` ${min % 60}min` : ''}` : null;
+  return (
+    <span className="loja-status fechada" title={`Fechado agora · ${proximaAbertura(loja.horarios!) ?? ''}`}>
+      Abre {amanha ? (falta ? 'amanhã ' : `${DIAS[d.getDay()]} `) : ''}às {hhmm(d)}{falta && <em className="loja-status__falta"> · faltam {falta}</em>}
+    </span>
+  );
 }
 
 /* ---------- Anúncios: Pixel do Facebook, Google Analytics 4 e Google Ads ---------- */
@@ -322,7 +349,7 @@ export default function LojaCardapio() {
           {loja.logo_url ? <img src={loja.logo_url} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
           <div>
             <strong>{loja.nome}</strong>
-            <span className={cx('loja-status', loja.aberto ? 'aberta' : 'fechada')}>{loja.aberto ? 'Aberto agora' : 'Fechado agora'}</span>
+            <StatusLoja loja={loja} />
           </div>
         </div>
         <div className="mesa__acoes">
@@ -868,7 +895,7 @@ function ModalSobreLoja({ loja, aoFechar }: { loja: Loja; aoFechar: () => void }
         {loja.logo_url ? <img src={loja.logo_url} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
         <div>
           <strong>{loja.nome}</strong>
-          <span className={cx('loja-status', loja.aberto ? 'aberta' : 'fechada')}>{loja.aberto ? 'Aberto agora' : 'Fechado agora'}</span>
+          <StatusLoja loja={loja} />
         </div>
       </div>
       <ul className="sobre-loja__lista">

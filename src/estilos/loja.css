@@ -206,3 +206,8 @@
 .loja-distancia.fora { border-style: solid; border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .loja-distancia.fora p { color: var(--danger); }
 .loja-distancia__botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Loja fechada: quando abre e quanto falta, no cabeçalho */
+.mesa__marca .loja-status { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mesa__marca .loja-status::before { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.loja-status__falta { font-style: normal; font-weight: 600; color: var(--muted); }

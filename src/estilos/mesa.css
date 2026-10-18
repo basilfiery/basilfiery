@@ -446,3 +446,46 @@
 .itens-mesa__resumo b { color: var(--acento); }
 .acoes-modal { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; }
 .acoes-modal .btn { min-width: 0; gap: 8px; }
+
+/* ---------- Grupos de adicionais (ex.: Sabores) na janela do produto ---------- */
+.modal-produto__preco small { font-size: .9rem; font-weight: 600; color: var(--muted); }
+.adic-grupo { margin: 0 -20px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); scroll-margin: 20px; }
+.adic-grupo__cab { position: sticky; top: -1px; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 12px 20px; background: var(--bg-2); }
+.adic-grupo__cab > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.adic-grupo__cab strong { font-size: 1.05rem; color: var(--text); }
+.adic-grupo__cab small { color: var(--muted); font-size: .84rem; }
+.adic-grupo__contagem { flex: none; color: var(--muted); font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.adic-grupo__selo { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: .72rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.adic-grupo__selo.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.adic-grupo.falta .adic-grupo__cab { background: color-mix(in srgb, var(--danger) 12%, var(--bg-2)); }
+.adic-grupo.falta .adic-grupo__selo { background: var(--danger); color: #fff; animation: tremer .35s; }
+@keyframes tremer { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+.adic-opcoes { margin: 0; padding: 0; list-style: none; }
+.adic-opcao { display: flex; align-items: center; gap: 8px; padding-right: 16px; border-top: 1px solid var(--line); transition: background .15s; }
+.adic-opcao:first-child { border-top: 0; }
+.adic-opcao.marcada { background: color-mix(in srgb, var(--acento) 7%, transparent); }
+.adic-opcao.bloqueada:not(.marcada) { opacity: .45; }
+.adic-opcao__toque {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 4px 10px 20px;
+  border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.adic-opcao__toque:disabled { cursor: not-allowed; }
+.adic-opcao__foto { width: 48px; height: 48px; flex: none; border-radius: 10px; object-fit: cover; }
+.adic-opcao__texto { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.adic-opcao__texto strong { font-size: 1rem; font-weight: 600; }
+.adic-opcao__texto small { color: var(--muted); font-size: .84rem; line-height: 1.35; }
+.adic-opcao__texto em { font-style: normal; font-weight: 700; color: var(--fire-2); font-size: .92rem; }
+.adic-opcao__texto em.adic-opcao__esgotado { color: var(--danger); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+.adic-opcao__marca {
+  width: 26px; height: 26px; flex: none; display: grid; place-items: center; margin-left: auto;
+  border: 2px solid var(--line-2); border-radius: 8px; color: #fff; transition: background .15s, border-color .15s;
+}
+.adic-opcao__marca.radio { border-radius: 50%; }
+.adic-opcao.marcada .adic-opcao__marca { border-color: var(--acento); background: var(--acento); }
+.adic-opcao__qtd { flex: none; display: inline-flex; align-items: center; border: 1px solid var(--acento); border-radius: 10px; overflow: hidden; }
+.adic-opcao__qtd button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: transparent; color: var(--acento); }
+.adic-opcao__qtd button:disabled { opacity: .35; }
+.adic-opcao__qtd span { min-width: 24px; text-align: center; font-weight: 800; }
+.adic-falta { margin: -6px 0 14px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-weight: 600; font-size: .9rem; }
+.btn--esperando { opacity: .7; }
+.carrinho__adic, .conta__adic { display: block; color: var(--muted); font-size: .8rem; line-height: 1.35; }

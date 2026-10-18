@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  Check, ChevronRight, Copy, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
+  Check, ChevronRight, Copy, ListChecks, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
 import { Campo, FotoProduto, ImagemComida, Switch, Vazio } from '../../componentes/Basicos';
@@ -11,6 +11,8 @@ import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo
 import type { Categoria, Grupo, Produto } from '../../lib/tipos';
 import { brl, cx, lerPreco, mascaraPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
+import { AdicionaisDoProduto, ModalGrupoAdicionais, carregarAdicionais, type GrupoAdicional, type VinculoAdicional } from './Adicionais';
+import { regraGrupo } from '../../lib/adicionais';
 import { confirmar } from '../../componentes/Confirmar';
 
 type Alvo = { id: string; depois: boolean } | null;
@@ -85,6 +87,8 @@ export default function Cardapio() {
   const [editProd, setEditProd] = useState<Produto | 'novo' | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [editGrupo, setEditGrupo] = useState<Grupo | 'novo' | null>(null);
+  const [adic, setAdic] = useState<{ grupos: GrupoAdicional[]; vinculos: VinculoAdicional[] }>({ grupos: [], vinculos: [] });
+  const [editAdic, setEditAdic] = useState<GrupoAdicional | 'novo' | null>(null);
   const [carregado, setCarregado] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -98,6 +102,7 @@ export default function Cardapio() {
     const cats = ((c.data ?? []) as Categoria[]).sort(ordenarNome);
     setCategorias(cats);
     setProdutos(((p.data ?? []) as Produto[]).sort(ordenarNome));
+    setAdic(await carregarAdicionais(restaurante.id));
     setCarregado(true);
     // Abre direto na primeira categoria (como no gestor do Anota AI)
     setCatSel((atual) => atual || (cats.find((x) => !x.pai_id)?.id ?? ''));
@@ -263,6 +268,7 @@ export default function Cardapio() {
   const detalhes = (p: Produto, comCategoria: boolean) => [
     comCategoria && (p.grupo_id ? `Sabor · ${grupoDe(p.grupo_id)?.nome ?? 'grupo'}` : nomeCat(p.categoria_id)),
     p.descricao && !comCategoria && p.descricao,
+    adic.vinculos.some((v) => v.produto_id === p.id) && `adicionais: ${adic.vinculos.filter((v) => v.produto_id === p.id).sort((a, b) => a.ordem - b.ordem).map((v) => adic.grupos.find((g) => g.id === v.grupo_id)?.nome).filter(Boolean).join(', ')}`,
     p.video_url && 'vídeo',
     p.controla_estoque && `estoque ${p.estoque}`,
     !p.precisa_preparo && 'sem preparo',
@@ -388,6 +394,24 @@ export default function Cardapio() {
             ))}
           </div>
           {principais.length > 1 && <p className="cats-dica">Arraste pela alça <GripVertical size={13} /> para mudar a ordem no tablet.</p>}
+
+          <div className="cardapio__cats-cab cardapio__cats-cab--grupos">
+            <h2 className="card__titulo">Grupos de adicionais</h2>
+            <button className="btn btn--contorno btn--sm" onClick={() => setEditAdic('novo')}><Plus size={16} /> Novo</button>
+          </div>
+          {adic.grupos.length === 0 ? (
+            <p className="cats-dica cats-dica--bloco">Sabores, bordas, extras… Crie o grupo uma vez e ligue em vários itens (ex.: Pizza P, M e G).</p>
+          ) : (
+            <div className="cats-lista">
+              {adic.grupos.map((g) => (
+                <button key={g.id} className="cat-item cat-item--adic" onClick={() => setEditAdic(g)} title={regraGrupo(g)}>
+                  <ListChecks size={15} className="cat-item__seta" aria-hidden="true" />
+                  <span>{g.nome}{g.identificador && <small> · {g.identificador}</small>}</span>
+                  <span className="contagem" title="Itens que usam">{adic.vinculos.filter((v) => v.grupo_id === g.id).length}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="cardapio__cats-cab cardapio__cats-cab--grupos">
             <h2 className="card__titulo">Grupos de sabores</h2>
@@ -610,8 +634,21 @@ export default function Cardapio() {
           categorias={arvore}
           categoriaPadrao={(cat?.id ?? '') || arvore[0]?.id}
           grupo={editProd === 'novo' ? grupoSel : grupoDe((editProd as Produto).grupo_id)}
+          adicionais={adic.grupos}
+          vinculosIniciais={editProd === 'novo' ? [] : adic.vinculos.filter((v) => v.produto_id === (editProd as Produto).id).sort((a, b) => a.ordem - b.ordem).map((v) => v.grupo_id)}
+          nomesDoGrupo={(id) => adic.vinculos.filter((v) => v.grupo_id === id).map((v) => produtos.find((x) => x.id === v.produto_id)?.nome).filter((x): x is string => !!x)}
+          aoRecarregarAdicionais={async () => { const r = await carregarAdicionais(restaurante.id); setAdic(r); return r.grupos; }}
           aoFechar={() => setEditProd(null)}
           aoSalvar={() => { setEditProd(null); void carregar(); }}
+        />
+      )}
+      {editAdic && (
+        <ModalGrupoAdicionais
+          restauranteId={restaurante.id}
+          grupo={editAdic === 'novo' ? null : editAdic}
+          usadoEm={editAdic === 'novo' ? [] : adic.vinculos.filter((v) => v.grupo_id === editAdic.id).map((v) => produtos.find((x) => x.id === v.produto_id)?.nome).filter((x): x is string => !!x)}
+          aoFechar={() => setEditAdic(null)}
+          aoSalvar={() => { setEditAdic(null); void carregarAdicionais(restaurante.id).then(setAdic); }}
         />
       )}
       {editGrupo && (
@@ -976,17 +1013,42 @@ function ModalGrupo({ restauranteId, grupo, usadoEm, aoFechar, aoSalvar }: {
   );
 }
 
-function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, grupo, aoFechar, aoSalvar }: {
+function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, grupo, adicionais, vinculosIniciais, nomesDoGrupo, aoRecarregarAdicionais, aoFechar, aoSalvar }: {
   restauranteId: string;
   produto: Produto | null;
   categorias: Categoria[];
   categoriaPadrao?: string;
   /** Novo sabor deste grupo (ou edição de um sabor) */
   grupo?: Grupo | null;
+  /** Grupos de adicionais do restaurante e os ligados a este item */
+  adicionais: GrupoAdicional[];
+  vinculosIniciais: string[];
+  nomesDoGrupo: (grupoId: string) => string[];
+  aoRecarregarAdicionais: () => Promise<GrupoAdicional[]>;
   aoFechar: () => void;
   aoSalvar: () => void;
 }) {
   const toast = useToast();
+  const [vinculos, setVinculos] = useState<string[]>(vinculosIniciais);
+  const [gruposAdic, setGruposAdic] = useState(adicionais);
+  const [editAdic, setEditAdic] = useState<GrupoAdicional | 'novo' | null>(null);
+
+  /** Liga/desliga os grupos de adicionais deste item (só o que mudou). */
+  async function salvarVinculos(produtoId: string) {
+    if (vinculos.join() === vinculosIniciais.join()) return null;
+    const tirar = vinculosIniciais.filter((id) => !vinculos.includes(id));
+    if (tirar.length) {
+      const { error } = await supabase.from('produto_adicionais').delete().eq('produto_id', produtoId).in('grupo_id', tirar);
+      if (error) return error;
+    }
+    if (vinculos.length) {
+      const { error } = await supabase.from('produto_adicionais').upsert(
+        vinculos.map((grupo_id, ordem) => ({ produto_id: produtoId, grupo_id, restaurante_id: restauranteId, ordem })),
+      );
+      if (error) return error;
+    }
+    return null;
+  }
   const arquivoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   // Produto novo em categoria de bebidas já começa "sem preparo"
@@ -1080,8 +1142,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
     };
     if (produto) {
       const { error } = await supabase.from('produtos').update(dados).eq('id', produto.id);
+      const e2 = error ? null : await salvarVinculos(produto.id);
       setSalvando(false);
-      if (error) return toast(msgErro(error), 'erro');
+      if (error || e2) return toast(msgErro(error ?? e2), 'erro');
     } else {
       const { data, error } = await supabase.from('produtos').insert({ ...dados, restaurante_id: restauranteId }).select('id').single();
       if (error) {
@@ -1092,7 +1155,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
       if (f.controla_estoque && inicial > 0) {
         await supabase.rpc('estoque_ajustar', { p_produto: data.id, p_delta: inicial, p_motivo: 'Estoque inicial' });
       }
+      const e2 = await salvarVinculos(data.id as string);
       setSalvando(false);
+      if (e2) toast(`Item salvo, mas os adicionais não foram ligados: ${msgErro(e2)}`, 'erro');
     }
     toast('Produto salvo.', 'ok');
     aoSalvar();
@@ -1204,6 +1269,33 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
           </Campo>
           )}
         </div>
+        {!ehSabor && (
+          <AdicionaisDoProduto
+            grupos={gruposAdic}
+            vinculados={vinculos}
+            aoMudar={setVinculos}
+            aoCriar={() => setEditAdic('novo')}
+            aoEditar={setEditAdic}
+          />
+        )}
+        {editAdic && (
+          <ModalGrupoAdicionais
+            restauranteId={restauranteId}
+            grupo={editAdic === 'novo' ? null : editAdic}
+            usadoEm={editAdic === 'novo' ? [] : nomesDoGrupo(editAdic.id)}
+            nomeSugerido={editAdic === 'novo' && /pizza/i.test(f.nome) ? 'Sabores' : undefined}
+            aoFechar={() => setEditAdic(null)}
+            aoSalvar={(id) => {
+              setEditAdic(null);
+              void aoRecarregarAdicionais().then((g) => {
+                setGruposAdic(g);
+                if (id && !g.some((x) => x.id === id)) return;
+                if (!id) setVinculos((v) => v.filter((x) => g.some((y) => y.id === x)));
+                else setVinculos((v) => (v.includes(id) ? v : [...v, id]));
+              });
+            }}
+          />
+        )}
         <div className="form-linha">
           <Campo rotulo="Emoji (sem foto)"><input className="input" value={f.emoji} onChange={(e) => mudar('emoji', e.target.value)} maxLength={4} placeholder="🍕" /></Campo>
           <Campo rotulo="Picância">

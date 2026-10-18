@@ -10,7 +10,8 @@ import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco } from '../../lib/util';
-import { ModalProduto, capaEmVideo, nomeItem, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
 import '../../estilos/mesa.css';
 import '../../estilos/loja.css';
 
@@ -82,8 +83,10 @@ function rastrear(evento: 'AddToCart' | 'InitiateCheckout' | 'Purchase', valor: 
     w.gtag('event', ga, { ...dados, ...(id ? { transaction_id: id } : {}) });
   }
 }
-interface Dados { restaurante: Loja; categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[] }
-interface Linha { chave: string; produto_id: string; qtd: number; obs: string }
+interface Dados {
+  restaurante: Loja; categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[];
+  adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>;
+}
 interface Cliente {
   nome: string; telefone: string;
   endereco: { rua: string; numero: string; bairro: string; complemento: string; referencia: string };
@@ -204,18 +207,15 @@ export default function LojaCardapio() {
   const abaAtual = abas.some((a) => a.id === subAtiva) ? subAtiva : abas[0]?.id ?? '';
   const lista = !secao ? [] : abaAtual === OUTRAS || !secao.subs.length ? secao.diretos : produtosDe(abaAtual);
 
-  const subtotal = carrinho.reduce((s, l) => s + (porId.get(l.produto_id)?.preco ?? 0) * l.qtd, 0);
+  const subtotal = carrinho.reduce((s, l) => s + precoLinha(l, porId.get(l.produto_id)) * l.qtd, 0);
   const qtdItens = carrinho.reduce((s, l) => s + l.qtd, 0);
   const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
   const faltaMinimo = Math.max(0, Number(loja.minimo) - subtotal);
 
-  function adicionar(p: ProdutoMesa, qtd: number, obs: string) {
-    const chave = `${p.id}|${obs}`;
-    setCarrinho((c) => (c.some((l) => l.chave === chave)
-      ? c.map((l) => (l.chave === chave ? { ...l, qtd: l.qtd + qtd } : l))
-      : [...c, { chave, produto_id: p.id, qtd, obs }]));
+  function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
+    setCarrinho((c) => juntarNoCarrinho(c, p, qtd, obs, a));
     toast(`${qtd}× ${nomeItem(p)} na sacola`, 'ok');
-    rastrear('AddToCart', p.preco * qtd);
+    rastrear('AddToCart', (Number(p.preco) + (a?.extra ?? 0)) * qtd);
   }
   const mudarQtd = (chave: string, qtd: number) =>
     setCarrinho((c) => (qtd <= 0 ? c.filter((l) => l.chave !== chave) : c.map((l) => (l.chave === chave ? { ...l, qtd } : l))));
@@ -235,8 +235,9 @@ export default function LojaCardapio() {
               <li key={l.chave} className="carrinho__linha">
                 <div className="carrinho__info">
                   <strong>{nomeItem(p)}</strong>
+                  {l.texto && <small className="carrinho__adic">{l.texto}</small>}
                   {l.obs && <small>“{l.obs}”</small>}
-                  <span>{brl(p.preco * l.qtd)}</span>
+                  <span>{brl(precoLinha(l, p) * l.qtd)}</span>
                 </div>
                 <div className="carrinho__qtd"><Stepper valor={l.qtd} min={0} max={p.estoque_max ?? 50} aoMudar={(v) => mudarQtd(l.chave, v)} /></div>
               </li>
@@ -376,8 +377,9 @@ export default function LojaCardapio() {
           key={produtoAberto.id}
           p={produtoAberto}
           aoFechar={() => setProdutoAberto(null)}
-          aoAdicionar={(qtd, obs) => { adicionar(produtoAberto, qtd, obs); setProdutoAberto(null); }}
+          aoAdicionar={(qtd, obs, a) => { adicionar(produtoAberto, qtd, obs, a); setProdutoAberto(null); }}
           jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
+          grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados.adicionais_grupos, dados.produto_grupos)}
           semObs={loja.obs === false}
         />
       )}
@@ -445,7 +447,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
       p_tipo: tipo,
       p_itens: carrinho.map((l) => {
         const p = porId.get(l.produto_id);
-        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs };
+        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [] };
       }),
       p_cliente: {
         nome: cli.nome, telefone: cli.telefone, pagamento: forma,
@@ -518,7 +520,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
         <div className="loja-resumo">
           {carrinho.map((l) => {
             const p = porId.get(l.produto_id);
-            return p ? <div key={l.chave}><span>{l.qtd}× {nomeItem(p)}</span><span>{brl(p.preco * l.qtd)}</span></div> : null;
+            return p ? <div key={l.chave}><span>{l.qtd}× {nomeItem(p)}{l.texto && <small className="carrinho__adic">{l.texto}</small>}</span><span>{brl(precoLinha(l, p) * l.qtd)}</span></div> : null;
           })}
           {taxa > 0 && <div><span>Taxa de entrega</span><span>{brl(taxa)}</span></div>}
           <div className="loja-resumo__total"><span>Total</span><strong>{brl(total)}</strong></div>
@@ -533,7 +535,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
 interface StatusPedido {
   numero: number; status: 'novo' | 'preparando' | 'pronto' | 'entregue' | 'cancelado'; tipo: 'delivery' | 'retirada';
   total: number; taxa: number; criado_em: string; pago: boolean; forma: Forma; troco: number | null; cliente: string;
-  endereco: Cliente['endereco'] | null; itens: { nome: string; qtd: number; preco: number }[];
+  endereco: Cliente['endereco'] | null; itens: { nome: string; qtd: number; preco: number; complementos?: string | null }[];
   loja: { nome: string; logo_url: string | null; cor: string; whatsapp: string | null; endereco: string | null; codigo: string; tempo: string };
 }
 
@@ -604,7 +606,7 @@ export function LojaPedido() {
       <section className="loja-pedido__cartao">
         <h2>Resumo</h2>
         <div className="loja-resumo">
-          {p.itens.map((i, n) => <div key={n}><span>{i.qtd}× {i.nome}</span><span>{brl(i.qtd * Number(i.preco))}</span></div>)}
+          {p.itens.map((i, n) => <div key={n}><span>{i.qtd}× {i.nome}{i.complementos && <small className="carrinho__adic">{i.complementos}</small>}</span><span>{brl(i.qtd * Number(i.preco))}</span></div>)}
           {Number(p.taxa) > 0 && <div><span>Taxa de entrega</span><span>{brl(Number(p.taxa))}</span></div>}
           <div className="loja-resumo__total"><span>Total</span><strong>{brl(Number(p.total))}</strong></div>
         </div>

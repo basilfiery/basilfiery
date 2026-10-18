@@ -38,6 +38,7 @@ export function PedidoCard({ pedido: p, agora, aoMudar, aoImprimir, compacto }: 
             <span className="pedido__qtd">{i.qtd}×</span>
             <span>
               {i.nome}
+              {i.complementos && <em className="pedido__adic">{i.complementos}</em>}
               {i.obs && <em className="pedido__obs">» {i.obs}</em>}
             </span>
           </li>

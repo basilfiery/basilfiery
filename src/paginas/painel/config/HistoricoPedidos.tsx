@@ -173,7 +173,7 @@ export default function HistoricoPedidos() {
             <span className={cx('cfg-status', `cfg-status--${aberto.status}`)}>{STATUS_ROTULO[aberto.status]}</span>
             <ul className="cfg-detalhe__itens">
               {aberto.pedido_itens.map((i) => (
-                <li key={i.id}><span>{i.qtd}× {i.nome}{i.obs && <small>“{i.obs}”</small>}</span><span>{brl(i.qtd * Number(i.preco_unit))}</span></li>
+                <li key={i.id}><span>{i.qtd}× {i.nome}{i.complementos && <small>{i.complementos}</small>}{i.obs && <small>“{i.obs}”</small>}</span><span>{brl(i.qtd * Number(i.preco_unit))}</span></li>
               ))}
             </ul>
             {aberto.observacao && <p className="cfg-detalhe__obs">Obs.: {aberto.observacao}</p>}

@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Play, Plus, Receipt,
+  Check, CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Minus, Play, Plus, Receipt,
   ShieldCheck, ShoppingBag, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
@@ -14,6 +14,7 @@ import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
 import { useNovaVersao } from '../../lib/versao';
 import { useAppInstalavel } from '../../lib/manifesto';
+import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import '../../estilos/mesa.css';
 
 export interface ProdutoMesa {
@@ -40,6 +41,9 @@ export interface ProdutoMesa {
 
 export interface SaborMesa extends ProdutoMesa { grupo_id: string }
 
+/** O que o cliente escolheu nos grupos de adicionais de um item. */
+export interface AdicionaisEscolhidos { escolhas: Escolha[]; extra: number; texto: string }
+
 /** O cartão roda o vídeo quando ele é a capa escolhida ou quando o produto não tem foto. */
 export const capaEmVideo = (p: { video_url: string | null; imagem_url: string | null; capa: string }) =>
   !!p.video_url && (p.capa === 'video' || !p.imagem_url);
@@ -55,13 +59,27 @@ interface DadosMesa {
   categorias: CategoriaMesa[];
   produtos: ProdutoMesa[];
   sabores?: SaborMesa[];
+  adicionais_grupos?: GrupoAdicionalMesa[];
+  produto_grupos?: Record<string, string[]>;
 }
 
-interface Linha { chave: string; produto_id: string; qtd: number; obs: string }
+/** Linha do carrinho. Com adicionais, guarda a escolha, o acréscimo e o texto para mostrar. */
+export interface Linha { chave: string; produto_id: string; qtd: number; obs: string; adicionais?: Escolha[]; extra?: number; texto?: string }
+
+/** Preço de uma unidade da linha (produto + adicionais). */
+export const precoLinha = (l: Linha, p?: ProdutoMesa) => (p ? Number(p.preco) + (l.extra ?? 0) : 0);
+
+/** Nova linha (ou soma na igual): mesma combinação de item, observação e adicionais. */
+export function juntarNoCarrinho(c: Linha[], p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos): Linha[] {
+  const chave = `${p.id}|${obs}|${chaveEscolhas(a?.escolhas)}`;
+  return c.some((l) => l.chave === chave)
+    ? c.map((l) => (l.chave === chave ? { ...l, qtd: l.qtd + qtd } : l))
+    : [...c, { chave, produto_id: p.id, qtd, obs, ...(a ? { adicionais: a.escolhas, extra: a.extra, texto: a.texto } : {}) }];
+}
 
 interface Conta {
   total: number;
-  pedidos: { id: string; numero: number; status: StatusPedido; total: number; criado_em: string; itens: { nome: string; qtd: number; preco: number; obs: string | null }[] }[];
+  pedidos: { id: string; numero: number; status: StatusPedido; total: number; criado_em: string; itens: { nome: string; qtd: number; preco: number; obs: string | null; complementos?: string | null }[] }[];
 }
 
 /** Situação deste aparelho: só pede depois que a equipe libera a mesa. */
@@ -312,18 +330,12 @@ export default function Mesa() {
     };
   }, []);
 
-  const total = carrinho.reduce((s, l) => s + (porId.get(l.produto_id)?.preco ?? 0) * l.qtd, 0);
+  const total = carrinho.reduce((s, l) => s + precoLinha(l, porId.get(l.produto_id)) * l.qtd, 0);
   const qtdItens = carrinho.reduce((s, l) => s + l.qtd, 0);
   const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
 
-  function adicionar(p: ProdutoMesa, qtd: number, obs: string) {
-    const chave = `${p.id}|${obs}`;
-    setCarrinho((c) => {
-      const existe = c.find((l) => l.chave === chave);
-      return existe
-        ? c.map((l) => (l.chave === chave ? { ...l, qtd: l.qtd + qtd } : l))
-        : [...c, { chave, produto_id: p.id, qtd, obs }];
-    });
+  function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
+    setCarrinho((c) => juntarNoCarrinho(c, p, qtd, obs, a));
     toast(`${qtd}× ${nomeItem(p)} no seu pedido`, 'ok');
   }
 
@@ -338,7 +350,7 @@ export default function Mesa() {
       p_dispositivo: dispositivo,
       p_itens: carrinho.map((l) => {
         const p = porId.get(l.produto_id);
-        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs };
+        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [] };
       }),
       p_obs: obsPedido,
     });
@@ -489,8 +501,9 @@ export default function Mesa() {
                 <li key={l.chave} className="carrinho__linha">
                   <div className="carrinho__info">
                     <strong>{nomeItem(p)}</strong>
+                    {l.texto && <small className="carrinho__adic">{l.texto}</small>}
                     {l.obs && <small>“{l.obs}”</small>}
-                    <span>{brl(p.preco * l.qtd)}</span>
+                    <span>{brl(precoLinha(l, p) * l.qtd)}</span>
                   </div>
                   <div className="carrinho__qtd">
                     <Stepper valor={l.qtd} min={0} max={p.estoque_max ?? 50} aoMudar={(v) => mudarQtd(l.chave, v)} />
@@ -639,11 +652,12 @@ export default function Mesa() {
           key={produtoAberto.id}
           p={produtoAberto}
           aoFechar={() => setProdutoAberto(null)}
-          aoAdicionar={(qtd, obs) => {
-            adicionar(produtoAberto, qtd, obs);
+          aoAdicionar={(qtd, obs, a) => {
+            adicionar(produtoAberto, qtd, obs, a);
             setProdutoAberto(null);
           }}
           jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
+          grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados?.adicionais_grupos, dados?.produto_grupos)}
         />
       )}
 
@@ -666,8 +680,8 @@ export default function Mesa() {
             const p = porId.get(l.produto_id);
             return p ? (
               <li key={l.chave}>
-                <span><b>{l.qtd}×</b> {nomeItem(p)}{l.obs && <small> “{l.obs}”</small>}</span>
-                <span>{brl(p.preco * l.qtd)}</span>
+                <span><b>{l.qtd}×</b> {nomeItem(p)}{l.texto && <small> {l.texto}</small>}{l.obs && <small> “{l.obs}”</small>}</span>
+                <span>{brl(precoLinha(l, p) * l.qtd)}</span>
               </li>
             ) : null;
           })}
@@ -790,18 +804,45 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
   );
 }
 
-export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs }: {
+export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, grupos = [] }: {
   p: ProdutoMesa;
   aoFechar: () => void;
-  aoAdicionar: (qtd: number, obs: string) => void;
+  aoAdicionar: (qtd: number, obs: string, adicionais?: AdicionaisEscolhidos) => void;
   jaNoCarrinho: number;
   /** Loja desligou o campo de observação */
   semObs?: boolean;
+  /** Grupos de adicionais ligados ao produto (ex.: Sabores) */
+  grupos?: GrupoAdicionalMesa[];
 }) {
   const [qtd, setQtd] = useState(1);
   const [obs, setObs] = useState('');
   const [videoFalhou, setVideoFalhou] = useState(false);
+  const [escolhas, setEscolhas] = useState<Escolha[]>([]);
+  const [tentou, setTentou] = useState(false);
   const max = p.estoque_max !== null ? Math.max(0, p.estoque_max - jaNoCarrinho) : 50;
+  const calc = calcularAdicionais(grupos, escolhas);
+  const unitario = Number(p.preco) + calc.extra;
+
+  const qtdDe = (id: string) => escolhas.find((e) => e.id === id)?.qtd ?? 0;
+  const totalGrupo = (g: GrupoAdicionalMesa) => g.opcoes.reduce((s, o) => s + qtdDe(o.id), 0);
+  function mudar(g: GrupoAdicionalMesa, o: OpcaoAdicional, nova: number) {
+    setEscolhas((atual) => {
+      let l = atual;
+      // Grupo de uma escolha só: trocar de opção substitui a anterior
+      if (g.maximo === 1 && nova > 0) l = l.filter((e) => !g.opcoes.some((x) => x.id === e.id));
+      l = l.filter((e) => e.id !== o.id);
+      return nova > 0 ? [...l, { id: o.id, qtd: nova }] : l;
+    });
+  }
+
+  function confirmar() {
+    if (calc.faltando) {
+      setTentou(true);
+      document.querySelector('.adic-grupo.falta')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    aoAdicionar(qtd, obs.trim(), grupos.length ? { escolhas, extra: calc.extra, texto: calc.texto } : undefined);
+  }
 
   return (
     <Modal
@@ -812,8 +853,8 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs }:
       rodape={
         <div className="modal-produto__rodape">
           <Stepper valor={qtd} min={1} max={Math.max(1, max)} aoMudar={setQtd} grande />
-          <button className="btn btn--primario btn--lg" disabled={max < 1} onClick={() => aoAdicionar(qtd, obs.trim())}>
-            {max < 1 ? 'Sem mais unidades' : `Adicionar · ${brl(p.preco * qtd)}`}
+          <button className={cx('btn btn--primario btn--lg', calc.faltando && 'btn--esperando')} disabled={max < 1} onClick={confirmar}>
+            {max < 1 ? 'Sem mais unidades' : `Adicionar · ${brl(unitario * qtd)}`}
           </button>
         </div>
       }
@@ -837,8 +878,60 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs }:
       <h2 className="titulo modal-produto__nome">{p.nome}</h2>
       <Selos p={p} />
       <p className="modal-produto__desc">{p.descricao}</p>
-      <p className="modal-produto__preco">{brl(p.preco)}</p>
+      <p className="modal-produto__preco">{brl(p.preco)}{calc.extra > 0 && <small> + {brl(calc.extra)} em adicionais</small>}</p>
       {p.estoque_max !== null && p.estoque_max <= 5 && <p className="modal-produto__aviso">Últimas {p.estoque_max} unidades!</p>}
+
+      {grupos.map((g) => {
+        const total = totalGrupo(g);
+        const cheio = total >= g.maximo;
+        const falta = total < g.minimo;
+        return (
+          <section key={g.id} className={cx('adic-grupo', tentou && falta && 'falta')}>
+            <header className="adic-grupo__cab">
+              <div>
+                <strong>{g.nome}</strong>
+                <small>{regraGrupo(g)}{g.calculo !== 'soma' && g.maximo > 1 ? ` · ${g.calculo === 'maior' ? 'vale o preço do mais caro' : 'vale a média dos preços'}` : ''}</small>
+              </div>
+              <span className="adic-grupo__contagem">{total}/{g.maximo}</span>
+              {g.minimo > 0 && <span className={cx('adic-grupo__selo', !falta && 'ok')}>{falta ? 'Obrigatório' : <><Check size={13} /> Pronto</>}</span>}
+            </header>
+            <ul className="adic-opcoes">
+              {g.opcoes.map((o) => {
+                const n = qtdDe(o.id);
+                const bloqueada = !o.disponivel || (cheio && n === 0 && g.maximo > 1);
+                const unico = g.maximo === 1;
+                return (
+                  <li key={o.id} className={cx('adic-opcao', n > 0 && 'marcada', bloqueada && 'bloqueada')}>
+                    <button
+                      type="button"
+                      className="adic-opcao__toque"
+                      disabled={bloqueada && n === 0}
+                      onClick={() => (unico ? mudar(g, o, n ? 0 : 1) : o.repetir ? (!cheio && mudar(g, o, n + 1)) : mudar(g, o, n ? 0 : 1))}
+                    >
+                      {o.imagem_url && <img src={o.imagem_url} alt="" className="adic-opcao__foto" />}
+                      <span className="adic-opcao__texto">
+                        <strong>{o.nome}</strong>
+                        {o.descricao && <small>{o.descricao}</small>}
+                        {!o.disponivel ? <em className="adic-opcao__esgotado">Esgotado</em> : Number(o.preco) > 0 && <em>+ {brl(Number(o.preco))}</em>}
+                      </span>
+                      {!(o.repetir && n > 0 && !unico) && <span className={cx('adic-opcao__marca', unico && 'radio')}>{n > 0 && <Check size={14} strokeWidth={3} />}</span>}
+                    </button>
+                    {o.repetir && n > 0 && !unico && (
+                      <div className="adic-opcao__qtd">
+                        <button type="button" onClick={() => mudar(g, o, n - 1)} aria-label={`Menos ${o.nome}`}><Minus size={15} /></button>
+                        <span>{n}</span>
+                        <button type="button" disabled={cheio} onClick={() => mudar(g, o, n + 1)} aria-label={`Mais ${o.nome}`}><Plus size={15} /></button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+      {tentou && calc.faltando && <p className="adic-falta">{calc.faltando}</p>}
+
       {!semObs && (
         <label className="campo">
           <span>Alguma observação?</span>
@@ -1050,7 +1143,7 @@ function ModalConta({ token, dispositivo, aoFechar, aoPedirConta, aoMesaFechada 
               </header>
               <ul>
                 {p.itens.map((i, n) => (
-                  <li key={n}><span>{i.qtd}× {i.nome}</span><span>{brl(i.qtd * i.preco)}</span></li>
+                  <li key={n}><span>{i.qtd}× {i.nome}{i.complementos && <small className="conta__adic">{i.complementos}</small>}</span><span>{brl(i.qtd * i.preco)}</span></li>
                 ))}
               </ul>
             </section>

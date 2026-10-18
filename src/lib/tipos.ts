@@ -158,6 +158,8 @@ export interface PedidoItem {
   preco_unit: number;
   qtd: number;
   obs: string | null;
+  /** Adicionais escolhidos, em texto (ex.: "Sabores: 1/2 Calabresa, 1/2 Frango") */
+  complementos?: string | null;
 }
 
 export interface Pedido {

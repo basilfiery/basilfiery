@@ -306,7 +306,7 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
         {p.precisa_preparo === false && <span className="cp__selo" title="Bebidas ou itens prontos: não passa pela cozinha"><GlassWater size={13} /> Sem preparo</span>}
       </div>
       <ul className="cp__itens">
-        {mostrar.map((i) => <li key={i.id}><span>{i.qtd}x</span><span>{i.nome}</span></li>)}
+        {mostrar.map((i) => <li key={i.id}><span>{i.qtd}x</span><span>{i.nome}{i.complementos && <small className="cp__adic">{i.complementos}</small>}</span></li>)}
         {resto > 0 && <li className="cp__mais">+ {resto} {resto === 1 ? 'item' : 'itens'}</li>}
         {p.pedido_itens.length === 0 && <li className="cp__mais">Carregando itens…</li>}
       </ul>
@@ -409,7 +409,7 @@ function ListaPedidos({ pedidos, agora, selId, aoSelecionar, aoMudar, finalizado
               <tr key={p.id} className={cx('linha-clicavel', p.id === selId && 'linha-selecionada')} onClick={() => aoSelecionar(p.id === selId ? null : p.id)}>
                 <td><b>#{p.numero}</b></td>
                 <td>{p.mesa_nome}</td>
-                <td className="muted lista-itens">{p.pedido_itens.map((i) => `${i.qtd}x ${i.nome}`).join(', ')}</td>
+                <td className="muted lista-itens">{p.pedido_itens.map((i) => `${i.qtd}x ${i.nome}${i.complementos ? ` (${i.complementos})` : ''}`).join(', ')}</td>
                 <td><TempoPedido p={p} agora={agora} /></td>
                 <td><span className={`badge badge--${p.status}`}>{STATUS_ROTULO[p.status]}</span></td>
                 <td className="num"><b>{brl(p.total)}</b></td>
@@ -487,6 +487,7 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
                       <div>
                         <strong>{i.nome}</strong>
                         <small>{i.qtd}x · {brl(i.preco_unit)}</small>
+                        {i.complementos && <span className="dp__adic">{i.complementos}</span>}
                         {i.obs && <em>» {i.obs}</em>}
                       </div>
                       <b>{brl(i.qtd * Number(i.preco_unit))}</b>

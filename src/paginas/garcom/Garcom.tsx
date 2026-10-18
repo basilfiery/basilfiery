@@ -274,8 +274,9 @@ function ContaMesa({ mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }:
   const itens = useMemo(() => {
     const m = new Map<string, { nome: string; qtd: number; valor: number }>();
     for (const p of pedidos) for (const i of p.pedido_itens) {
-      const k = `${i.nome}|${i.preco_unit}`;
-      const atual = m.get(k) ?? { nome: i.nome, qtd: 0, valor: 0 };
+      const nome = i.complementos ? `${i.nome} (${i.complementos})` : i.nome;
+      const k = `${nome}|${i.preco_unit}`;
+      const atual = m.get(k) ?? { nome, qtd: 0, valor: 0 };
       atual.qtd += i.qtd;
       atual.valor += i.qtd * Number(i.preco_unit);
       m.set(k, atual);

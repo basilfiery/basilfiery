@@ -204,3 +204,4 @@
 .pdv-sub.ativa { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 9%, var(--surface)); color: var(--acento); }
 .pdv-sub.ativa small { background: var(--acento); color: #fff; }
 @media (max-width: 760px) { .pdv-cab-cat { margin: 0 -12px; padding: 12px; } }
+.pdv-linha__adic { color: var(--muted); font-size: .74rem; line-height: 1.3; }

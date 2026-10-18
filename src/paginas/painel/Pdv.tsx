@@ -10,9 +10,11 @@ import { imprimirPedido } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
 import { brl, cx, lerPreco, mascaraPreco, podeCaixa, precoParaTexto } from '../../lib/util';
-import { nomeItem, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { ModalProduto, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type CategoriaMesa, type Linha, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
 import { mascaraTelefone } from './config/Estabelecimento';
 import { usePainel } from './Painel';
+import '../../estilos/mesa.css';
 import '../../estilos/pdv.css';
 
 /* =====================================================================
@@ -20,8 +22,10 @@ import '../../estilos/pdv.css';
    Um toque no produto já coloca 1 no pedido.
    ===================================================================== */
 
-interface Dados { categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[]; preparo: string[] }
-interface Linha { chave: string; produto_id: string; qtd: number; obs: string }
+interface Dados {
+  categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[]; preparo: string[];
+  adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>;
+}
 interface SecaoPdv { id: string; nome: string; principal: string; itens: ProdutoMesa[] }
 type Modo = 'balcao' | 'mesa';
 
@@ -68,6 +72,7 @@ export default function Pdv() {
   const [enviando, setEnviando] = useState(false);
   const [concluida, setConcluida] = useState<{ id: string; numero: number; total: number; troco: number | null; forma: FormaPagamento | null } | null>(null);
   const [folhaAberta, setFolhaAberta] = useState(false);
+  const [escolhendo, setEscolhendo] = useState<ProdutoMesa | null>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
   const listaRef = useRef<HTMLDivElement>(null);
 
@@ -114,7 +119,7 @@ export default function Pdv() {
   const termo = busca.trim().toLowerCase();
   const resultados = useMemo(() => (termo ? [...porId.values()].filter((p) => nomeItem(p).toLowerCase().includes(termo)) : []), [termo, porId]);
 
-  const subtotal = linhas.reduce((s, l) => s + (porId.get(l.produto_id)?.preco ?? 0) * l.qtd, 0);
+  const subtotal = linhas.reduce((s, l) => s + precoLinha(l, porId.get(l.produto_id)) * l.qtd, 0);
   const valorDesconto = lerDesconto(desconto, subtotal);
   const descontoOk = Number.isFinite(valorDesconto) && valorDesconto >= 0 && valorDesconto <= subtotal;
   const total = Math.max(0, subtotal - (descontoOk ? valorDesconto : 0));
@@ -125,19 +130,20 @@ export default function Pdv() {
   const cozinha = cozinhaManual ?? precisaCozinha;
   const qtdNoPedido = (id: string) => linhas.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
 
-  function adicionar(p: ProdutoMesa) {
+  const gruposDe = (p: ProdutoMesa) => gruposDoProduto(p.real_id ?? p.id, dados?.adicionais_grupos, dados?.produto_grupos);
+
+  // Um toque já coloca 1; se o item tem adicionais (ex.: sabores), abre a escolha
+  function adicionar(p: ProdutoMesa, qtd = 1, obs = '', a?: AdicionaisEscolhidos) {
     if (!p.disponivel) return;
     const max = p.estoque_max ?? 99;
-    if (qtdNoPedido(p.id) >= max) return toast(`Só tem ${max} de ${nomeItem(p)} no estoque.`, 'erro');
-    const chave = `${p.id}|`;
-    setLinhas((l) => (l.some((x) => x.chave === chave)
-      ? l.map((x) => (x.chave === chave ? { ...x, qtd: x.qtd + 1 } : x))
-      : [...l, { chave, produto_id: p.id, qtd: 1, obs: '' }]));
+    if (qtdNoPedido(p.id) + qtd > max) return toast(`Só tem ${max} de ${nomeItem(p)} no estoque.`, 'erro');
+    if (!a && gruposDe(p).length) return setEscolhendo(p);
+    setLinhas((l) => juntarNoCarrinho(l, p, qtd, obs, a));
   }
   const mudarQtd = (chave: string, qtd: number) =>
     setLinhas((l) => (qtd <= 0 ? l.filter((x) => x.chave !== chave) : l.map((x) => (x.chave === chave ? { ...x, qtd: Math.min(qtd, 99) } : x))));
   const mudarObs = (chave: string, obs: string) =>
-    setLinhas((l) => l.map((x) => (x.chave === chave ? { ...x, obs, chave: `${x.produto_id}|${obs}` } : x)));
+    setLinhas((l) => l.map((x) => (x.chave === chave ? { ...x, obs, chave: `${x.produto_id}|${obs}|${x.chave.split('|')[2] ?? ''}` } : x)));
 
   function limpar() {
     setLinhas([]); setObsPedido(''); setVerObs(false); setDesconto(''); setVerDesconto(false);
@@ -165,7 +171,7 @@ export default function Pdv() {
       p_rest: r.id,
       p_itens: linhas.map((l) => {
         const p = porId.get(l.produto_id);
-        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs };
+        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [] };
       }),
       p_dados: {
         modo, mesa_id: modo === 'mesa' ? mesaId : null, forma: modo === 'balcao' ? forma : null,
@@ -255,6 +261,7 @@ export default function Pdv() {
               </div>
               <div className="pdv-linha__info">
                 <strong>{nomeItem(p)}</strong>
+                {l.texto && <small className="pdv-linha__adic">{l.texto}</small>}
                 {editando === l.chave ? (
                   <input
                     className="input pdv-linha__obs-input"
@@ -271,7 +278,7 @@ export default function Pdv() {
                   </button>
                 )}
               </div>
-              <span className="pdv-linha__preco">{brl(p.preco * l.qtd)}</span>
+              <span className="pdv-linha__preco">{brl(precoLinha(l, p) * l.qtd)}</span>
             </div>
           );
         })}
@@ -440,6 +447,17 @@ export default function Pdv() {
         <strong>{brl(total)}</strong>
         <ChevronUp size={18} />
       </button>
+
+      {escolhendo && (
+        <ModalProduto
+          key={escolhendo.id}
+          p={escolhendo}
+          aoFechar={() => setEscolhendo(null)}
+          aoAdicionar={(qtd, obs, a) => { adicionar(escolhendo, qtd, obs, a ?? { escolhas: [], extra: 0, texto: '' }); setEscolhendo(null); }}
+          jaNoCarrinho={qtdNoPedido(escolhendo.id)}
+          grupos={gruposDe(escolhendo)}
+        />
+      )}
 
       {concluida && (
         <Modal aberto aoFechar={() => setConcluida(null)} largura={400} classe="pdv-ok">

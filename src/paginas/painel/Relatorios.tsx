@@ -22,7 +22,7 @@ interface Mes { mes: string; faturamento: number; pedidos: number }
 interface LinhaPedido {
   id: string; numero: number; mesa_nome: string; status: StatusPedido; total: number;
   criado_em: string; pago_em: string | null;
-  pedido_itens: { nome: string; qtd: number; preco_unit: number; obs: string | null }[];
+  pedido_itens: { nome: string; qtd: number; preco_unit: number; obs: string | null; complementos?: string | null }[];
 }
 
 /* ---------------- Datas ---------------- */
@@ -495,7 +495,7 @@ function ListaPedidos({ restauranteId, restauranteNome, periodo, versao, aoErro 
 
   const consulta = useCallback(() => {
     let q = supabase.from('pedidos')
-      .select('id, numero, mesa_nome, status, total, criado_em, pago_em, pedido_itens(nome, qtd, preco_unit, obs)', { count: 'exact' })
+      .select('id, numero, mesa_nome, status, total, criado_em, pago_em, pedido_itens(nome, qtd, preco_unit, obs, complementos)', { count: 'exact' })
       .eq('restaurante_id', restauranteId)
       .gte('criado_em', periodo.inicio.toISOString())
       .lt('criado_em', periodo.fim.toISOString())
@@ -535,7 +535,7 @@ function ListaPedidos({ restauranteId, restauranteNome, periodo, versao, aoErro 
         String(p.numero),
         cel(p.mesa_nome),
         STATUS_ROTULO[p.status],
-        cel(p.pedido_itens.map((i) => `${i.qtd}x ${i.nome}${i.obs ? ` (${i.obs})` : ''}`).join(' | ')),
+        cel(p.pedido_itens.map((i) => `${i.qtd}x ${i.nome}${i.complementos ? ` [${i.complementos}]` : ''}${i.obs ? ` (${i.obs})` : ''}`).join(' | ')),
         String(p.pedido_itens.reduce((s, i) => s + i.qtd, 0)),
         num(p.total),
         p.pago_em ? new Date(p.pago_em).toLocaleString('pt-BR') : '',
@@ -597,7 +597,7 @@ function ListaPedidos({ restauranteId, restauranteNome, periodo, versao, aoErro 
                       <td colSpan={6}>
                         <ul>
                           {p.pedido_itens.map((i, n) => (
-                            <li key={n}><span>{i.qtd}× {i.nome}{i.obs && <em className="muted"> — {i.obs}</em>}</span><span>{brl(i.qtd * i.preco_unit)}</span></li>
+                            <li key={n}><span>{i.qtd}× {i.nome}{i.complementos && <em className="muted"> · {i.complementos}</em>}{i.obs && <em className="muted"> — {i.obs}</em>}</span><span>{brl(i.qtd * i.preco_unit)}</span></li>
                           ))}
                         </ul>
                       </td>

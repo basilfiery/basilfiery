@@ -396,3 +396,4 @@ h1, h2, h3 { line-height: 1.2; }
 .ajustar-foto__dica { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--muted); font-size: .84rem; }
 .ajustar-foto__controles { width: 100%; max-width: 340px; display: flex; align-items: center; gap: 6px; }
 .ajustar-foto__controles input[type=range] { flex: 1; accent-color: var(--acento, #ff5a1f); }
+.pedido__adic { display: block; font-style: normal; font-weight: 600; font-size: .85em; }

@@ -223,7 +223,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
                 </div>
                 <ul className="linhas-conta">
                   {p.pedido_itens.map((i) => (
-                    <li key={i.id}><span>{i.qtd}× {i.nome}</span><span>{brl(i.qtd * i.preco_unit)}</span></li>
+                    <li key={i.id}><span>{i.qtd}× {i.nome}{i.complementos && <small className="muted" style={{ display: 'block' }}>{i.complementos}</small>}</span><span>{brl(i.qtd * i.preco_unit)}</span></li>
                   ))}
                 </ul>
               </div>

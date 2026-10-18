@@ -92,6 +92,7 @@ function documento(corpo: string, largura: 58 | 80) {
       td.q { width: 2.6em; font-weight: 700; }
       td.v { text-align: right; white-space: nowrap; padding-left: 4px; }
       .obs { font-style: italic; }
+      .adic { font-weight: bold; }
       .tot { display: flex; justify-content: space-between; font-weight: 700; font-size: 1.2em; }
       .p { font-size: .85em; }
     </style></head><body>${corpo}</body></html>`;
@@ -112,7 +113,7 @@ function htmlCliente(p: Pedido) {
 
 function htmlPedido(p: Pedido, restaurante: string) {
   const itens = p.pedido_itens
-    .map((i) => `<tr><td class="q">${i.qtd}x</td><td>${esc(i.nome)}${i.obs ? `<div class="obs">» ${esc(i.obs)}</div>` : ''}</td></tr>`)
+    .map((i) => `<tr><td class="q">${i.qtd}x</td><td>${esc(i.nome)}${i.complementos ? `<div class="adic">${esc(i.complementos)}</div>` : ''}${i.obs ? `<div class="obs">» ${esc(i.obs)}</div>` : ''}</td></tr>`)
     .join('');
   return `<div class="via">
     <h1>${esc(restaurante)}</h1>

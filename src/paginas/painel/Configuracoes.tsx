@@ -1,12 +1,11 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  BellRing, BookOpen, Check, ChevronRight, CircleCheck, ClipboardList, ConciergeBell, Megaphone, Play, Plug, Printer, Store, Users,
+  BellRing, BookOpen, Check, ChevronRight, ClipboardList, ConciergeBell, Megaphone, Play, Plug, Printer, Store, Users,
   type LucideIcon,
 } from 'lucide-react';
-import { Switch, Campo } from '../../componentes/Basicos';
+import { Switch } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
-import { gravarConfigImpressao, imprimirTeste, lerConfigImpressao, programaDesktop, type ConfigImpressao } from '../../lib/impressao';
 import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
 import { SONS_CHAMADO, definirSom, somLigado, tocarAlerta, tocarChamado, type SomChamado } from '../../lib/som';
@@ -22,6 +21,7 @@ import Integracoes from './config/Integracoes';
 import Anuncios from './config/Anuncios';
 import Clientes from './config/Clientes';
 import HistoricoPedidos from './config/HistoricoPedidos';
+import PaginaImpressora from './config/Impressora';
 
 interface Secao { id: string; titulo: string; descricao: string; icone: LucideIcon; pode: (p: Papel) => boolean; tela: () => ReactElement }
 
@@ -68,20 +68,6 @@ export default function Configuracoes() {
   );
 }
 
-const PASSOS_IMPRESSORA: Passo[] = [
-  { id: 'impressao', rotulo: 'Impressão', dica: 'Vale só para este computador' },
-  { id: 'direto', rotulo: 'Imprimir direto', dica: 'Sem a janela de confirmação do navegador' },
-];
-
-function PaginaImpressora() {
-  const [passo, ir] = usePasso(PASSOS_IMPRESSORA);
-  return (
-    <PaginaConfig titulo="Impressora" passos={PASSOS_IMPRESSORA} atual={passo} aoPasso={ir}>
-      <CartaoImpressora parte={passo.id as 'impressao' | 'direto'} />
-    </PaginaConfig>
-  );
-}
-
 const PASSOS_AVISOS: Passo[] = [
   { id: 'notificacoes', rotulo: 'Notificações', dica: 'Som e aviso no canto da tela quando chegar pedido ou chamado' },
   { id: 'toque', rotulo: 'Toque do chamado', dica: 'O som que toca quando uma mesa chama o garçom' },
@@ -93,78 +79,6 @@ function PaginaAvisos() {
     <PaginaConfig titulo="Avisos e sons" passos={PASSOS_AVISOS} atual={passo} aoPasso={ir}>
       {passo.id === 'notificacoes' ? <CartaoNotificacoes /> : <CartaoSomChamado />}
     </PaginaConfig>
-  );
-}
-
-function CartaoImpressora({ parte }: { parte: 'impressao' | 'direto' }) {
-  const { restaurante } = usePainel();
-  const [c, setC] = useState<ConfigImpressao>(lerConfigImpressao());
-  const desktop = programaDesktop();
-  const [impressoras, setImpressoras] = useState<{ nome: string; padrao: boolean }[]>([]);
-  useEffect(() => {
-    if (desktop) void desktop.impressoras().then(setImpressoras).catch(() => setImpressoras([]));
-  }, [desktop]);
-  const mudar = (mudancas: Partial<ConfigImpressao>) => {
-    const nova = { ...c, ...mudancas };
-    setC(nova);
-    gravarConfigImpressao(nova);
-  };
-
-  if (parte === 'direto') {
-    return desktop ? (
-      <p className="muted aviso-ok" style={{ margin: 0, fontSize: '.92rem' }}>
-        <CircleCheck size={16} /> Você está no <b>programa BasilFiery para Windows</b>: a impressão já sai direto na impressora escolhida.
-      </p>
-    ) : (
-      <div className="form">
-        <ol className="passos-lista">
-          <li>No Windows, defina a impressora térmica como <b>impressora padrão</b>.</li>
-          <li>Crie um atalho do Google Chrome na área de trabalho.</li>
-          <li>Clique com o botão direito → Propriedades → no campo <b>Destino</b>, adicione no final:<br />
-            <code>--kiosk-printing {window.location.origin}/painel</code></li>
-          <li>Feche todas as janelas do Chrome e abra pelo atalho. Os pedidos saem direto na impressora.</li>
-          <li>Nas preferências da impressora, ajuste margens para “nenhuma” se o cupom sair cortado.</li>
-        </ol>
-        <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>Mais fácil: instale o <b>programa BasilFiery para Windows</b>, que já imprime direto.</p>
-      </div>
-    );
-  }
-
-  return (
-    <section>
-      <div className="form">
-        <Switch marcado={c.auto} aoMudar={(v) => mudar({ auto: v })}>
-          Imprimir pedidos novos automaticamente
-        </Switch>
-        <p className="muted" style={{ margin: 0, fontSize: '.88rem' }}>
-          Ligue só no computador do caixa que tem a impressora. Cada pedido é impresso uma única vez, mesmo com outros computadores abertos.
-        </p>
-        <div className="form-linha">
-          <Campo rotulo="Largura do papel">
-            <select className="select" value={c.largura} onChange={(e) => mudar({ largura: Number(e.target.value) as 58 | 80 })}>
-              <option value={80}>80 mm</option>
-              <option value={58}>58 mm</option>
-            </select>
-          </Campo>
-          <Campo rotulo="Vias por pedido">
-            <select className="select" value={c.copias} onChange={(e) => mudar({ copias: Number(e.target.value) })}>
-              <option value={1}>1 via</option>
-              <option value={2}>2 vias (cozinha + garçom)</option>
-            </select>
-          </Campo>
-        </div>
-        {desktop && (
-          <Campo rotulo="Impressora" dica="Escolha a térmica do caixa. Os pedidos saem direto nela, sem janela de confirmação.">
-            <select className="select" value={c.impressora} onChange={(e) => mudar({ impressora: e.target.value })}>
-              <option value="">Padrão do Windows</option>
-              {impressoras.map((p) => <option key={p.nome} value={p.nome}>{p.nome}{p.padrao ? ' (padrão)' : ''}</option>)}
-            </select>
-          </Campo>
-        )}
-        <button className="btn btn--contorno" onClick={() => imprimirTeste(restaurante.nome)}><Printer size={18} /> Imprimir teste</button>
-
-      </div>
-    </section>
   );
 }
 

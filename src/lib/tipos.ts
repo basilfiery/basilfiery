@@ -44,6 +44,8 @@ export interface Restaurante {
   ads_pixel: string | null;
   ads_ga4: string | null;
   ads_gads: string | null;
+  /** Modelos de impressão (cabeçalho, logo, CNPJ, rodapé…) */
+  impressao?: import('./impressao').ConfigImpressaoLoja | null;
 }
 
 export interface HorarioDia { aberto: boolean; de: string; ate: string }

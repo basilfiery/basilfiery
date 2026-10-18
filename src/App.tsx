@@ -33,13 +33,15 @@ const Configuracoes = tela(() => import('./paginas/painel/Configuracoes'));
 const Conta = tela(() => import('./paginas/painel/Conta'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
 const Pdv = tela(() => import('./paginas/painel/Pdv'));
+const Compras = tela(() => import('./paginas/painel/Compras'));
+const ListaCompras = tela(() => import('./paginas/compras/ListaCompras'));
 
 /** Telas do painel: baixadas em segundo plano para trocar de aba sem esperar. */
 const TELAS_PAINEL = [
   () => import('./paginas/painel/Pedidos'), () => import('./paginas/painel/Mesas'), () => import('./paginas/painel/Pdv'),
   () => import('./paginas/painel/Cardapio'), () => import('./paginas/painel/Estoque'), () => import('./paginas/painel/Relatorios'),
   () => import('./paginas/painel/Garcons'), () => import('./paginas/painel/Equipe'), () => import('./paginas/painel/Configuracoes'),
-  () => import('./paginas/painel/Conta'),
+  () => import('./paginas/painel/Conta'), () => import('./paginas/painel/Compras'),
 ];
 
 function usePrecarregarPainel() {
@@ -62,6 +64,7 @@ export default function App() {
         <Route path="/dono" element={<Dono />} />
         <Route path="/loja/:codigo" element={<Loja />} />
         <Route path="/loja/:codigo/pedido/:acompanhar" element={<LojaPedido />} />
+        <Route path="/lista/:codigo" element={<ListaCompras />} />
         <Route path="/g" element={<AppGarcomInicio />} />
         <Route path="/g/:codigo" element={<AppGarcom />} />
         <Route path="/garcom" element={<ExigeLogin><Garcom /></ExigeLogin>} />
@@ -75,6 +78,7 @@ export default function App() {
           <Route path="garcons" element={<Garcons />} />
           <Route path="equipe" element={<Equipe />} />
           <Route path="pdv" element={<Pdv />} />
+          <Route path="compras" element={<Compras />} />
           <Route path="config" element={<Configuracoes />} />
           <Route path="config/:aba" element={<Configuracoes />} />
           <Route path="conta" element={<Conta />} />

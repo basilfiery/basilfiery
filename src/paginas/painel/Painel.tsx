@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -12,7 +12,7 @@ import { ModalCardapioDigital } from '../../componentes/CardapioDigital';
 import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
 import {
-  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, gravarConfigImpressao, imprimirConta, imprimirPedido, imprimirTeste,
+  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirConta, imprimirPedido, imprimirTeste,
   lerConfigImpressao, programaDesktop,
 } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
@@ -61,6 +61,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
       { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
       { para: '/painel/cardapio', icone: BookOpen, rotulo: 'Gestor de cardápio', curto: 'Cardápio', papeis: GESTORES },
       { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: CAIXA },
+      { para: '/painel/compras', icone: ShoppingCart, rotulo: 'Lista de compras', curto: 'Compras', papeis: TODOS },
     ],
   },
   {
@@ -240,6 +241,34 @@ export default function Painel() {
     return () => { void supabase.removeChannel(canal); };
   }, [r?.id, cfgImp.auto]);
 
+  /* ---------- Lista de compras: contador e aviso de quem pediu acesso ---------- */
+  const [compras, setCompras] = useState({ itens: 0, pessoas: 0 });
+  const idCompras = r?.id;
+  const gestorAqui = r?.papel === 'dono' || r?.papel === 'gerente';
+  useEffect(() => {
+    if (!idCompras) return;
+    const contar = async () => {
+      const [a, b] = await Promise.all([
+        supabase.from('compras_itens').select('id', { count: 'exact', head: true }).eq('restaurante_id', idCompras).eq('status', 'pendente'),
+        gestorAqui ? supabase.from('compras_pessoas').select('id', { count: 'exact', head: true }).eq('restaurante_id', idCompras).eq('status', 'pendente') : Promise.resolve({ count: 0 }),
+      ]);
+      setCompras({ itens: a.count ?? 0, pessoas: b.count ?? 0 });
+    };
+    void contar();
+    const canal = supabase.channel(`compras-${idCompras}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'compras_itens', filter: `restaurante_id=eq.${idCompras}` }, () => void contar())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'compras_pessoas', filter: `restaurante_id=eq.${idCompras}` }, (e) => {
+        void contar();
+        const nova = e.new as { nome?: string; status?: string } | null;
+        if (gestorAqui && e.eventType === 'INSERT' && nova?.nome) toast(`${nova.nome} pediu acesso à lista de compras.`, 'info');
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(canal); };
+  }, [idCompras, gestorAqui, toast]);
+
+  // Cabeçalho, logo e modelos de impressão deste restaurante
+  useEffect(() => { if (r) definirLojaImpressao(r); }, [r]);
+
   /* ---------- Caixa (aberto/fechado), sincronizado entre computadores ---------- */
   const [caixa, setCaixa] = useState<ResumoCaixa | null | undefined>(undefined);
   const [modoCaixa, setModoCaixa] = useState<ModoCaixa | null>(null);
@@ -299,7 +328,7 @@ export default function Painel() {
       tentados.current.add(p.id);
       void supabase.rpc('pedido_marcar_impresso', { p_pedido: p.id }).then(({ data, error }) => {
         if (error) toast(`Não foi possível imprimir o pedido #${p.numero}: ${msgErro(error)}`, 'erro');
-        else if (data) imprimirPedido(p, r.nome);
+        else if (data) imprimirPedido(p, r.nome, { automatico: true });
       });
     }
   }, [vivo.pedidos, cfgImp.auto, r, toast]);
@@ -458,6 +487,7 @@ export default function Painel() {
                   <m.icone size={20} strokeWidth={1.8} />
                   <span>{m.rotulo}</span>
                   {m.para === '/painel' && novos > 0 && <b className="lateral__contador">{novos}</b>}
+                  {m.para === '/painel/compras' && compras.itens + compras.pessoas > 0 && <b className={cx('lateral__contador', compras.pessoas > 0 && 'lateral__contador--alerta')}>{compras.itens + compras.pessoas}</b>}
                 </NavLink>
               )))}
             </div>

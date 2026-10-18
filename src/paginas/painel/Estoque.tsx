@@ -94,8 +94,10 @@ export default function Estoque() {
                     <td className="num">
                       {p.controla_estoque && (
                         <div className="acoes-linha" style={{ justifyContent: 'flex-end' }}>
-                          <button className="btn btn--sm btn--contorno" onClick={() => setAjustando({ p, tipo: 'saida' })} aria-label={`Saída de ${p.nome}`}><Minus size={16} /></button>
-                          <button className="btn btn--sm btn--sucesso" onClick={() => setAjustando({ p, tipo: 'entrada' })}><Plus size={16} /> Entrada</button>
+                          <div className="mov-par">
+                            <button className="mov-par__saida" onClick={() => setAjustando({ p, tipo: 'saida' })} aria-label={`Saída de ${p.nome}`} title="Saída (perda, uso)"><Minus size={16} /></button>
+                            <button className="mov-par__entrada" onClick={() => setAjustando({ p, tipo: 'entrada' })}><Plus size={16} /> Entrada</button>
+                          </div>
                         </div>
                       )}
                     </td>

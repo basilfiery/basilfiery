@@ -355,8 +355,9 @@
 @media (max-width: 560px) {
   .mesa__grade { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .prod { flex-direction: row-reverse; align-items: stretch; min-height: 118px; border-radius: 14px; }
-  .prod__midia { width: 112px; align-self: stretch; }
-  .prod__foto { width: 112px; height: 100%; min-height: 118px; aspect-ratio: auto; font-size: 44px; }
+  .prod__midia { width: 112px; align-self: stretch; min-height: 118px; }
+  /* A foto/vídeo preenche o quadro do cartão (não estica o cartão se for 9:16) */
+  .prod__foto { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; font-size: 44px; }
   .prod__info { padding: 12px 12px 12px 14px; }
   .prod__info p { -webkit-line-clamp: 2; font-size: .84rem; }
   .prod__no-carrinho { top: 8px; right: 8px; min-width: 26px; height: 26px; font-size: .85rem; }

@@ -955,15 +955,6 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       l = l.filter((e) => e.id !== o.id);
       return nova > 0 ? [...l, { id: o.id, qtd: nova }] : l;
     });
-    // Escolha única: já segue para a próxima etapa
-    const i = grupos.indexOf(g);
-    if (g.maximo === 1 && nova > 0 && i === etapa && i < passos - 1) {
-      setTimeout(() => {
-        setTentou(false);
-        setEtapa((e) => (e === i ? i + 1 : e));
-        subir();
-      }, 380);
-    }
   }
 
   function confirmar() {

@@ -314,3 +314,95 @@
 .conta-modal--obrigatorio { box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
 .modal-fundo:has(.conta-modal--obrigatorio) { background: rgba(0, 0, 0, .78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .conta__logo { justify-self: center; width: 72px; height: 72px; border-radius: 20px; object-fit: cover; box-shadow: 0 10px 26px rgba(0, 0, 0, .35); }
+
+/* =====================================================================
+   Entrada do cardápio digital: cena 3D + folha de login
+   ===================================================================== */
+.e3d {
+  position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; overflow: hidden;
+  background: #0b0908; color: #fff; font-family: 'Inter', system-ui, sans-serif;
+}
+.e3d__fundo {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 50% 22%, color-mix(in srgb, var(--acento, #ff5a1f) 42%, transparent), transparent 70%),
+    radial-gradient(40% 30% at 15% 10%, color-mix(in srgb, var(--acento, #ff5a1f) 20%, transparent), transparent 70%),
+    radial-gradient(45% 35% at 90% 35%, rgba(255, 196, 0, .12), transparent 70%),
+    #0b0908;
+}
+.e3d__fundo::after {
+  content: ''; position: absolute; inset: 0; opacity: .5;
+  background-image: radial-gradient(rgba(255, 255, 255, .08) 1px, transparent 1px); background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(70% 55% at 50% 25%, #000, transparent); mask-image: radial-gradient(70% 55% at 50% 25%, #000, transparent);
+}
+.e3d__topo { position: relative; flex: 1 1 auto; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(14px, env(safe-area-inset-top)) 16px 10px; }
+.e3d__cena { --rx: 0deg; --ry: 0deg; width: 100%; max-width: 420px; height: clamp(190px, 30dvh, 280px); perspective: 900px; display: grid; place-items: center; }
+.e3d__palco { position: relative; width: 1px; height: 1px; transform-style: preserve-3d; transform: rotateX(var(--rx)) rotateY(var(--ry)); }
+.e3d__anel {
+  position: absolute; left: -150px; top: -150px; width: 300px; height: 300px; border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, .14); transform: rotateX(72deg) translateZ(-40px);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--acento, #ff5a1f) 25%, transparent) inset;
+  animation: e3d-gira 26s linear infinite;
+}
+@keyframes e3d-gira { to { transform: rotateX(72deg) translateZ(-40px) rotateZ(360deg); } }
+.e3d__item {
+  position: absolute; left: 0; top: 0; transform-style: preserve-3d;
+  transform: translate3d(var(--x), var(--y), var(--z));
+}
+.e3d__item i {
+  display: block; width: 80px; margin: -40px 0 0 -40px; font-size: calc(52px * var(--s)); font-style: normal; line-height: 80px; text-align: center;
+  filter: drop-shadow(0 14px 14px rgba(0, 0, 0, .55)) blur(var(--b));
+  animation: e3d-flutua 5.5s ease-in-out infinite; animation-delay: var(--d);
+}
+@keyframes e3d-flutua {
+  0%, 100% { transform: translateY(0) rotate(-6deg) rotateY(-12deg); }
+  50% { transform: translateY(-14px) rotate(7deg) rotateY(14deg); }
+}
+.e3d__logo {
+  position: absolute; left: -58px; top: -58px; width: 116px; height: 116px; border-radius: 30px; overflow: hidden;
+  transform: translateZ(70px); background: var(--acento, #ff5a1f); display: grid; place-items: center;
+  box-shadow: 0 2px 0 rgba(255, 255, 255, .25) inset, 0 24px 50px rgba(0, 0, 0, .55), 0 0 0 6px rgba(255, 255, 255, .06), 0 0 70px color-mix(in srgb, var(--acento, #ff5a1f) 55%, transparent);
+  animation: e3d-entra .9s cubic-bezier(.2, 1.3, .3, 1) both;
+}
+.e3d__logo img { width: 100%; height: 100%; object-fit: cover; }
+.e3d__logo span { font-size: 3rem; font-weight: 900; }
+.e3d__brilho {
+  position: absolute; inset: -40%; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .45) 50%, transparent 62%);
+  transform: translateX(calc(var(--ry, 0deg) * 4)); animation: e3d-reflexo 4.5s ease-in-out infinite;
+}
+@keyframes e3d-reflexo { 0%, 60% { translate: -60% 0; } 100% { translate: 60% 0; } }
+@keyframes e3d-entra { from { transform: translateZ(-200px) rotateY(-70deg); opacity: 0; } }
+.e3d__titulo { position: relative; text-align: center; animation: e3d-sobe .7s ease-out .15s both; }
+.e3d__titulo small { display: block; color: rgba(255, 255, 255, .65); font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; }
+.e3d__titulo h1 { margin: 2px 0 0; font-size: clamp(1.7rem, 7vw, 2.3rem); font-weight: 900; letter-spacing: -.03em; text-shadow: 0 6px 30px rgba(0, 0, 0, .5); }
+@keyframes e3d-sobe { from { opacity: 0; transform: translateY(14px); } }
+
+.e3d__folha {
+  position: relative; flex: 0 1 auto; max-height: 72dvh; overflow-y: auto; overscroll-behavior: contain;
+  width: 100%; max-width: 480px; margin: 0 auto; padding: 22px 22px max(18px, env(safe-area-inset-bottom));
+  border-radius: 28px 28px 0 0; background: rgba(28, 24, 23, .92); border: 1px solid rgba(255, 255, 255, .08); border-bottom: 0;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 -20px 60px rgba(0, 0, 0, .5);
+  color: var(--text); animation: e3d-folha .6s cubic-bezier(.2, .9, .2, 1) .1s both;
+}
+@keyframes e3d-folha { from { transform: translateY(40%); opacity: 0; } }
+.e3d__folha .conta { gap: 12px; animation: e3d-sobe .35s ease-out; }
+.e3d__folha .conta > h2 { text-align: left; font-size: 1.35rem; }
+.e3d__folha .conta > p { text-align: left; margin-top: -8px; }
+.e3d .input { font-size: 16px; }
+.conta__enviar { box-shadow: 0 12px 28px color-mix(in srgb, var(--acento, #ff5a1f) 40%, transparent); }
+.conta__trocar { margin: 2px 0 0; text-align: center; color: var(--muted); font-size: .95rem; }
+.conta__trocar button { padding: 0; border: 0; background: none; color: var(--acento); font: inherit; font-weight: 700; cursor: pointer; }
+@media (min-width: 720px) {
+  .e3d { justify-content: center; }
+  .e3d__topo { flex: 0 0 auto; }
+  .e3d__folha { flex: 0 0 auto; border-radius: 28px; border-bottom: 1px solid rgba(255, 255, 255, .08); margin-bottom: 28px; max-height: 64dvh; }
+}
+@media (max-height: 700px) { .e3d__cena { height: 170px; } .e3d__logo { transform: translateZ(70px) scale(.85); } }
+@media (prefers-reduced-motion: reduce) { .e3d__item i, .e3d__anel, .e3d__brilho { animation: none; } }
+
+/* Criando conta: a cena encolhe para o formulário caber */
+.e3d:has(input[autocomplete="name"]) .e3d__cena { height: clamp(130px, 19dvh, 190px); }
+.e3d:has(input[autocomplete="name"]) .e3d__palco { scale: .72; }
+.e3d:has(input[autocomplete="name"]) .e3d__titulo h1 { font-size: clamp(1.4rem, 6vw, 1.9rem); }
+.e3d__palco { transition: scale .35s ease; }

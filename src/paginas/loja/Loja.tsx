@@ -484,7 +484,7 @@ export default function LojaCardapio() {
       {verSobre && <ModalSobreLoja loja={loja} aoFechar={() => setVerSobre(false)} />}
       {(verConta || precisaLogin || (conta.novaSenha && !!conta.usuario)) && (
         <ModalConta
-          conta={conta} codigo={codigo} nomeLoja={loja.nome} logo={loja.logo_url} obrigatorio={precisaLogin}
+          conta={conta} codigo={codigo} nomeLoja={loja.nome} logo={loja.logo_url} cor={loja.cor} obrigatorio={precisaLogin}
           aoFechar={() => setVerConta(false)} aoVerPedidos={() => irAba('pedidos')}
         />
       )}

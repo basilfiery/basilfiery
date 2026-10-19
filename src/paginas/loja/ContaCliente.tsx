@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Eye, EyeOff, KeyRound, LogOut, MailCheck, MapPin, ReceiptText, Trash2, UserRound } from 'lucide-react';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
@@ -35,11 +36,12 @@ function CampoSenha({ valor, aoMudar, autoComplete, placeholder }: { valor: stri
 }
 
 /** Entrar, criar conta, esqueci a senha, nova senha e "Minha conta" — tudo numa janela só. */
-export function ModalConta({ conta, codigo, nomeLoja, logo, obrigatorio, aoFechar, aoVerPedidos }: {
+export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, aoFechar, aoVerPedidos }: {
   conta: ContaCliente;
   codigo: string;
   nomeLoja: string;
   logo?: string | null;
+  cor?: string;
   /** Sem conta não dá para fechar: o cardápio pede o login logo na entrada */
   obrigatorio?: boolean;
   aoFechar: () => void;
@@ -87,76 +89,158 @@ export function ModalConta({ conta, codigo, nomeLoja, logo, obrigatorio, aoFecha
   }
 
   /* ---------- Entrar / criar conta ---------- */
-  return (
-    <Modal aberto aoFechar={obrigatorio ? () => {} : aoFechar} largura={440} classe={cx('mesa-modal conta-modal', obrigatorio && 'conta-modal--obrigatorio')}>
-      {modo === 'enviado' ? (
-        <div className="conta">
-          <span className="conta__icone conta__icone--ok"><MailCheck size={28} /></span>
-          <h2>Confira o seu e-mail</h2>
-          <p>Se existir uma conta com <b>{email}</b>, você vai receber um link para criar uma senha nova. Olhe também a caixa de spam.</p>
-          <button className="btn btn--contorno btn--lg btn--bloco" onClick={() => setModo('entrar')}>Voltar para entrar</button>
-        </div>
-      ) : modo === 'esqueci' ? (
-        <form className="conta" onSubmit={(e) => { e.preventDefault(); void rodar(() => conta.esqueci(email, codigo), () => setModo('enviado')); }}>
-          <span className="conta__icone"><KeyRound size={28} /></span>
-          <h2>Esqueceu a senha?</h2>
-          <p>Digite o e-mail da sua conta. Mandamos um link para você criar uma senha nova.</p>
-          <label className="campo"><span>E-mail</span><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required placeholder="voce@email.com" /></label>
-          <button className="btn btn--primario btn--lg btn--bloco" disabled={ocupado || !email.includes('@')}>{ocupado ? 'Enviando…' : 'Enviar link'}</button>
-          <button type="button" className="btn btn--fantasma btn--bloco" onClick={() => setModo('entrar')}>Voltar</button>
-        </form>
-      ) : (
-        <div className="conta">
-          {obrigatorio && logo ? <img className="conta__logo" src={logo} alt="" /> : <span className="conta__icone"><UserRound size={28} /></span>}
-          <h2>{obrigatorio ? `Bem-vindo à ${nomeLoja}` : modo === 'criar' ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
-          <p>{obrigatorio
-            ? (modo === 'criar' ? 'Crie sua conta em segundos para ver o cardápio e fazer seu pedido.' : 'Entre na sua conta para ver o cardápio e fazer seu pedido. É rápido!')
-            : `Acompanhe seus pedidos na ${nomeLoja} e peça de novo com um toque. Seus dados já vêm preenchidos.`}</p>
+  const criando = modo === 'criar';
+  const conteudo = modo === 'enviado' ? (
+    <div className="conta">
+      <span className="conta__icone conta__icone--ok"><MailCheck size={28} /></span>
+      <h2>Confira o seu e-mail</h2>
+      <p>Se existir uma conta com <b>{email}</b>, você vai receber um link para criar uma senha nova. Olhe também a caixa de spam.</p>
+      <button className="btn btn--contorno btn--lg btn--bloco" onClick={() => setModo('entrar')}>Voltar para entrar</button>
+    </div>
+  ) : modo === 'esqueci' ? (
+    <form className="conta" onSubmit={(e) => { e.preventDefault(); void rodar(() => conta.esqueci(email, codigo), () => setModo('enviado')); }}>
+      <span className="conta__icone"><KeyRound size={28} /></span>
+      <h2>Esqueceu a senha?</h2>
+      <p>Digite o e-mail da sua conta. Mandamos um link para você criar uma senha nova.</p>
+      <label className="campo"><span>E-mail</span><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required placeholder="voce@email.com" /></label>
+      <button className="btn btn--primario btn--lg btn--bloco" disabled={ocupado || !email.includes('@')}>{ocupado ? 'Enviando…' : 'Enviar link'}</button>
+      <button type="button" className="btn btn--fantasma btn--bloco" onClick={() => setModo('entrar')}>Voltar</button>
+    </form>
+  ) : (
+    <div className="conta" key={modo}>
+      {!obrigatorio && <span className="conta__icone"><UserRound size={28} /></span>}
+      <h2 className={cx(obrigatorio && 'conta__titulo-folha')}>{criando ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
+      <p>{criando
+        ? 'Leva menos de um minuto. Seus dados ficam salvos para os próximos pedidos.'
+        : obrigatorio ? 'Para ver o cardápio e fazer seu pedido. É rápido!' : `Acompanhe seus pedidos na ${nomeLoja} e peça de novo com um toque.`}</p>
 
-          {conta.temGoogle && (
-            <>
-              <button type="button" className="conta__google" disabled={ocupado} onClick={() => void rodar(() => conta.google(codigo))}>
-                <LogoGoogle /> Continuar com o Google
-              </button>
-              <div className="conta__ou"><span>ou</span></div>
-            </>
-          )}
-
-          <div className="conta__abas" role="tablist">
-            <button type="button" role="tab" aria-selected={modo === 'entrar'} className={cx(modo === 'entrar' && 'ativo')} onClick={() => setModo('entrar')}>Entrar</button>
-            <button type="button" role="tab" aria-selected={modo === 'criar'} className={cx(modo === 'criar' && 'ativo')} onClick={() => setModo('criar')}>Criar conta</button>
-          </div>
-
-          <form className="conta__form" onSubmit={(e) => {
-            e.preventDefault();
-            if (modo === 'criar') {
-              if (nome.trim().length < 2) return toast('Digite o seu nome.', 'erro');
-              void rodar(() => conta.cadastrar(nome, telefone, email, senha), () => { toast('Conta criada! Você já está dentro.', 'ok'); aoFechar(); });
-            } else {
-              void rodar(() => conta.entrar(email, senha), () => { toast('Bem-vindo de volta!', 'ok'); aoFechar(); });
-            }
-          }}>
-            {modo === 'criar' && (
-              <>
-                <label className="campo"><span>Seu nome</span><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={80} required placeholder="Como quer ser chamado" /></label>
-                <label className="campo"><span>WhatsApp</span><input className="input" inputMode="tel" value={telefoneFormatado(telefone)} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, '').slice(0, 11))} autoComplete="tel" placeholder="(00) 00000-0000" /></label>
-              </>
-            )}
-            <label className="campo"><span>E-mail</span><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required placeholder="voce@email.com" /></label>
-            <label className="campo">
-              <span className="conta__rotulo-senha">Senha {modo === 'entrar' && <button type="button" onClick={() => setModo('esqueci')}>Esqueci minha senha</button>}</span>
-              <CampoSenha valor={senha} aoMudar={setSenha} autoComplete={modo === 'criar' ? 'new-password' : 'current-password'} placeholder={modo === 'criar' ? 'Pelo menos 6 caracteres' : undefined} />
-            </label>
-            <button className="btn btn--primario btn--lg btn--bloco" disabled={ocupado || !email || senha.length < 6}>
-              {ocupado ? 'Aguarde…' : modo === 'criar' ? 'Criar minha conta' : 'Entrar'}
-            </button>
-            <p className="conta__legal">
-              Ao continuar, você concorda com os <a href="/termos" target="_blank" rel="noopener">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>.
-            </p>
-          </form>
-        </div>
+      {conta.temGoogle && (
+        <>
+          <button type="button" className="conta__google" disabled={ocupado} onClick={() => void rodar(() => conta.google(codigo))}>
+            <LogoGoogle /> Continuar com o Google
+          </button>
+          <div className="conta__ou"><span>ou</span></div>
+        </>
       )}
+
+      <form className="conta__form" onSubmit={(e) => {
+        e.preventDefault();
+        if (criando) {
+          if (nome.trim().length < 2) return toast('Digite o seu nome.', 'erro');
+          void rodar(() => conta.cadastrar(nome, telefone, email, senha), () => { toast('Conta criada! Bom apetite 🍕', 'ok'); aoFechar(); });
+        } else {
+          void rodar(() => conta.entrar(email, senha), () => { toast('Bem-vindo de volta!', 'ok'); aoFechar(); });
+        }
+      }}>
+        {criando && (
+          <>
+            <label className="campo"><span>Seu nome</span><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={80} required placeholder="Como quer ser chamado" /></label>
+            <label className="campo"><span>WhatsApp</span><input className="input" inputMode="tel" value={telefoneFormatado(telefone)} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, '').slice(0, 11))} autoComplete="tel" placeholder="(00) 00000-0000" /></label>
+          </>
+        )}
+        <label className="campo"><span>E-mail</span><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required placeholder="voce@email.com" /></label>
+        <label className="campo">
+          <span className="conta__rotulo-senha">Senha {!criando && <button type="button" onClick={() => setModo('esqueci')}>Esqueci minha senha</button>}</span>
+          <CampoSenha valor={senha} aoMudar={setSenha} autoComplete={criando ? 'new-password' : 'current-password'} placeholder={criando ? 'Pelo menos 6 caracteres' : 'Sua senha'} />
+        </label>
+        <button className="btn btn--primario btn--lg btn--bloco conta__enviar" disabled={ocupado || !email || senha.length < 6}>
+          {ocupado ? 'Aguarde…' : criando ? 'Criar minha conta' : 'Entrar'}
+        </button>
+      </form>
+
+      <p className="conta__trocar">
+        {criando
+          ? <>Já tem uma conta? <button type="button" onClick={() => setModo('entrar')}>Entrar</button></>
+          : <>Não tem uma conta? <button type="button" onClick={() => setModo('criar')}>Criar conta agora</button></>}
+      </p>
+      <p className="conta__legal">
+        Ao continuar, você concorda com os <a href="/termos" target="_blank" rel="noopener">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>.
+      </p>
+    </div>
+  );
+
+  if (obrigatorio) return <Entrada3D nome={nomeLoja} logo={logo ?? null} cor={cor}>{conteudo}</Entrada3D>;
+  return (
+    <Modal aberto aoFechar={aoFechar} largura={440} classe="mesa-modal conta-modal">
+      {conteudo}
     </Modal>
+  );
+}
+
+/* ---------- Entrada do cardápio: cena 3D que acompanha o dedo/mouse ---------- */
+const ITENS_3D = [
+  { e: '🍕', x: -128, y: -64, z: 90, s: 1.25, d: 0 },
+  { e: '🍔', x: 124, y: -78, z: 40, s: 1.1, d: -1.2 },
+  { e: '🍟', x: -146, y: 58, z: -40, s: 0.95, d: -2.3 },
+  { e: '🥤', x: 140, y: 52, z: 110, s: 1.05, d: -0.6 },
+  { e: '🧀', x: -60, y: -112, z: -120, s: 0.75, d: -3.1 },
+  { e: '🌶️', x: 96, y: 86, z: -80, s: 0.8, d: -1.8 },
+  { e: '🍅', x: -108, y: 84, z: 30, s: 0.7, d: -2.7 },
+  { e: '🍦', x: 64, y: -122, z: -160, s: 0.7, d: -0.9 },
+];
+
+function Entrada3D({ nome, logo, cor, children }: { nome: string; logo: string | null; cor?: string; children: ReactNode }) {
+  const cena = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    document.body.classList.add('travado');
+    const el = cena.current;
+    let alvoX = 0, alvoY = 0, x = 0, y = 0, quadro = 0;
+    const mover = (cx2: number, cy2: number) => {
+      alvoY = ((cx2 / window.innerWidth) - 0.5) * 26;
+      alvoX = -((cy2 / Math.max(1, window.innerHeight * 0.45)) - 0.5) * 18;
+    };
+    const ponteiro = (e: PointerEvent) => mover(e.clientX, e.clientY);
+    const giro = (e: DeviceOrientationEvent) => {
+      if (e.gamma == null || e.beta == null) return;
+      alvoY = Math.max(-14, Math.min(14, e.gamma * 0.5));
+      alvoX = Math.max(-12, Math.min(12, (e.beta - 45) * -0.35));
+    };
+    const animar = (t: number) => {
+      // Sem toque, a cena "respira" sozinha
+      const auto = Math.sin(t / 2600) * 6;
+      x += (alvoX - x) * 0.08;
+      y += (alvoY + auto - y) * 0.08;
+      el?.style.setProperty('--rx', `${x.toFixed(2)}deg`);
+      el?.style.setProperty('--ry', `${y.toFixed(2)}deg`);
+      quadro = requestAnimationFrame(animar);
+    };
+    window.addEventListener('pointermove', ponteiro);
+    window.addEventListener('deviceorientation', giro);
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) quadro = requestAnimationFrame(animar);
+    return () => {
+      document.body.classList.remove('travado');
+      window.removeEventListener('pointermove', ponteiro);
+      window.removeEventListener('deviceorientation', giro);
+      cancelAnimationFrame(quadro);
+    };
+  }, []);
+
+  return createPortal(
+    <div className="e3d" style={cor ? ({ '--acento': cor } as CSSProperties) : undefined} role="dialog" aria-modal="true" aria-label={`Entrar · ${nome}`}>
+      <div className="e3d__fundo" aria-hidden="true" />
+      <div className="e3d__topo">
+        <div className="e3d__cena" ref={cena} aria-hidden="true">
+          <div className="e3d__palco">
+            <div className="e3d__anel" />
+            {ITENS_3D.map((it, i) => (
+              <span key={i} className="e3d__item" style={{ '--x': `${it.x}px`, '--y': `${it.y}px`, '--z': `${it.z}px`, '--s': it.s, '--d': `${it.d}s`, '--b': `${Math.max(0, -it.z) / 90}px` } as CSSProperties}>
+                <i>{it.e}</i>
+              </span>
+            ))}
+            <div className="e3d__logo">
+              {logo ? <img src={logo} alt="" /> : <span>{nome.charAt(0)}</span>}
+              <i className="e3d__brilho" />
+            </div>
+          </div>
+        </div>
+        <div className="e3d__titulo">
+          <small>Bem-vindo à</small>
+          <h1>{nome}</h1>
+        </div>
+      </div>
+      <div className="e3d__folha">{children}</div>
+    </div>,
+    document.body,
   );
 }
 

@@ -86,7 +86,7 @@ function proximaAbertura(h: NonNullable<Loja['horarios']>): string | null {
 
 /** Cabeçalho da loja fechada: "Abre às 18:00 · faltam 45 min" (atualiza sozinho). */
 function StatusLoja({ loja }: { loja: Loja }) {
-  const agora = useAgora(20000);
+  const agora = useAgora(1000);
   if (loja.aberto) return <span className="loja-status aberta">Aberto agora</span>;
   const d = loja.ligado && loja.horarios ? dataAbertura(loja.horarios, new Date(agora)) : null;
   if (!d) return <span className="loja-status fechada">Fechado agora</span>;
@@ -94,13 +94,15 @@ function StatusLoja({ loja }: { loja: Loja }) {
   const hoje = new Date(d).setHours(0, 0, 0, 0) === new Date(agora).setHours(0, 0, 0, 0);
   const dia = hoje ? 'hoje' : min < 48 * 60 && new Date(d).getDate() === new Date(agora + 86400000).getDate() ? 'amanhã' : DIAS[d.getDay()];
   const h = `${d.getHours()}h${d.getMinutes() ? String(d.getMinutes()).padStart(2, '0') : ''}`;
-  // Curto para caber no celular: "Abre hoje 18h · em 45 min", "Abre amanhã 18h · em 17h56"
-  const falta = min < 60 ? `${min} min` : min < 24 * 60 ? `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, '0') : ''}` : null;
+  // Contador regressivo (horas:minutos:segundos) quando abre em menos de 24 horas
+  const seg = Math.max(0, Math.floor((d.getTime() - agora) / 1000));
+  const dois = (n: number) => String(n).padStart(2, '0');
+  const falta = min <= 24 * 60 ? `${dois(Math.floor(seg / 3600))}:${dois(Math.floor((seg % 3600) / 60))}:${dois(seg % 60)}` : null;
   return (
     <>
       <span className="loja-status fechada">Fechado agora</span>
       <small className="loja-status__abre" title={`Abre ${dia} às ${hhmm(d)}`}>
-        Abre {dia} {h}{falta && <> · <b>em {falta}</b></>}
+        Abre {dia} {h}{falta && <> · <b className="loja-status__contador">{falta}</b></>}
       </small>
     </>
   );

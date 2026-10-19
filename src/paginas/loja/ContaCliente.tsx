@@ -53,6 +53,7 @@ export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, ao
   const [telefone, setTelefone] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [senha2, setSenha2] = useState('');
   const [ocupado, setOcupado] = useState(false);
 
   async function rodar(f: () => Promise<{ error: unknown }>, ok?: () => void) {
@@ -77,7 +78,10 @@ export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, ao
           <h2>Crie uma nova senha</h2>
           <p>Para a conta {conta.usuario.email}.</p>
           <label className="campo"><span>Nova senha</span><CampoSenha valor={senha} aoMudar={setSenha} autoComplete="new-password" placeholder="Pelo menos 6 caracteres" /></label>
-          <button className="btn btn--primario btn--lg btn--bloco" disabled={ocupado || senha.length < 6}>{ocupado ? 'Salvando…' : 'Salvar nova senha'}</button>
+          <label className="campo"><span>Repita a nova senha</span><CampoSenha valor={senha2} aoMudar={setSenha2} autoComplete="new-password" placeholder="Digite a mesma senha" />
+            {senha2.length > 0 && senha2 !== senha && <small className="conta__confere erro">As senhas ainda não são iguais</small>}
+          </label>
+          <button className="btn btn--primario btn--lg btn--bloco" disabled={ocupado || senha.length < 6 || senha2 !== senha}>{ocupado ? 'Salvando…' : 'Salvar nova senha'}</button>
         </form>
       </Modal>
     );
@@ -127,6 +131,7 @@ export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, ao
         e.preventDefault();
         if (criando) {
           if (nome.trim().length < 2) return toast('Digite o seu nome.', 'erro');
+          if (senha !== senha2) return toast('As senhas não são iguais. Digite de novo.', 'erro');
           void rodar(() => conta.cadastrar(nome, telefone, email, senha), () => { toast('Conta criada! Bom apetite 🍕', 'ok'); aoFechar(); });
         } else {
           void rodar(() => conta.entrar(email, senha), () => { toast('Bem-vindo de volta!', 'ok'); aoFechar(); });
@@ -143,7 +148,18 @@ export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, ao
           <span className="conta__rotulo-senha">Senha {!criando && <button type="button" onClick={() => setModo('esqueci')}>Esqueci minha senha</button>}</span>
           <CampoSenha valor={senha} aoMudar={setSenha} autoComplete={criando ? 'new-password' : 'current-password'} placeholder={criando ? 'Pelo menos 6 caracteres' : 'Sua senha'} />
         </label>
-        <button className="btn btn--primario btn--lg btn--bloco conta__enviar" disabled={ocupado || !email || senha.length < 6}>
+        {criando && (
+          <label className="campo">
+            <span>Repita a senha</span>
+            <CampoSenha valor={senha2} aoMudar={setSenha2} autoComplete="new-password" placeholder="Digite a mesma senha" />
+            {senha2.length > 0 && (
+              <small className={cx('conta__confere', senha2 === senha ? 'ok' : 'erro')}>
+                {senha2 === senha ? '✓ As senhas são iguais' : 'As senhas ainda não são iguais'}
+              </small>
+            )}
+          </label>
+        )}
+        <button className="btn btn--primario btn--lg btn--bloco conta__enviar" disabled={ocupado || !email || senha.length < 6 || (criando && senha2 !== senha)}>
           {ocupado ? 'Aguarde…' : criando ? 'Criar minha conta' : 'Entrar'}
         </button>
       </form>

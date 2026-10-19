@@ -5,6 +5,9 @@
 export const SITE = {
   marca: 'BasilFiery',
 
+  // Contato que aparece nos Termos de uso e na Política de privacidade (e para pedidos de exclusão de dados)
+  emailContato: 'basilfiery@gmail.com',
+
   // WhatsApp de vendas: DDI + DDD + número, só dígitos. Ex.: '5511987654321'
   whatsappVendas: '',
 

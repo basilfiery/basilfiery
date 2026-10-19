@@ -125,3 +125,14 @@
   .lg-botao { height: 54px; font-size: 1.04rem; }
   .lg-manter, .lg-link, .lg-ajuda p { font-size: .9rem; }
 }
+
+.lg-legal { display: flex; justify-content: center; gap: 8px; margin-top: -4px; font-size: .78rem; color: #6f6662; }
+.lg-legal a { color: #8f8682; text-decoration: none; }
+.lg-legal a:hover { color: #fff; text-decoration: underline; }
+
+/* A foto do forno termina num degradê preto (sem a borda reta da imagem) */
+.lg-fundo::before {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, .35) 18%, #000 52%), linear-gradient(to bottom, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, .35) 18%, #000 52%), linear-gradient(to bottom, #000 82%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-composite: intersect;
+}

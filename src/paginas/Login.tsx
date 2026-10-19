@@ -187,6 +187,7 @@ export default function Login() {
           </p>
         </div>
         <footer className="lg-seguro"><ShieldCheck size={16} /> {SITE.marca} • Acesso seguro e protegido</footer>
+        <nav className="lg-legal"><a href="/termos" target="_blank" rel="noopener">Termos de uso</a><span>·</span><a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a></nav>
       </form>
     </div>
   );

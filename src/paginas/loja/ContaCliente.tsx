@@ -145,6 +145,9 @@ export function ModalConta({ conta, codigo, nomeLoja, aoFechar, aoVerPedidos }: 
             <button className="btn btn--primario btn--lg btn--bloco" disabled={ocupado || !email || senha.length < 6}>
               {ocupado ? 'Aguarde…' : modo === 'criar' ? 'Criar minha conta' : 'Entrar'}
             </button>
+            <p className="conta__legal">
+              Ao continuar, você concorda com os <a href="/termos" target="_blank" rel="noopener">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>.
+            </p>
           </form>
         </div>
       )}

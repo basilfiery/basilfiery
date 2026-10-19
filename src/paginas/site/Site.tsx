@@ -228,6 +228,8 @@ export default function Site() {
           <a href="#recursos">Recursos</a>
           <a href="#planos">Planos</a>
           <Link to="/login">Área do cliente</Link>
+          <Link to="/termos">Termos de uso</Link>
+          <Link to="/privacidade">Privacidade</Link>
         </nav>
         <small>© {new Date().getFullYear()} {SITE.marca}. Todos os direitos reservados.</small>
       </footer>

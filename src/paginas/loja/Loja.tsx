@@ -900,6 +900,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntr
           <div className="loja-resumo__total"><span>Total</span><strong>{brl(total)}</strong></div>
         </div>
         <button className="btn btn--primario btn--lg btn--bloco" disabled={enviando}>{enviando ? 'Enviando…' : `Fazer pedido · ${brl(total)}`}</button>
+        <p className="loja-legal">Ao fazer o pedido, você concorda com os <a href="/termos" target="_blank" rel="noopener">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>.</p>
       </form>
     </Modal>
   );
@@ -1051,6 +1052,7 @@ function ModalSobreLoja({ loja, aoFechar }: { loja: Loja; aoFechar: () => void }
         )}
       </ul>
       {loja.rodape && <p className="sobre-loja__rodape">{loja.rodape}</p>}
+      <p className="sobre-loja__legal"><a href="/termos" target="_blank" rel="noopener">Termos de uso</a> · <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a></p>
     </Modal>
   );
 }

@@ -2251,3 +2251,18 @@
 .rl-lucro__grafico { margin-top: 16px; }
 .rl-lucro .tabela-wrap { margin-top: 16px; }
 .texto-ok { color: var(--ok); }
+
+/* Termos e políticas */
+.termos-pag__card { display: grid; gap: 12px; }
+.termos-link { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
+.termos-link__icone { width: 42px; height: 42px; flex: none; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--acento) 13%, transparent); color: var(--acento); }
+.termos-link > div:nth-child(2) { flex: 1 1 260px; min-width: 0; display: grid; gap: 3px; }
+.termos-link strong { font-size: 1rem; }
+.termos-link small { color: var(--muted); font-size: .84rem; }
+.termos-link code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--acento); font-size: .82rem; }
+.termos-link__acoes { display: flex; gap: 8px; }
+.termos-link__acoes .btn { gap: 6px; text-decoration: none; }
+.termos-pag__dica { display: flex; gap: 12px; align-items: flex-start; }
+.termos-pag__dica > svg { flex: none; margin-top: 2px; color: var(--acento); }
+.termos-pag__dica strong { display: block; margin-bottom: 4px; }
+.termos-pag__dica p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.55; }

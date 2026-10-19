@@ -117,7 +117,7 @@ export function definirLojaImpressao(r: { nome: string; logo_url: string | null;
 export const modeloDe = (id: ModeloId, cfg: ConfigImpressaoLoja = loja.config): ModeloImpressao => ({ ...PADRAO[id], ...(cfg.modelos?.[id] ?? {}) });
 
 /* ---------- Logo em preto e branco (fica guardada neste computador) ---------- */
-const CHAVE_LOGO = 'bf:impressao-logo';
+const CHAVE_LOGO = 'bf:impressao-logo-pb';
 let logoPronto: { url: string; data: string } | null = ls.ler(CHAVE_LOGO, null);
 
 export async function prepararLogo(url: string): Promise<string | null> {
@@ -125,20 +125,44 @@ export async function prepararLogo(url: string): Promise<string | null> {
   try {
     const blob = await (await fetch(url)).blob();
     const bmp = await createImageBitmap(blob);
-    const escala = Math.min(1, 384 / bmp.width, 220 / bmp.height);
+    // 320 pontos = 40 mm a 203 dpi (8 pontos por mm): sai 1 para 1, sem borrar
+    const escala = Math.min(1, 320 / bmp.width, 180 / bmp.height);
     const c = document.createElement('canvas');
-    c.width = Math.round(bmp.width * escala);
-    c.height = Math.round(bmp.height * escala);
+    c.width = Math.max(1, Math.round(bmp.width * escala));
+    c.height = Math.max(1, Math.round(bmp.height * escala));
     const g = c.getContext('2d')!;
     g.fillStyle = '#fff';
     g.fillRect(0, 0, c.width, c.height);
     g.drawImage(bmp, 0, 0, c.width, c.height);
-    // Tons de cinza com mais contraste: sai nítido no papel térmico
+    // Térmica só imprime preto ou nada: converte para preto e branco puro com pontilhado
+    // (tons de cinza o driver transforma em pontos falhados)
     const px = g.getImageData(0, 0, c.width, c.height);
-    for (let i = 0; i < px.data.length; i += 4) {
-      const y = 0.299 * px.data[i] + 0.587 * px.data[i + 1] + 0.114 * px.data[i + 2];
-      const v = Math.max(0, Math.min(255, (y - 128) * 1.35 + 128));
-      px.data[i] = px.data[i + 1] = px.data[i + 2] = v;
+    const w = c.width;
+    const lum = new Float32Array(w * c.height);
+    for (let i = 0; i < lum.length; i++) {
+      const k = i * 4;
+      const a = px.data[k + 3] / 255;
+      const y = 0.299 * px.data[k] + 0.587 * px.data[k + 1] + 0.114 * px.data[k + 2];
+      lum[i] = Math.max(0, Math.min(255, ((y * a + 255 * (1 - a)) - 128) * 1.25 + 140));
+    }
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        const novo = lum[i] < 128 ? 0 : 255;
+        const erro = lum[i] - novo;
+        lum[i] = novo;
+        if (x + 1 < w) lum[i + 1] += (erro * 7) / 16;
+        if (y + 1 < c.height) {
+          if (x > 0) lum[i + w - 1] += (erro * 3) / 16;
+          lum[i + w] += (erro * 5) / 16;
+          if (x + 1 < w) lum[i + w + 1] += erro / 16;
+        }
+      }
+    }
+    for (let i = 0; i < lum.length; i++) {
+      const k = i * 4;
+      px.data[k] = px.data[k + 1] = px.data[k + 2] = lum[i];
+      px.data[k + 3] = 255;
     }
     g.putImageData(px, 0, 0);
     const data = c.toDataURL('image/png');
@@ -212,29 +236,43 @@ function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
   }));
 }
 
+/**
+ * Cupom para impressora térmica (Epson TM-T20X e parecidas).
+ * - O papel de 80 mm só imprime 72 mm (4 mm de margem em cada lado); o de 58 mm, 48 mm.
+ *   O texto fica dentro disso, com folga, para nada passar da borda.
+ * - A térmica só faz preto: nada de cinza, texto fino ou filtros (o Windows transforma em pontos falhados).
+ *   Fonte sem serifa, em negrito, preta.
+ */
 export function documento(corpo: string, largura: 58 | 80) {
+  const margem = largura === 58 ? 5.5 : 5; // mm de cada lado (área morta da cabeça + folga)
+  const fonte = largura === 58 ? 11.5 : 13; // px
+  const logo = largura === 58 ? 30 : 40; // mm
   return `<!doctype html><html><head><meta charset="utf-8"><style>
       @page { size: ${largura}mm auto; margin: 0; }
-      * { box-sizing: border-box; }
-      body { margin: 0; padding: 2mm 3mm; width: ${largura}mm; font: ${largura === 58 ? 11 : 12}px/1.35 'Courier New', monospace; color: #000; background: #fff; }
-      .via + .via { page-break-before: always; }
-      .logo { display: block; margin: 0 auto 4px; max-width: 62%; max-height: 26mm; object-fit: contain; filter: grayscale(1) contrast(1.2); }
-      h1 { font-size: 1.35em; margin: 0; text-align: center; }
+      * { box-sizing: border-box; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      body { width: ${largura}mm; padding: 2mm ${margem}mm 3mm; font: 700 ${fonte}px/1.38 Arial, 'Helvetica Neue', Helvetica, 'Segoe UI', sans-serif; letter-spacing: .01em; -webkit-font-smoothing: none; text-rendering: geometricPrecision; overflow-wrap: anywhere; word-break: break-word; }
+      .via { width: 100%; overflow: hidden; }
+      .via + .via { page-break-before: always; break-before: page; }
+      .logo { display: block; width: auto; max-width: min(${logo}mm, 100%); height: auto; margin: 0 auto 4px; image-rendering: pixelated; }
+      h1 { font-size: 1.3em; font-weight: 900; margin: 0; text-align: center; line-height: 1.2; }
       .c { text-align: center; }
-      .g { font-size: 1.4em; font-weight: 700; }
-      .gg { font-size: 1.7em; font-weight: 700; }
-      hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+      .g { font-size: 1.35em; font-weight: 900; line-height: 1.25; }
+      .gg { font-size: 1.6em; font-weight: 900; line-height: 1.2; }
+      hr { border: 0; border-top: 1.5px dashed #000; margin: 6px 0; }
       hr.duplo { border-top: 3px double #000; }
-      table { width: 100%; border-collapse: collapse; }
-      td { vertical-align: top; padding: 1px 0; }
-      td.q { width: 2.6em; font-weight: 700; }
-      td.v { text-align: right; white-space: nowrap; padding-left: 4px; }
-      .cozinha td { font-size: 1.25em; padding: 3px 0; }
-      .obs { font-style: italic; }
-      .adic { font-weight: bold; }
-      .tot { display: flex; justify-content: space-between; font-weight: 700; font-size: 1.2em; }
-      .p { font-size: .85em; }
-      .feito { margin-top: 8px; padding-top: 5px; border-top: 1px dotted #000; text-align: center; font-size: .82em; letter-spacing: .02em; }
+      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      td { vertical-align: top; padding: 1.5px 0; }
+      td.q { width: 2.4em; font-weight: 900; }
+      td.v { width: 6.4em; text-align: right; white-space: nowrap; padding-left: 4px; }
+      .cozinha td { font-size: 1.22em; padding: 3px 0; }
+      .cozinha td.q { width: 2.2em; }
+      .obs { font-style: normal; font-weight: 700; }
+      .adic { font-weight: 700; font-size: .95em; }
+      .tot { display: flex; justify-content: space-between; gap: 6px; font-weight: 900; font-size: 1.18em; }
+      .tot span:last-child { white-space: nowrap; }
+      .p { font-size: .9em; font-weight: 700; }
+      .feito { margin-top: 8px; padding-top: 5px; border-top: 1.5px dotted #000; text-align: center; font-size: .85em; }
     </style></head><body>${corpo}</body></html>`;
 }
 

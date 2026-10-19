@@ -14,6 +14,9 @@ function tela(carregar: () => Promise<{ default: ComponentType }>) {
 
 const Site = tela(() => import('./paginas/site/Site'));
 const Login = tela(() => import('./paginas/Login'));
+const Termos = tela(() => import('./paginas/site/Legal'));
+const Privacidade = tela(() => import('./paginas/site/Legal').then((m) => ({ default: m.Privacidade })));
+const TermosPoliticas = tela(() => import('./paginas/painel/TermosPoliticas'));
 const Mesa = tela(() => import('./paginas/mesa/Mesa'));
 const Garcom = tela(() => import('./paginas/garcom/Garcom'));
 const AppGarcom = tela(() => import('./paginas/garcom/AppGarcom'));
@@ -62,6 +65,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Site />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/termos" element={<Termos />} />
+        <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/mesa/:token" element={<Mesa />} />
         <Route path="/dono" element={<Dono />} />
         <Route path="/loja/:codigo" element={<Loja />} />
@@ -79,6 +84,7 @@ export default function App() {
           <Route path="cardapio" element={<Cardapio />} />
           <Route path="cardapio/aparencia" element={<Aparencia />} />
           <Route path="apps" element={<AppsCelular />} />
+          <Route path="termos" element={<TermosPoliticas />} />
           <Route path="estoque" element={<Estoque />} />
           <Route path="garcons" element={<Garcons />} />
           <Route path="equipe" element={<Equipe />} />

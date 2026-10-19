@@ -298,3 +298,8 @@
   .meu-pedido__acoes { width: 100%; flex-wrap: nowrap; }
   .meu-pedido__acoes .btn { flex: 1; justify-content: center; }
 }
+
+/* Links de termos e privacidade */
+.conta__legal, .sobre-loja__legal, .loja-legal { margin: 2px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; text-align: center; }
+.conta__legal a, .sobre-loja__legal a, .loja-legal a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.sobre-loja__legal { margin-top: 12px; }

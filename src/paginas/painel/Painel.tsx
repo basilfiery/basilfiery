@@ -111,6 +111,12 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
       },
     ],
   },
+  {
+    titulo: 'Central BasilFiery',
+    itens: [
+      { para: '/painel/termos', icone: ShieldCheck, rotulo: 'Termos e políticas', papeis: TODOS },
+    ],
+  },
 ];
 
 /** Todas as telas (itens e subitens), para conferir permissão e para a busca do menu. */

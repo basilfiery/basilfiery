@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ArrowRight, BarChart3, Bell, BellRing, Check, Palette, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
+  ArrowRight, BarChart3, Bell, BellRing, Check, Maximize2, TrendingUp, Palette, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
   Lock, LogOut, Radio, Receipt, Settings, ShieldCheck, Store, Target, Trophy, Wallet, XCircle, Zap,
 } from 'lucide-react';
 import { Avatar } from '../../componentes/Perfil';
@@ -33,6 +33,10 @@ interface Relatorio {
   por_dia: { dia: string; faturamento: number; pedidos: number }[];
   por_hora: { hora: number; faturamento: number; pedidos: number }[];
   top_produtos: { nome: string; qtd: number; faturamento: number }[];
+}
+interface Lucro {
+  receita: number; custo: number; descontos: number; lucro: number; itens_sem_custo: number; produtos_sem_custo: string[];
+  por_dia: { dia: string; receita: number; custo: number; lucro: number }[];
 }
 
 const SELECT_VENDA = '*, pedido_itens(nome, qtd, produto:produtos(imagem_url, emoji))';
@@ -941,15 +945,18 @@ function DetalheVenda({ id, aoFechar }: { id: string; aoFechar: () => void }) {
 function Relatorios({ rest, valor, versao }: { rest: RestauranteComPapel; valor: (v: number) => string; versao: number }) {
   const [periodo, setPeriodo] = useState<Periodo>('7');
   const [dados, setDados] = useState<Relatorio | null>(null);
+  const [lucro, setLucro] = useState<Lucro | null>(null);
   const [erro, setErro] = useState('');
 
   const carregar = useCallback(async () => {
     const { inicio, fim } = intervalo(periodo);
-    const { data, error } = await supabase.rpc('relatorio_vendas', { p_rest: rest.id, p_inicio: inicio.toISOString(), p_fim: fim.toISOString() });
-    if (error) setErro(msgErro(error));
-    else { setErro(''); setDados(data as Relatorio); }
+    const args = { p_rest: rest.id, p_inicio: inicio.toISOString(), p_fim: fim.toISOString() };
+    const [a, b] = await Promise.all([supabase.rpc('relatorio_vendas', args), supabase.rpc('relatorio_lucro', args)]);
+    if (a.error) setErro(msgErro(a.error));
+    else { setErro(''); setDados(a.data as Relatorio); }
+    setLucro(b.error ? null : (b.data as Lucro));
   }, [rest.id, periodo]);
-  useEffect(() => { setDados(null); }, [periodo]);
+  useEffect(() => { setDados(null); setLucro(null); }, [periodo]);
   useEffect(() => { void carregar(); }, [carregar, versao]);
 
   // Barras: por hora (hoje) ou por dia (demais períodos), com os dias sem venda zerados
@@ -1003,6 +1010,7 @@ function Relatorios({ rest, valor, versao }: { rest: RestauranteComPapel; valor:
           {dados.cancelados.pedidos > 0 && (
             <p className="dn-nota"><XCircle size={15} /> {dados.cancelados.pedidos} cancelado(s) · {valor(Number(dados.cancelados.valor))} fora do faturamento</p>
           )}
+          {lucro && <CartaoLucro lucro={lucro} periodo={periodo} rest={rest} valor={valor} />}
           <div className="dn-secao-cab"><h2>Mais vendidos</h2></div>
           {dados.top_produtos.length === 0 ? <p className="dn-vazio-lista">Sem vendas neste período.</p> : (
             <ul className="dn-top">
@@ -1021,6 +1029,81 @@ function Relatorios({ rest, valor, versao }: { rest: RestauranteComPapel; valor:
         </>
       )}
     </div>
+  );
+}
+
+/* ---------- Lucro: cartão isolado (bom para print) ---------- */
+const ROTULO_PERIODO: Record<Periodo, string> = { hoje: 'Hoje', '7': 'Últimos 7 dias', '15': 'Últimos 15 dias', '30': 'Últimos 30 dias', mes: 'Este mês' };
+
+function CartaoLucro({ lucro, periodo, rest, valor }: { lucro: Lucro; periodo: Periodo; rest: RestauranteComPapel; valor: (v: number) => string }) {
+  const [print, setPrint] = useState(false);
+  const raiz = typeof document !== 'undefined' ? document.querySelector('.dn') : null;
+  return (
+    <>
+      <PainelLucro lucro={lucro} periodo={periodo} rest={rest} valor={valor} aoPrint={() => setPrint(true)} />
+      {lucro.itens_sem_custo > 0 && (
+        <p className="dn-nota dn-nota--ouro">
+          <TrendingUp size={15} /> {lucro.produtos_sem_custo.length} {lucro.produtos_sem_custo.length === 1 ? 'produto vendido está' : 'produtos vendidos estão'} sem custo cadastrado ({lucro.produtos_sem_custo.slice(0, 3).join(', ')}{lucro.produtos_sem_custo.length > 3 ? '…' : ''}). Cadastre em Estoque › Custos e lucro, no sistema.
+        </p>
+      )}
+      {print && raiz && createPortal(
+        <div className="dn-print" onClick={() => setPrint(false)} role="dialog" aria-label="Lucro para print">
+          <PainelLucro lucro={lucro} periodo={periodo} rest={rest} valor={valor} grande />
+          <small className="dn-print__dica">Tire o print · toque para fechar</small>
+        </div>,
+        raiz,
+      )}
+    </>
+  );
+}
+
+function PainelLucro({ lucro, periodo, rest, valor, aoPrint, grande }: {
+  lucro: Lucro; periodo: Periodo; rest: RestauranteComPapel; valor: (v: number) => string; aoPrint?: () => void; grande?: boolean;
+}) {
+  const { inicio, fim } = intervalo(periodo);
+  const receita = Number(lucro.receita);
+  const valorLucro = Number(lucro.lucro);
+  const margem = receita > 0 ? Math.round((valorLucro / receita) * 100) : 0;
+  const mapa = new Map(lucro.por_dia.map((d) => [d.dia, Number(d.lucro)]));
+  const barras: { rotulo: string; v: number }[] = [];
+  for (let t = inicio.getTime(); t < fim.getTime(); t += 86400000) {
+    const d = new Date(t);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    barras.push({ rotulo: String(d.getDate()), v: mapa.get(k) ?? 0 });
+  }
+  const maior = Math.max(1, ...barras.map((b) => Math.abs(b.v)));
+  const datas = periodo === 'hoje'
+    ? inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })
+    : `${inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} a ${new Date(fim.getTime() - 1).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+  return (
+    <section className={cx('dn-lucro', grande && 'dn-lucro--grande')} onClick={(e) => grande && e.stopPropagation()}>
+      <header className="dn-lucro__cab">
+        <span className="dn-lucro__loja">
+          {rest.logo_url ? <img src={rest.logo_url} alt="" /> : <i>{rest.nome.charAt(0)}</i>}
+          <span><b>{rest.nome}</b><small>{ROTULO_PERIODO[periodo]} · {datas}</small></span>
+        </span>
+        {aoPrint && <button type="button" className="dn-lucro__print" onClick={aoPrint} aria-label="Abrir em tela cheia para print"><Maximize2 size={16} /></button>}
+      </header>
+      <small className="dn-lucro__rotulo">Lucro no período</small>
+      <strong className={cx('dn-lucro__valor', valorLucro < 0 && 'negativo')}>{valor(valorLucro)}</strong>
+      <span className={cx('dn-lucro__margem', margem < 0 && 'negativo')}><TrendingUp size={14} /> Margem de {margem}%</span>
+      {barras.length > 1 && (
+        <div className="dn-lucro__grafico" role="img" aria-label="Lucro por dia">
+          {barras.map((b, i) => (
+            <div key={i} className="dn-lucro__col" title={`Dia ${b.rotulo}: ${brl(b.v)}`}>
+              <span style={{ height: `${Math.max(b.v ? 6 : 3, (Math.abs(b.v) / maior) * 100)}%`, animationDelay: `${i * 20}ms` }} className={cx(b.v === 0 && 'zero', b.v < 0 && 'negativo')} />
+              {(barras.length <= 15 || i % Math.ceil(barras.length / 8) === 0) && <small>{b.rotulo}</small>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="dn-lucro__linhas">
+        <div><small>Vendas de produtos</small><b>{valor(receita)}</b></div>
+        <div><small>Custo dos produtos</small><b className="menos">− {valor(Number(lucro.custo))}</b></div>
+        {Number(lucro.descontos) > 0 && <div><small>Descontos</small><b className="menos">− {valor(Number(lucro.descontos))}</b></div>}
+      </div>
+      <footer className="dn-lucro__rodape"><img src={ICONE} alt="" /> {MARCA}</footer>
+    </section>
   );
 }
 

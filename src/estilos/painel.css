@@ -2225,3 +2225,29 @@
 .lateral__filho { padding-right: 10px; }
 .lateral__filho > span { flex: 1 1 auto; }
 .lateral__secao, .lateral__filhos { grid-template-columns: minmax(0, 1fr); }
+
+/* Estoque: custos e lucro */
+.estoque-abas { margin: 0 0 4px; }
+.estoque-abas button { display: inline-flex; align-items: center; gap: 6px; }
+.custos-dica { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--bg-2); color: var(--muted); font-size: .88rem; line-height: 1.5; }
+.custos-dica svg { flex: none; margin-top: 2px; color: var(--ok); }
+.custo-campo {
+  display: inline-flex; align-items: center; gap: 4px; width: 128px; height: 38px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 10px;
+  background: var(--surface); transition: border-color .15s, box-shadow .15s;
+}
+.custo-campo:focus-within { border-color: var(--acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 18%, transparent); }
+.custo-campo.salvo { border-color: var(--ok); }
+.custo-campo span { color: var(--muted); font-size: .85rem; }
+.custo-campo input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.texto-perigo, .texto-perigo b { color: var(--danger); }
+
+/* Relatórios: lucro */
+.rl-lucro .rl-painel { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.rl-stat--destaque { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); background: color-mix(in srgb, var(--ok) 7%, var(--bg-2)); }
+.rl-aviso { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--text); font-size: .86rem; line-height: 1.45; }
+.rl-aviso > svg { flex: none; color: var(--warn); }
+.rl-aviso span { flex: 1 1 260px; color: var(--muted); }
+.rl-aviso b { color: var(--text); }
+.rl-lucro__grafico { margin-top: 16px; }
+.rl-lucro .tabela-wrap { margin-top: 16px; }
+.texto-ok { color: var(--ok); }

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Minus, Package, Plus } from 'lucide-react';
+import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
+import { Boxes, CircleDollarSign, Minus, Package, Plus, TrendingUp } from 'lucide-react';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { MovimentoEstoque, Produto } from '../../lib/tipos';
-import { cx, dataHora, ehGestor, ordenarNome } from '../../lib/util';
+import { brl, cx, dataHora, ehGestor, lerPreco, mascaraPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
 
 function situacao(p: Produto) {
@@ -22,6 +22,7 @@ export default function Estoque() {
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const [ajustando, setAjustando] = useState<{ p: Produto; tipo: 'entrada' | 'saida' } | null>(null);
   const gestor = ehGestor(papel);
+  const [aba, setAba] = useState<'quantidades' | 'custos'>('quantidades');
 
   const carregar = useCallback(async () => {
     const [p, m] = await Promise.all([
@@ -55,8 +56,20 @@ export default function Estoque() {
           <h1 className="titulo">Estoque</h1>
           <p>Cada pedido dá baixa automática. Zerou, o item aparece como “Esgotado” no tablet.</p>
         </div>
-        {gestor && <Switch marcado={mostrarTodos} aoMudar={setMostrarTodos}>Mostrar todos os produtos</Switch>}
+        {gestor && aba === 'quantidades' && <Switch marcado={mostrarTodos} aoMudar={setMostrarTodos}>Mostrar todos os produtos</Switch>}
       </div>
+
+      {gestor && (
+        <nav className="rl-abas estoque-abas" role="tablist">
+          <button role="tab" aria-selected={aba === 'quantidades'} className={cx(aba === 'quantidades' && 'ativo')} onClick={() => setAba('quantidades')}><Boxes size={16} /> Quantidades</button>
+          <button role="tab" aria-selected={aba === 'custos'} className={cx(aba === 'custos' && 'ativo')} onClick={() => setAba('custos')}><CircleDollarSign size={16} /> Custos e lucro</button>
+        </nav>
+      )}
+
+      {aba === 'custos' && gestor ? (
+        <CustosProdutos produtos={produtos} aoMudar={(id, custo) => setProdutos((l) => l.map((x) => (x.id === id ? { ...x, custo } : x)))} />
+      ) : (
+      <>
 
       <div className="kpis">
         <div className="kpi"><span>Produtos controlados</span><strong>{controlados.length}</strong></div>
@@ -128,6 +141,8 @@ export default function Estoque() {
           </ul>
         )}
       </section>
+      </>
+      )}
 
       {ajustando && (
         <ModalAjuste
@@ -195,5 +210,69 @@ function ModalAjuste({ produto, tipoInicial, aoFechar, aoSalvar }: {
         </Campo>
       </div>
     </Modal>
+  );
+}
+
+/* ---------------- Custos: quanto cada produto custa e quanto sobra ---------------- */
+function CustosProdutos({ produtos, aoMudar }: { produtos: Produto[]; aoMudar: (id: string, custo: number | null) => void }) {
+  const comCusto = produtos.filter((p) => p.custo != null);
+  const margens = comCusto.filter((p) => Number(p.preco) > 0).map((p) => (Number(p.preco) - Number(p.custo)) / Number(p.preco));
+  const margemMedia = margens.length ? margens.reduce((s, m) => s + m, 0) / margens.length : null;
+  return (
+    <>
+      <div className="kpis">
+        <div className="kpi"><span>Com custo cadastrado</span><strong>{comCusto.length} <small className="muted">de {produtos.length}</small></strong></div>
+        <div className={cx('kpi', produtos.length - comCusto.length > 0 && 'kpi--alerta')}><span>Sem custo</span><strong>{produtos.length - comCusto.length}</strong></div>
+        <div className="kpi"><span>Margem média</span><strong>{margemMedia == null ? '—' : `${Math.round(margemMedia * 100)}%`}</strong></div>
+      </div>
+      <p className="custos-dica"><TrendingUp size={16} /> Coloque quanto cada produto custa para você (ingredientes, embalagem, compra). O lucro aparece nos Relatórios e no app do dono. Vendas antigas usam o custo de quando foram feitas.</p>
+      <div className="tabela-wrap">
+        <table className="tabela custos-tabela">
+          <thead><tr><th>Produto</th><th className="num">Preço de venda</th><th className="num">Custo</th><th className="num">Lucro por unidade</th><th className="num">Margem</th></tr></thead>
+          <tbody>{produtos.map((p) => <LinhaCusto key={p.id} p={p} aoMudar={aoMudar} />)}</tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function LinhaCusto({ p, aoMudar }: { p: Produto; aoMudar: (id: string, custo: number | null) => void }) {
+  const toast = useToast();
+  const [texto, setTexto] = useState(p.custo != null ? precoParaTexto(Number(p.custo)) : '');
+  const [estado, setEstado] = useState<'' | 'salvando' | 'salvo'>('');
+  const preco = Number(p.preco);
+  const custo = texto.trim() ? lerPreco(texto) : null;
+  const lucro = custo != null && Number.isFinite(custo) ? preco - custo : null;
+  const margem = lucro != null && preco > 0 ? lucro / preco : null;
+
+  async function salvar() {
+    const novo = custo != null && Number.isFinite(custo) ? custo : null;
+    if (novo === (p.custo == null ? null : Number(p.custo))) return;
+    setEstado('salvando');
+    const { error } = await supabase.from('produtos').update({ custo: novo }).eq('id', p.id);
+    if (error) { setEstado(''); return toast(msgErro(error), 'erro'); }
+    aoMudar(p.id, novo);
+    setEstado('salvo');
+    setTimeout(() => setEstado(''), 1500);
+  }
+
+  return (
+    <tr>
+      <td><strong>{p.emoji} {p.nome}</strong></td>
+      <td className="num">{brl(preco)}</td>
+      <td className="num">
+        <span className={cx('custo-campo', estado === 'salvo' && 'salvo')}>
+          <span>R$</span>
+          <input
+            inputMode="decimal" value={texto} placeholder="0,00" aria-label={`Custo de ${p.nome}`}
+            onChange={(e) => setTexto(mascaraPreco(e.target.value))}
+            onBlur={() => void salvar()}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          />
+        </span>
+      </td>
+      <td className={cx('num', lucro != null && lucro < 0 && 'texto-perigo')}>{lucro == null ? <span className="muted">—</span> : <b>{brl(lucro)}</b>}</td>
+      <td className="num">{margem == null ? <span className="muted">—</span> : <span className={cx('badge', margem < 0 ? 'badge--vermelho' : margem < 0.3 ? 'badge--amarelo' : 'badge--verde')}>{Math.round(margem * 100)}%</span>}</td>
+    </tr>
   );
 }

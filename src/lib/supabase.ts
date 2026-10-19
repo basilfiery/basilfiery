@@ -7,10 +7,19 @@ export const SUPABASE_URL: string =
 export const SUPABASE_CHAVE: string =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_cv9v7PW8nIJHuX2Jb9tKRA_xyS0sFw5';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_CHAVE);
+// No cardápio digital (/loja) quem lê o link de login (Google, nova senha) é a sessão do cliente, não a da equipe
+export const supabase = createClient(SUPABASE_URL, SUPABASE_CHAVE, {
+  auth: { detectSessionInUrl: typeof window === 'undefined' || !window.location.pathname.startsWith('/loja') },
+});
 
 const TRADUCOES: [RegExp, string][] = [
   [/invalid login credentials/i, 'E-mail ou senha incorretos.'],
+  [/user already registered|already been registered/i, 'Este e-mail já tem conta. Entre com a sua senha.'],
+  [/provider is not enabled|unsupported provider/i, 'O login com o Google ainda não foi ativado. Use e-mail e senha.'],
+  [/password should be at least|weak password/i, 'A senha precisa ter pelo menos 6 caracteres.'],
+  [/rate limit|too many requests|security purposes/i, 'Muitas tentativas seguidas. Espere um pouco e tente de novo.'],
+  [/unable to validate email|invalid email|email address .* is invalid/i, 'Confira o e-mail digitado.'],
+  [/new password should be different/i, 'A nova senha precisa ser diferente da anterior.'],
   [/email not confirmed/i, 'E-mail ainda não confirmado.'],
   [/failed to fetch|networkerror|load failed/i, 'Sem conexão com a internet. Verifique o Wi-Fi.'],
   [/jwt expired/i, 'Sua sessão expirou. Entre novamente.'],

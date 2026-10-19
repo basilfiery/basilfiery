@@ -212,3 +212,89 @@
 .mesa__marca .loja-status::before { display: inline-block; margin-right: 6px; vertical-align: 1px; }
 .mesa__marca .loja-status__abre { display: block; margin-top: 1px; color: var(--muted); font-size: .8rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .loja-status__abre b { color: var(--text); font-weight: 700; }
+
+/* =====================================================================
+   Conta do cliente (entrar, criar conta, Google, minha conta)
+   ===================================================================== */
+.loja-conta-btn.logado { padding-left: 6px; }
+.loja-conta-btn__inicial {
+  width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 50%;
+  background: var(--acento); color: #fff; font-weight: 800; font-size: .95rem;
+}
+@media (max-width: 720px) { .loja-conta-btn.logado { padding: 0; } }
+
+.conta-modal .modal__corpo { padding: 26px 22px 22px; }
+.conta { display: grid; gap: 14px; }
+.conta > h2 { margin: 2px 0 0; text-align: center; font-size: 1.35rem; }
+.conta > p { margin: -6px 0 0; color: var(--muted); text-align: center; font-size: .92rem; line-height: 1.5; }
+.conta__icone { justify-self: center; width: 60px; height: 60px; display: grid; place-items: center; border-radius: 18px; background: color-mix(in srgb, var(--acento) 14%, transparent); color: var(--acento); }
+.conta__icone--ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.conta__google {
+  height: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #dadce0; border-radius: 12px;
+  background: #fff; color: #1f1f1f; font: inherit; font-size: .98rem; font-weight: 600; cursor: pointer; transition: box-shadow .15s, transform .12s;
+}
+.conta__google:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, .12); }
+.conta__google:active { transform: scale(.985); }
+.conta__ou { display: flex; align-items: center; gap: 12px; color: var(--muted-2); font-size: .8rem; }
+.conta__ou::before, .conta__ou::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.conta__abas { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
+.conta__abas button { height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; }
+.conta__abas button.ativo { background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+.conta__form { display: grid; gap: 12px; }
+.conta__form h3, .conta__enderecos h3 { margin: 4px 0 0; font-size: .95rem; }
+.conta .input { font-size: max(16px, 1rem); }
+.conta__rotulo-senha { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.conta__rotulo-senha button { border: 0; background: none; padding: 0; color: var(--acento); font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; }
+.conta-senha { position: relative; display: flex; }
+.conta-senha .input { flex: 1; padding-right: 48px; }
+.conta-senha button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+.conta__perfil { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.conta__perfil img, .conta__perfil > span { width: 54px; height: 54px; flex: none; border-radius: 50%; object-fit: cover; }
+.conta__perfil > span { display: grid; place-items: center; background: var(--acento); color: #fff; font-size: 1.4rem; font-weight: 800; }
+.conta__perfil div { display: grid; gap: 2px; min-width: 0; }
+.conta__perfil strong { font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conta__perfil small { color: var(--muted); font-size: .84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conta__atalho {
+  display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--bg-2); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.conta__atalho > svg { color: var(--acento); flex: none; }
+.conta__atalho span { display: grid; gap: 2px; font-weight: 700; }
+.conta__atalho small { color: var(--muted); font-weight: 400; font-size: .8rem; }
+.conta__enderecos { display: grid; gap: 8px; }
+.conta__endereco { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.conta__endereco > svg { color: var(--acento); flex: none; }
+.conta__endereco span { flex: 1; min-width: 0; display: grid; gap: 1px; font-size: .9rem; }
+.conta__endereco small { color: var(--muted); font-size: .78rem; }
+.conta__endereco button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
+.conta__sair { color: var(--danger) !important; }
+
+/* Convite para entrar (finalizar e meus pedidos) */
+.loja-conta-convite {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px dashed color-mix(in srgb, var(--acento) 45%, var(--line));
+  border-radius: 14px; background: color-mix(in srgb, var(--acento) 6%, transparent); color: var(--text); font: inherit; font-size: .88rem; text-align: left; cursor: pointer;
+}
+.loja-conta-convite > svg { flex: none; color: var(--acento); }
+.loja-conta-convite span { flex: 1; min-width: 0; line-height: 1.4; color: var(--muted); }
+.loja-conta-convite b { color: var(--text); }
+.loja-conta-convite em { flex: none; padding: 6px 12px; border-radius: 999px; background: var(--acento); color: #fff; font-style: normal; font-weight: 700; font-size: .82rem; }
+.loja-conta-convite--grande { margin: 14px 0 6px; padding: 14px 16px; }
+.loja-enderecos { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: -4px 0 4px; padding-bottom: 2px; }
+.loja-enderecos::-webkit-scrollbar { display: none; }
+.loja-endereco {
+  flex: none; display: flex; align-items: center; gap: 8px; max-width: 240px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: .84rem; text-align: left; cursor: pointer;
+}
+.loja-endereco > svg { flex: none; color: var(--muted); }
+.loja-endereco span { min-width: 0; display: grid; overflow: hidden; }
+.loja-endereco span, .loja-endereco small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loja-endereco small { color: var(--muted); font-size: .74rem; }
+.loja-endereco.ativo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 8%, var(--surface)); }
+.loja-endereco.ativo > svg { color: var(--acento); }
+.meu-pedido__acoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.meu-pedido__acoes .btn { gap: 6px; }
+@media (max-width: 560px) {
+  .meu-pedido__base { flex-wrap: wrap; row-gap: 10px; }
+  .meu-pedido__acoes { width: 100%; flex-wrap: nowrap; }
+  .meu-pedido__acoes .btn { flex: 1; justify-content: center; }
+}

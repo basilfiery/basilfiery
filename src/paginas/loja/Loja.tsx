@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactElement } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  AtSign, BadgePercent, Ban, Banknote, Bike, Gift, House, Info, ReceiptText, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
+  AtSign, BadgePercent, Ban, Banknote, Bike, Gift, House, Info, ReceiptText, RotateCcw, UserRound, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -11,7 +11,9 @@ import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco, useAgora } from '../../lib/util';
 import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
-import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
+import { calcularAdicionais, gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
+import { supabaseCliente, useContaCliente, type ContaCliente } from '../../lib/contaCliente';
+import { ModalConta } from './ContaCliente';
 import { destravarSom, tocarEnviado } from '../../lib/som';
 import { fraseCancelamento } from '../../lib/cancelamento';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
@@ -179,6 +181,8 @@ export default function LojaCardapio() {
   const toast = useToast();
   useAlturaTela();
   const [verSobre, setVerSobre] = useState(false);
+  const conta = useContaCliente();
+  const [verConta, setVerConta] = useState(false);
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState('');
   const [carrinho, setCarrinho] = useState<Linha[]>(() => ls.ler(`bf:loja:carrinho:${codigo}`, []));
@@ -273,6 +277,28 @@ export default function LojaCardapio() {
   const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
   const faltaMinimo = Math.max(0, Number(loja.minimo) - subtotal);
 
+  /** Coloca de novo na sacola os itens de um pedido antigo (o que ainda existe e está disponível). */
+  function pedirDeNovo(itens: ItemAnterior[]) {
+    let novo = carrinho;
+    let faltou = 0;
+    for (const i of itens) {
+      const p = (i.produto_id && (porId.get(i.produto_id) ?? produtosLoja.find((x) => x.real_id === i.produto_id))) || null;
+      if (!p || !p.disponivel) { faltou++; continue; }
+      const grupos = gruposDoProduto(p.real_id ?? p.id, dados?.adicionais_grupos, dados?.produto_grupos);
+      const escolhas = (i.adicionais ?? [])
+        .filter((e) => grupos.some((g) => g.opcoes.some((o) => o.id === e.id && o.disponivel)))
+        .map((e) => ({ id: e.id, qtd: e.qtd }));
+      const calc = calcularAdicionais(grupos, escolhas);
+      if (calc.faltando) { faltou++; continue; }
+      novo = juntarNoCarrinho(novo, p, i.qtd, i.obs ?? '', grupos.length ? { escolhas, extra: calc.extra, texto: calc.texto } : undefined);
+    }
+    if (novo === carrinho) return toast('Esses itens não estão disponíveis agora.', 'erro');
+    setCarrinho(novo);
+    irAba('inicio');
+    setVerCarrinho(true);
+    toast(faltou ? `Itens na sacola. ${faltou} ${faltou === 1 ? 'item não está' : 'itens não estão'} disponível agora.` : 'Pronto! Seu pedido está na sacola.', faltou ? 'info' : 'ok');
+  }
+
   function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
     setCarrinho((c) => juntarNoCarrinho(c, p, qtd, obs, a));
     toast(`${qtd}× ${nomeItem(p)} na sacola`, 'ok');
@@ -359,6 +385,12 @@ export default function LojaCardapio() {
           </div>
         </div>
         <div className="mesa__acoes">
+          <button type="button" className={cx('btn btn--contorno mesa__acao loja-conta-btn', conta.usuario && 'logado')} onClick={() => setVerConta(true)} aria-label={conta.usuario ? 'Minha conta' : 'Entrar na minha conta'}>
+            {conta.usuario
+              ? <span className="loja-conta-btn__inicial">{(conta.perfil?.nome || conta.usuario.email || '?').charAt(0).toUpperCase()}</span>
+              : <UserRound size={20} />}
+            <span className="mesa__rotulo">{conta.usuario ? (conta.perfil?.nome?.split(' ')[0] || 'Minha conta') : 'Entrar'}</span>
+          </button>
           {loja.instagram && (
             <a className="btn btn--contorno mesa__acao" href={`https://instagram.com/${loja.instagram.replace(/^@/, '')}`} target="_blank" rel="noopener" aria-label="Instagram da loja">
               <AtSign size={20} /> <span className="mesa__rotulo">Instagram</span>
@@ -397,7 +429,7 @@ export default function LojaCardapio() {
             );
           })()}
           {abaLoja === 'fidelidade' && <AbaFidelidade codigo={codigo} loja={loja} />}
-          {abaLoja === 'pedidos' && <AbaPedidos codigo={codigo} loja={loja} />}
+          {abaLoja === 'pedidos' && <AbaPedidos codigo={codigo} loja={loja} conta={conta} aoEntrar={() => setVerConta(true)} aoPedirDeNovo={pedirDeNovo} />}
         </main>
       ) : (
       <>
@@ -443,6 +475,9 @@ export default function LojaCardapio() {
       )}
 
       {verSobre && <ModalSobreLoja loja={loja} aoFechar={() => setVerSobre(false)} />}
+      {(verConta || (conta.novaSenha && !!conta.usuario)) && (
+        <ModalConta conta={conta} codigo={codigo} nomeLoja={loja.nome} aoFechar={() => setVerConta(false)} aoVerPedidos={() => irAba('pedidos')} />
+      )}
 
       {/* Barra de baixo, como nos apps de delivery */}
       <nav className="loja-nav" aria-label="Menu da loja">
@@ -482,6 +517,8 @@ export default function LojaCardapio() {
           carrinho={carrinho}
           porId={porId}
           subtotal={subtotal}
+          conta={conta}
+          aoEntrar={() => setVerConta(true)}
           aoFechar={() => setFinalizar(false)}
           aoEnviar={(acompanhar) => {
             setCarrinho([]);
@@ -566,54 +603,98 @@ function AbaFidelidade({ codigo, loja }: { codigo: string; loja: Loja }) {
 
 const ROTULO_STATUS: Record<string, string> = { novo: 'Pedido recebido', preparando: 'Em preparo', pronto: 'Pronto', entregue: 'Entregue', cancelado: 'Cancelado' };
 
-/** Pedidos feitos neste celular. */
-function AbaPedidos({ codigo, loja }: { codigo: string; loja: Loja }) {
-  const [lista, setLista] = useState<(StatusPedido & { acompanhar: string })[] | null>(null);
+interface ItemAnterior { produto_id: string | null; nome: string; qtd: number; preco: number; obs: string | null; complementos?: string | null; adicionais: { id: string; qtd: number }[] | null }
+interface PedidoAnterior { numero: number; status: string; tipo: string; total: number; criado_em: string; acompanhar: string; itens: ItemAnterior[] | null }
+
+/** Meus pedidos: com conta, todos os pedidos dela (em qualquer celular) e "Pedir de novo"; sem conta, os deste celular. */
+function AbaPedidos({ codigo, loja, conta, aoEntrar, aoPedirDeNovo }: {
+  codigo: string;
+  loja: Loja;
+  conta: ContaCliente;
+  aoEntrar: () => void;
+  aoPedirDeNovo: (itens: ItemAnterior[]) => void;
+}) {
+  const [lista, setLista] = useState<PedidoAnterior[] | null>(null);
+  const logado = !!conta.usuario;
   useEffect(() => {
-    const tokens = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, []);
-    void Promise.all(tokens.map(async (a) => {
-      const { data } = await supabase.rpc('loja_pedido_status', { p_acompanhar: a });
-      return data ? { ...(data as StatusPedido), acompanhar: a } : null;
-    })).then((l) => setLista(l.filter((x): x is StatusPedido & { acompanhar: string } => !!x)));
-  }, [codigo]);
+    if (conta.carregando) return;
+    let vivo = true;
+    setLista(null);
+    void (async () => {
+      if (logado) {
+        const { data } = await supabaseCliente.rpc('cliente_meus_pedidos', { p_codigo: codigo });
+        if (vivo) setLista((data ?? []) as PedidoAnterior[]);
+        return;
+      }
+      const tokens = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, []);
+      const l = await Promise.all(tokens.map(async (a): Promise<PedidoAnterior | null> => {
+        const { data } = await supabase.rpc('loja_pedido_status', { p_acompanhar: a });
+        const d = data as (StatusPedido | null);
+        return d ? { numero: d.numero, status: d.status, tipo: d.tipo, total: d.total, criado_em: d.criado_em, acompanhar: a, itens: d.itens.map((i) => ({ produto_id: null, nome: i.nome, qtd: i.qtd, preco: i.preco, obs: null, adicionais: null })) } : null;
+      }));
+      if (vivo) setLista(l.filter((x): x is PedidoAnterior => !!x));
+    })();
+    return () => { vivo = false; };
+  }, [codigo, logado, conta.carregando]);
+
+  const convite = !logado && !conta.carregando && (
+    <button type="button" className="loja-conta-convite loja-conta-convite--grande" onClick={aoEntrar}>
+      <UserRound size={22} />
+      <span><b>Entre na sua conta</b> para ver seus pedidos em qualquer celular e pedir de novo com um toque.</span>
+      <em>Entrar</em>
+    </button>
+  );
 
   if (!lista) return <div className="spinner" style={{ margin: '50px auto' }} />;
   if (!lista.length) {
     return (
-      <AbaVazia icone={<ReceiptText size={30} />} titulo="Você ainda não fez pedidos" texto="Os pedidos feitos neste celular aparecem aqui para você acompanhar." />
+      <>
+        {convite}
+        <AbaVazia icone={<ReceiptText size={30} />} titulo="Você ainda não fez pedidos" texto={logado ? 'Os pedidos que você fizer com a sua conta aparecem aqui.' : 'Os pedidos feitos neste celular aparecem aqui para você acompanhar.'} />
+      </>
     );
   }
   return (
     <section className="mesa__secao">
+      {convite}
       <header className="mesa__secao-cab"><h2 className="titulo"><ReceiptText size={22} /> Meus pedidos</h2><span>{lista.length}</span></header>
       <ul className="meus-pedidos">
-        {lista.map((p) => (
-          <li key={p.acompanhar} className="meu-pedido">
-            <div className="meu-pedido__topo">
-              {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
-              <div>
-                <strong>{loja.nome}</strong>
-                <small>{new Date(p.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+        {lista.map((p) => {
+          const itens = p.itens ?? [];
+          const podeRepetir = logado && itens.some((i) => i.produto_id);
+          return (
+            <li key={p.acompanhar} className="meu-pedido">
+              <div className="meu-pedido__topo">
+                {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
+                <div>
+                  <strong>{loja.nome}</strong>
+                  <small>{new Date(p.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                </div>
               </div>
-            </div>
-            <p className="meu-pedido__linha">
-              <span className={cx('meu-pedido__ponto', `meu-pedido__ponto--${p.status}`)} />
-              {p.status === 'entregue' ? (p.tipo === 'delivery' ? 'Entrega realizada' : 'Retirado') : ROTULO_STATUS[p.status] ?? p.status} · Pedido #{p.numero}
-            </p>
-            <p className="meu-pedido__itens">{p.itens.map((i) => `${i.qtd}× ${i.nome}`).join(', ')}</p>
-            <div className="meu-pedido__base">
-              <span>Total: <b>{brl(Number(p.total))}</b></span>
-              <Link className="btn btn--contorno btn--sm" to={`/loja/${codigo}/pedido/${p.acompanhar}`}>Detalhe do pedido</Link>
-            </div>
-          </li>
-        ))}
+              <p className="meu-pedido__linha">
+                <span className={cx('meu-pedido__ponto', `meu-pedido__ponto--${p.status}`)} />
+                {p.status === 'entregue' ? (p.tipo === 'delivery' ? 'Entrega realizada' : 'Retirado') : ROTULO_STATUS[p.status] ?? p.status} · Pedido #{p.numero}
+              </p>
+              <p className="meu-pedido__itens">{itens.map((i) => `${i.qtd}× ${i.nome}`).join(', ')}</p>
+              <div className="meu-pedido__base">
+                <span>Total: <b>{brl(Number(p.total))}</b></span>
+                <div className="meu-pedido__acoes">
+                  <Link className="btn btn--contorno btn--sm" to={`/loja/${codigo}/pedido/${p.acompanhar}`}>Detalhes</Link>
+                  {podeRepetir && <button type="button" className="btn btn--primario btn--sm" onClick={() => aoPedirDeNovo(itens)}><RotateCcw size={15} /> Pedir de novo</button>}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
 }
 
-function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoEnviar }: {
+function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntrar, aoFechar, aoEnviar }: {
   codigo: string;
+  conta: ContaCliente;
+  aoEntrar: () => void;
   loja: Loja;
   carrinho: Linha[];
   porId: Map<string, ProdutoMesa>;
@@ -626,6 +707,17 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
   const [tipo, setTipo] = useState<'delivery' | 'retirada'>(fazEntrega ? 'delivery' : 'retirada');
   const formas = FORMAS.filter((f) => !loja.formas || loja.formas.includes(f.id));
   const [cli, setCli] = useState<Cliente>(() => ({ ...CLIENTE_VAZIO, ...ls.ler<Cliente>('bf:loja:cliente', CLIENTE_VAZIO) }));
+  // Logado: nome, WhatsApp e último endereço já vêm da conta
+  useEffect(() => {
+    const pf = conta.perfil;
+    if (!pf) return;
+    setCli((c) => ({
+      ...c,
+      nome: c.nome || pf.nome,
+      telefone: c.telefone || pf.telefone,
+      endereco: c.endereco.rua || !pf.enderecos[0] ? c.endereco : { ...CLIENTE_VAZIO.endereco, ...pf.enderecos[0] },
+    }));
+  }, [conta.perfil]);
   const [forma, setForma] = useState<Forma | null>(null);
   const [troco, setTroco] = useState('');
   const [obs, setObs] = useState('');
@@ -676,7 +768,8 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
     if (tipo === 'delivery' && modo === 'raio' && local?.taxa == null) return toast('Esse endereço fica fora da área de entrega.', 'erro');
     setEnviando(true);
     ls.gravar('bf:loja:cliente', cli);
-    const { data, error } = await supabase.rpc('loja_pedido_enviar', {
+    // Pelo cliente: com conta, o pedido fica ligado a ela (Meus pedidos / Pedir de novo)
+    const { data, error } = await supabaseCliente.rpc('loja_pedido_enviar', {
       p_codigo: codigo,
       p_tipo: tipo,
       p_itens: carrinho.map((l) => {
@@ -694,6 +787,10 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
     setEnviando(false);
     if (error) return toast(msgErro(error), 'erro');
     const feito = data as { acompanhar: string; total: number };
+    if (conta.usuario) {
+      void conta.salvarPerfil({ nome: cli.nome.trim(), telefone: cli.telefone.replace(/\D/g, '') }).catch(() => {});
+      if (tipo === 'delivery') void conta.lembrarEndereco(cli.endereco);
+    }
     rastrear('Purchase', Number(feito.total), feito.acompanhar);
     tocarEnviado();
     aoEnviar(feito.acompanhar);
@@ -702,6 +799,13 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
   return (
     <Modal aberto aoFechar={() => !enviando && aoFechar()} titulo="Finalizar pedido" classe="mesa-modal loja-finalizar" largura={560}>
       <form className="loja-form" onSubmit={enviar} id="form-finalizar">
+        {!conta.usuario && !conta.carregando && (
+          <button type="button" className="loja-conta-convite" onClick={aoEntrar}>
+            <UserRound size={18} />
+            <span><b>Tem conta?</b> Entre e seus dados já vêm preenchidos.</span>
+            <em>Entrar</em>
+          </button>
+        )}
         {loja.retirada && fazEntrega && (
           <div className="loja-segmento" role="radiogroup" aria-label="Como receber">
             <button type="button" role="radio" aria-checked={tipo === 'delivery'} className={cx(tipo === 'delivery' && 'ativo')} onClick={() => setTipo('delivery')}>
@@ -722,6 +826,18 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, aoFechar, aoE
         {tipo === 'delivery' ? (
           <fieldset>
             <legend><MapPin size={16} /> Endereço de entrega</legend>
+            {!!conta.perfil?.enderecos.length && (
+              <div className="loja-enderecos" role="group" aria-label="Endereços salvos">
+                {conta.perfil.enderecos.map((e, i) => {
+                  const igual = e.rua === cli.endereco.rua && e.numero === cli.endereco.numero;
+                  return (
+                    <button key={`${e.rua}${e.numero}${i}`} type="button" className={cx('loja-endereco', igual && 'ativo')} onClick={() => setCli((c) => ({ ...c, endereco: { ...CLIENTE_VAZIO.endereco, ...e } }))}>
+                      <MapPin size={15} /><span>{e.rua}, {e.numero}<small>{e.bairro}</small></span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="loja-linha">
               <label className="campo loja-linha__grande"><span>Rua</span><input className="input" required maxLength={120} value={cli.endereco.rua} onChange={(e) => end('rua', e.target.value)} autoComplete="address-line1" /></label>
               <label className="campo"><span>Número</span><input className="input" required maxLength={20} value={cli.endereco.numero} onChange={(e) => end('numero', e.target.value)} inputMode="numeric" /></label>

@@ -1,14 +1,15 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowDownRight, ArrowUpRight, BadgePercent, Banknote, BarChart3, Bike, CalendarDays, ChevronLeft, ChevronRight, Clock, CreditCard, DollarSign, Download, Minus, Package,
-  QrCode, Radio, ReceiptText, ShoppingBasket, Store, Table2, Ticket, UtensilsCrossed, Wallet, XCircle,
+  PiggyBank, QrCode, Radio, ReceiptText, ShoppingBasket, Store, Table2, Ticket, TrendingUp, UtensilsCrossed, Wallet, XCircle,
 } from 'lucide-react';
 import { GraficoColunas, type Ponto } from '../../componentes/Graficos';
 import { Vazio } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { StatusPedido } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, hora, inicioDoDia, tempoDesde, useAgora } from '../../lib/util';
+import { STATUS_ROTULO, brl, cx, ehGestor, hora, inicioDoDia, tempoDesde, useAgora } from '../../lib/util';
+import { Link } from 'react-router-dom';
 import { usePainel } from './Painel';
 
 /* ---------------- Tipos vindos do banco ---------------- */
@@ -22,6 +23,11 @@ interface Relatorio {
   por_mesa: { mesa: string; pedidos: number; faturamento: number }[];
 }
 interface Mes { mes: string; faturamento: number; pedidos: number }
+interface Lucro {
+  receita: number; custo: number; descontos: number; lucro: number; itens_sem_custo: number; produtos_sem_custo: string[];
+  por_dia: { dia: string; receita: number; custo: number; lucro: number }[];
+  por_produto: { nome: string; qtd: number; receita: number; custo: number; lucro: number; tem_custo: boolean }[];
+}
 interface Extra {
   por_forma: { forma: string; pedidos: number; receita: number }[];
   por_tipo: { tipo: string; pedidos: number; receita: number }[];
@@ -99,7 +105,8 @@ const inteiro = (n: number) => Number(n).toLocaleString('pt-BR');
 /* ======================================================================= */
 
 export default function Relatorios() {
-  const { restaurante, pedidos: aoVivo } = usePainel();
+  const { restaurante, pedidos: aoVivo, papel } = usePainel();
+  const veLucro = ehGestor(papel);
   const toast = useToast();
   const agora = useAgora(30000);
 
@@ -112,6 +119,7 @@ export default function Relatorios() {
   const [rel, setRel] = useState<Relatorio | null>(null);
   const [relAnt, setRelAnt] = useState<Relatorio | null>(null);
   const [extra, setExtra] = useState<Extra | null>(null);
+  const [lucro, setLucro] = useState<Lucro | null>(null);
   const [meses, setMeses] = useState<Mes[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -121,11 +129,12 @@ export default function Relatorios() {
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
     const args = (p: Periodo) => ({ p_rest: restaurante.id, p_inicio: p.inicio.toISOString(), p_fim: p.fim.toISOString(), p_tz: TZ });
-    const [a, b, m, x] = await Promise.all([
+    const [a, b, m, x, l] = await Promise.all([
       supabase.rpc('relatorio_vendas', args(periodo)),
       supabase.rpc('relatorio_vendas', args(comparacao.periodo)),
       supabase.rpc('relatorio_meses', { p_rest: restaurante.id, p_meses: 12, p_tz: TZ }),
       supabase.rpc('relatorio_extra', { p_rest: restaurante.id, p_inicio: periodo.inicio.toISOString(), p_fim: periodo.fim.toISOString() }),
+      veLucro ? supabase.rpc('relatorio_lucro', args(periodo)) : Promise.resolve({ data: null, error: null }),
     ]);
     setCarregando(false);
     if (a.error) {
@@ -136,9 +145,10 @@ export default function Relatorios() {
     setRel(a.data as Relatorio);
     setRelAnt(b.error ? null : (b.data as Relatorio));
     setExtra(x.error ? null : (x.data as Extra));
+    setLucro(l.error ? null : (l.data as Lucro | null));
     if (!m.error) setMeses(m.data as Mes[]);
     setAtualizadoEm(Date.now());
-  }, [restaurante.id, periodo, comparacao]);
+  }, [restaurante.id, periodo, comparacao, veLucro]);
 
   useEffect(() => { void carregar(); }, [carregar]);
 
@@ -207,6 +217,8 @@ export default function Relatorios() {
             </header>
             <PainelOperacional rel={rel} ant={relAnt} extra={extra} rotuloComparacao={comparacao.rotulo} />
           </section>
+
+          {lucro && <LucroPeriodo lucro={lucro} periodo={periodo} dias={dias} rotuloPeriodo={rotuloPeriodo} />}
 
           <HorariosPedidos porHora={rel.por_hora} rotuloPeriodo={rotuloPeriodo} />
 
@@ -305,6 +317,60 @@ function DeltaCurto({ atual, anterior, rotulo }: { atual: number; anterior?: num
       {v > 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
       {`${v > 0 ? '+' : ''}${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} <span className="muted">vs. {rotulo}</span>
     </span>
+  );
+}
+
+/* ---------------- Lucro (só dono e gerente) ---------------- */
+function LucroPeriodo({ lucro, periodo, dias, rotuloPeriodo }: { lucro: Lucro; periodo: Periodo; dias: number; rotuloPeriodo: string }) {
+  const receita = Number(lucro.receita);
+  const valor = Number(lucro.lucro);
+  const margem = receita > 0 ? (valor / receita) * 100 : 0;
+  const mapa = new Map(lucro.por_dia.map((d) => [d.dia, d]));
+  const pontos: Ponto[] = [];
+  if (dias > 1 && dias <= 62) {
+    for (let d = periodo.inicio; d < periodo.fim; d = somarDias(d, 1)) {
+      const v = mapa.get(iso(d));
+      pontos.push({ chave: iso(d), rotulo: dataCurta(d), detalhe: dataLonga(d), valor: Math.max(0, Number(v?.lucro ?? 0)), sub: v ? `Vendas ${brl(Number(v.receita))} · custo ${brl(Number(v.custo))}` : 'Sem vendas' });
+    }
+  }
+  const top = lucro.por_produto.filter((x) => x.tem_custo).slice(0, 5);
+  return (
+    <section className="card rl-card rl-lucro">
+      <header className="rl-card__cab">
+        <div><h2>Lucro</h2><small>{rotuloPeriodo} · vendas dos produtos − custo − descontos (taxa de entrega fica de fora)</small></div>
+      </header>
+      <div className="rl-painel">
+        <div className="rl-stat"><span className="rl-stat__icone"><DollarSign size={17} /></span><div><strong>{brl(receita)}</strong><span>Vendas de produtos</span></div></div>
+        <div className="rl-stat rl-stat--perigo"><span className="rl-stat__icone"><Package size={17} /></span><div><strong>{brl(Number(lucro.custo))}</strong><span>Custo dos produtos</span></div></div>
+        {Number(lucro.descontos) > 0 && <div className="rl-stat"><span className="rl-stat__icone"><BadgePercent size={17} /></span><div><strong>{brl(Number(lucro.descontos))}</strong><span>Descontos</span></div></div>}
+        <div className="rl-stat rl-stat--ok rl-stat--destaque"><span className="rl-stat__icone"><PiggyBank size={17} /></span><div><strong className={cx(valor < 0 && 'texto-perigo')}>{brl(valor)}</strong><span>Lucro</span></div></div>
+        <div className="rl-stat rl-stat--ok"><span className="rl-stat__icone"><TrendingUp size={17} /></span><div><strong>{Math.round(margem)}%</strong><span>Margem</span></div></div>
+      </div>
+      {lucro.itens_sem_custo > 0 && (
+        <p className="rl-aviso">
+          <Package size={16} />
+          <span><b>{lucro.produtos_sem_custo.length} {lucro.produtos_sem_custo.length === 1 ? 'produto vendido está' : 'produtos vendidos estão'} sem custo</b> ({lucro.produtos_sem_custo.slice(0, 4).join(', ')}{lucro.produtos_sem_custo.length > 4 ? '…' : ''}). Sem o custo, o lucro deles parece maior do que é.</span>
+          <Link className="btn btn--contorno btn--sm" to="/painel/estoque">Cadastrar custos</Link>
+        </p>
+      )}
+      {pontos.some((p) => p.valor > 0) && (
+        <div className="rl-lucro__grafico">
+          <GraficoColunas dados={pontos} formatar={brl} formatarEixo={eixoReais} altura={170} rotuloAria="Lucro por dia" />
+        </div>
+      )}
+      {top.length > 0 && (
+        <div className="tabela-wrap">
+          <table className="tabela rl-tabela">
+            <thead><tr><th>Produtos que mais deram lucro</th><th className="num">Qtd.</th><th className="num">Vendas</th><th className="num">Custo</th><th className="num">Lucro</th></tr></thead>
+            <tbody>
+              {top.map((x) => (
+                <tr key={x.nome}><td><b>{x.nome}</b></td><td className="num">{inteiro(x.qtd)}</td><td className="num">{brl(Number(x.receita))}</td><td className="num">{brl(Number(x.custo))}</td><td className="num"><b className="texto-ok">{brl(Number(x.lucro))}</b></td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

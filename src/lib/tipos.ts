@@ -125,6 +125,8 @@ export interface Produto {
   nome: string;
   descricao: string;
   preco: number;
+  /** Quanto custa para a loja (para o lucro). Só dono/gerente usam. */
+  custo?: number | null;
   emoji: string | null;
   imagem_url: string | null;
   video_url: string | null;

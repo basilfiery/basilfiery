@@ -2115,3 +2115,106 @@
 }
 .cancelar__previa svg { flex: none; margin-top: 2px; color: var(--acento, var(--fire-2)); }
 .cancelar__previa b { color: var(--text); font-weight: 600; }
+
+/* =====================================================================
+   Relatórios: compacto (cartões pequenos, tabelas e barras finas)
+   ===================================================================== */
+.rl .relatorio { gap: 14px; }
+.rl-cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 4px; }
+.rl-cab h1 { margin: 0; }
+.rl-cab__sub { color: var(--muted); font-size: .84rem; }
+.rl-vivo {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface); font-size: .86rem;
+}
+.rl-vivo__selo { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rl-vivo__selo svg { animation: piscar 1.6s ease-in-out infinite; }
+.rl-vivo strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.rl-vivo__info { color: var(--muted); }
+.rl .filtros { padding-block: 10px; }
+.rl .filtro { padding: 6px 12px; font-size: .82rem; }
+.rl .filtros__info { display: inline-flex; align-items: center; gap: 6px; }
+
+.rl-card { padding: 18px 20px; }
+.rl-card__cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.rl-card__cab h2 { margin: 0; font-size: 1.02rem; font-weight: 700; }
+.rl-card__cab small { color: var(--muted); font-size: .8rem; }
+.rl-seg { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }
+.rl-seg button { height: 30px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.rl-seg button.ativo { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+
+/* Painel operacional */
+.rl-painel { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); }
+.rl-stat { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); min-width: 0; }
+.rl-stat__icone { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--acento) 13%, transparent); color: var(--acento); }
+.rl-stat--ok .rl-stat__icone { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.rl-stat--perigo .rl-stat__icone { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+.rl-stat > div { min-width: 0; display: grid; gap: 1px; }
+.rl-stat strong { font-size: 1.12rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rl-stat > div > span:not(.delta) { color: var(--muted); font-size: .78rem; font-weight: 500; }
+.rl-stat small { color: var(--muted-2); font-size: .72rem; line-height: 1.35; }
+.rl-stat .delta { display: flex; align-items: center; gap: 3px; margin-top: 3px; min-width: 0; font-size: .72rem; white-space: nowrap; overflow: hidden; }
+.rl-stat .delta svg { flex: none; }
+.rl-stat .delta .muted { overflow: hidden; text-overflow: ellipsis; }
+
+/* Horários com mais pedidos */
+.rl-horas { display: flex; align-items: stretch; justify-content: space-between; gap: 6px; height: 196px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.rl-hora { flex: 1 0 30px; max-width: 96px; display: grid; grid-template-rows: 18px 1fr 18px; justify-items: center; gap: 4px; }
+.rl-hora__valor { align-self: end; color: var(--muted); font-size: .68rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rl-hora__trilho { position: relative; width: 16px; border-radius: 4px; background: color-mix(in srgb, var(--text) 7%, transparent); overflow: hidden; }
+.rl-hora__trilho i { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--acento) 72%, transparent); transition: height .4s ease; }
+.rl-hora.pico .rl-hora__trilho i { background: var(--acento); }
+.rl-hora.pico .rl-hora__valor { color: var(--text); }
+.rl-hora__rotulo { color: var(--muted); font-size: .72rem; }
+
+/* Quantidade de pedidos */
+.rl-abas { display: flex; gap: 4px; margin: -4px 0 12px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.rl-abas button { flex: none; height: 38px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: var(--muted); font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer; }
+.rl-abas button.ativo { border-bottom-color: var(--acento); color: var(--text); }
+.rl-tabela th { font-size: .76rem; }
+.rl-tabela td { padding-block: 10px; font-size: .88rem; }
+.rl-tabela tfoot td { border-top: 1px solid var(--line-2); font-weight: 700; color: var(--text); }
+.rl-nome { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+.rl-nome__icone { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--acento) 11%, transparent); color: var(--acento); }
+.rl-pct { position: relative; display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 96px; font-variant-numeric: tabular-nums; }
+.rl-pct__trilho { width: 56px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 8%, transparent); overflow: hidden; }
+.rl-pct__trilho i { display: block; height: 100%; border-radius: 3px; background: var(--acento); }
+.rl-ranking__pos { width: 34px; color: var(--muted-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rl-ranking__nome { position: relative; display: block; padding-bottom: 6px; font-weight: 600; }
+.rl-ranking__nome i { position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--acento) 55%, transparent); }
+@media (max-width: 720px) {
+  .rl-card { padding: 14px; }
+  .rl-painel { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .rl-stat { padding: 10px; gap: 8px; }
+  .rl-stat__icone { width: 28px; height: 28px; }
+  .rl-stat strong { font-size: 1rem; }
+  .rl-vivo { border-radius: 14px; }
+  .rl-pct { min-width: 0; }
+  .rl-pct__trilho { display: none; }
+}
+/* Nada do relatório alarga a página no celular (gráfico e tabelas rolam por dentro) */
+.rl, .rl .relatorio, .rl .relatorio > *, .rl-card, .rl-cab > * { min-width: 0; }
+.rl .relatorio { grid-template-columns: minmax(0, 1fr); }
+.rl .relatorio__duplo { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
+.rl-cab__sub { display: block; }
+@media (max-width: 720px) {
+  .rl .filtros__presets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .rl .filtros__presets::-webkit-scrollbar { display: none; }
+  .rl .filtro { flex: none; }
+  .rl .filtros { gap: 8px; }
+}
+/* Áreas que rolam de lado não contam na largura da página */
+.rl-horas, .rl .tabela-wrap, .rl-abas { contain: inline-size; }
+@media (max-width: 720px) { .rl .filtros__presets { flex: 1 1 100%; contain: inline-size; } }
+@media (max-width: 720px) {
+  .rl-tabela:not(.rl-ranking) th:nth-child(2), .rl-tabela:not(.rl-ranking) td:nth-child(2) { display: none; }
+  .rl-tabela th, .rl-tabela td { padding-inline: 8px; }
+  .rl-tabela td { font-size: .84rem; }
+  .rl-nome { gap: 8px; }
+  .rl-nome__icone { width: 26px; height: 26px; }
+}
+@media (max-width: 720px) {
+  .rl-tabela { width: 100%; }
+  .rl-tabela th { white-space: normal; }
+  .rl-tabela td.num { white-space: nowrap; }
+}

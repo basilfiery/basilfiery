@@ -1,6 +1,9 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Download, Minus, Radio, Table2, BarChart3 } from 'lucide-react';
-import { BarrasHorizontais, GraficoColunas, type Ponto } from '../../componentes/Graficos';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  ArrowDownRight, ArrowUpRight, BadgePercent, Banknote, BarChart3, Bike, CalendarDays, ChevronLeft, ChevronRight, Clock, CreditCard, DollarSign, Download, Minus, Package,
+  QrCode, Radio, ReceiptText, ShoppingBasket, Store, Table2, Ticket, UtensilsCrossed, Wallet, XCircle,
+} from 'lucide-react';
+import { GraficoColunas, type Ponto } from '../../componentes/Graficos';
 import { Vazio } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
 import { msgErro, supabase } from '../../lib/supabase';
@@ -19,6 +22,12 @@ interface Relatorio {
   por_mesa: { mesa: string; pedidos: number; faturamento: number }[];
 }
 interface Mes { mes: string; faturamento: number; pedidos: number }
+interface Extra {
+  por_forma: { forma: string; pedidos: number; receita: number }[];
+  por_tipo: { tipo: string; pedidos: number; receita: number }[];
+  taxas: number;
+  descontos: number;
+}
 interface LinhaPedido {
   id: string; numero: number; mesa_nome: string; status: StatusPedido; total: number;
   criado_em: string; pago_em: string | null;
@@ -102,18 +111,21 @@ export default function Relatorios() {
 
   const [rel, setRel] = useState<Relatorio | null>(null);
   const [relAnt, setRelAnt] = useState<Relatorio | null>(null);
+  const [extra, setExtra] = useState<Extra | null>(null);
   const [meses, setMeses] = useState<Mes[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [atualizadoEm, setAtualizadoEm] = useState<number | null>(null);
+  const [verVendas, setVerVendas] = useState<'periodo' | 'meses'>('periodo');
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true);
     const args = (p: Periodo) => ({ p_rest: restaurante.id, p_inicio: p.inicio.toISOString(), p_fim: p.fim.toISOString(), p_tz: TZ });
-    const [a, b, m] = await Promise.all([
+    const [a, b, m, x] = await Promise.all([
       supabase.rpc('relatorio_vendas', args(periodo)),
       supabase.rpc('relatorio_vendas', args(comparacao.periodo)),
       supabase.rpc('relatorio_meses', { p_rest: restaurante.id, p_meses: 12, p_tz: TZ }),
+      supabase.rpc('relatorio_extra', { p_rest: restaurante.id, p_inicio: periodo.inicio.toISOString(), p_fim: periodo.fim.toISOString() }),
     ]);
     setCarregando(false);
     if (a.error) {
@@ -123,6 +135,7 @@ export default function Relatorios() {
     setErro('');
     setRel(a.data as Relatorio);
     setRelAnt(b.error ? null : (b.data as Relatorio));
+    setExtra(x.error ? null : (x.data as Extra));
     if (!m.error) setMeses(m.data as Mes[]);
     setAtualizadoEm(Date.now());
   }, [restaurante.id, periodo, comparacao]);
@@ -145,28 +158,21 @@ export default function Relatorios() {
     setDe(iso(new Date(a, m - 1, 1)));
     setAte(iso(new Date(a, m, 0)));
     setPreset('personalizado');
+    setVerVendas('periodo');
   }
 
   const dias = Math.round((periodo.fim.getTime() - periodo.inicio.getTime()) / DIA);
   const rotuloPeriodo = dias === 1 ? dataLonga(periodo.inicio) : `${dataCurta(periodo.inicio)} a ${dataCurta(somarDias(periodo.fim, -1))}`;
 
   return (
-    <div className="pagina relatorios">
-      <div className="pagina__cab">
-        <div style={{ flex: 1 }}>
+    <div className="pagina relatorios rl">
+      <div className="rl-cab">
+        <div>
           <h1 className="titulo">Relatórios</h1>
-          <p>Vendas são os pedidos não cancelados. Tudo se atualiza sozinho quando entra um pedido.</p>
+          <span className="rl-cab__sub">Vendas são os pedidos não cancelados · tudo se atualiza sozinho</span>
         </div>
+        <AoVivoHoje pedidos={aoVivo} agora={agora} />
       </div>
-
-      <AoVivoHoje pedidos={aoVivo} agora={agora} />
-
-      <section className="card">
-        <div className="card__cab">
-          <h2 className="card__titulo">Vendas por mês <small>últimos 12 meses</small></h2>
-        </div>
-        <GraficoMensal meses={meses} aoEscolher={escolherMes} />
-      </section>
 
       {/* Filtro: escopo de tudo que vem abaixo */}
       <div className="filtros" role="group" aria-label="Período do relatório">
@@ -184,7 +190,7 @@ export default function Relatorios() {
           </div>
         )}
         <span className="filtros__info">
-          <b>{rotuloPeriodo}</b>
+          <CalendarDays size={15} /> <b>{rotuloPeriodo}</b>
           {atualizadoEm && <> · atualizado {hora(new Date(atualizadoEm).toISOString())}</>}
         </span>
       </div>
@@ -195,52 +201,39 @@ export default function Relatorios() {
         <div className="carregando"><div className="spinner" /></div>
       ) : (
         <div className={cx('relatorio', carregando && 'recarregando')}>
-          <Resumo rel={rel} ant={relAnt} rotuloComparacao={comparacao.rotulo} />
+          <section className="card rl-card">
+            <header className="rl-card__cab">
+              <div><h2>Painel operacional</h2><small>{rotuloPeriodo} · comparado com {comparacao.rotulo}</small></div>
+            </header>
+            <PainelOperacional rel={rel} ant={relAnt} extra={extra} rotuloComparacao={comparacao.rotulo} />
+          </section>
 
-          <section className="card">
-            <h2 className="card__titulo">
-              {dias === 1 ? 'Vendas por hora' : dias > 62 ? 'Vendas por mês no período' : 'Vendas por dia'}
-            </h2>
-            <GraficoPeriodo rel={rel} periodo={periodo} dias={dias} />
+          <HorariosPedidos porHora={rel.por_hora} rotuloPeriodo={rotuloPeriodo} />
+
+          <QuantidadePedidos rel={rel} extra={extra} />
+
+          <section className="card rl-card">
+            <header className="rl-card__cab">
+              <div>
+                <h2>{verVendas === 'meses' ? 'Vendas por mês' : dias === 1 ? 'Vendas por hora' : dias > 62 ? 'Vendas por mês no período' : 'Vendas por dia'}</h2>
+                <small>{verVendas === 'meses' ? 'Últimos 12 meses · toque num mês para ver o relatório dele' : rotuloPeriodo}</small>
+              </div>
+              <div className="rl-seg" role="tablist">
+                <button role="tab" aria-selected={verVendas === 'periodo'} className={cx(verVendas === 'periodo' && 'ativo')} onClick={() => setVerVendas('periodo')}>Período</button>
+                <button role="tab" aria-selected={verVendas === 'meses'} className={cx(verVendas === 'meses' && 'ativo')} onClick={() => setVerVendas('meses')}>12 meses</button>
+              </div>
+            </header>
+            {verVendas === 'meses' ? <GraficoMensal meses={meses} aoEscolher={escolherMes} /> : <GraficoPeriodo rel={rel} periodo={periodo} dias={dias} />}
           </section>
 
           <div className="relatorio__duplo">
-            <section className="card">
-              <h2 className="card__titulo">Produtos mais vendidos</h2>
-              {rel.top_produtos.length ? (
-                <BarrasHorizontais
-                  formatar={brl}
-                  itens={rel.top_produtos.map((p) => ({ chave: p.nome, rotulo: p.nome, valor: p.faturamento, sub: `${inteiro(p.qtd)} un.` }))}
-                />
-              ) : <p className="muted vazio-mini">Nenhuma venda no período.</p>}
+            <section className="card rl-card">
+              <header className="rl-card__cab"><div><h2>Produtos mais vendidos</h2><small>Top {Math.min(10, rel.top_produtos.length) || 10} do período</small></div></header>
+              <Ranking linhas={rel.top_produtos.slice(0, 10).map((p) => ({ nome: p.nome, qtd: p.qtd, valor: Number(p.faturamento) }))} coluna="Produto" unidade="un." />
             </section>
-
-            <section className="card">
-              <h2 className="card__titulo">Por categoria</h2>
-              {rel.por_categoria.length ? (
-                <BarrasHorizontais
-                  formatar={brl}
-                  itens={rel.por_categoria.map((c) => ({ chave: c.categoria, rotulo: c.categoria, valor: c.faturamento, sub: `${inteiro(c.qtd)} itens` }))}
-                />
-              ) : <p className="muted vazio-mini">Nenhuma venda no período.</p>}
-            </section>
-          </div>
-
-          <div className="relatorio__duplo">
-            {dias > 1 && (
-              <section className="card">
-                <h2 className="card__titulo">Horários de pico</h2>
-                <GraficoHoras porHora={rel.por_hora} />
-              </section>
-            )}
-            <section className="card">
-              <h2 className="card__titulo">Mesas que mais venderam</h2>
-              {rel.por_mesa.length ? (
-                <BarrasHorizontais
-                  formatar={brl}
-                  itens={rel.por_mesa.map((m) => ({ chave: m.mesa, rotulo: m.mesa, valor: m.faturamento, sub: `${inteiro(m.pedidos)} pedidos` }))}
-                />
-              ) : <p className="muted vazio-mini">Nenhuma venda no período.</p>}
+            <section className="card rl-card">
+              <header className="rl-card__cab"><div><h2>Vendas por categoria</h2><small>Itens e receita de cada categoria</small></div></header>
+              <Ranking linhas={rel.por_categoria.map((c) => ({ nome: c.categoria, qtd: c.qtd, valor: Number(c.faturamento) }))} coluna="Categoria" unidade="itens" />
             </section>
           </div>
 
@@ -251,95 +244,203 @@ export default function Relatorios() {
   );
 }
 
-/* ---------------- Ao vivo: o que está entrando hoje ---------------- */
+/* ---------------- Ao vivo: faixa compacta no topo ---------------- */
 function AoVivoHoje({ pedidos, agora }: { pedidos: ReturnType<typeof usePainel>['pedidos']; agora: number }) {
   const hoje = inicioDoDia();
   const deHoje = pedidos.filter((p) => new Date(p.criado_em).getTime() >= hoje && p.status !== 'cancelado');
   const total = deHoje.reduce((s, p) => s + Number(p.total), 0);
-  const ultimos = deHoje.slice().sort((a, b) => b.criado_em.localeCompare(a.criado_em)).slice(0, 5);
-
+  const ultimo = deHoje.slice().sort((a, b) => b.criado_em.localeCompare(a.criado_em))[0];
+  const ha = ultimo ? tempoDesde(ultimo.criado_em, agora) : '';
   return (
-    <section className="card ao-vivo-card">
-      <div className="ao-vivo-card__numeros">
-        <span className="ao-vivo-card__selo"><Radio size={14} /> Ao vivo · hoje</span>
-        <strong className="ao-vivo-card__valor">{brl(total)}</strong>
-        <span className="muted">
-          {deHoje.length} {deHoje.length === 1 ? 'pedido' : 'pedidos'}
-          {deHoje.length > 0 && <> · ticket médio {brl(total / deHoje.length)}</>}
-        </span>
-      </div>
-      <div className="ao-vivo-card__feed">
-        <span className="ao-vivo-card__rotulo">Últimos pedidos</span>
-        {ultimos.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>Nenhum pedido hoje ainda. Assim que entrar, aparece aqui.</p>
-        ) : (
-          <ul>
-            {ultimos.map((p) => (
-              <li key={p.id} className={cx(agora - new Date(p.criado_em).getTime() < 90000 && 'recente')}>
-                <span className="muted">{hora(p.criado_em)}</span>
-                <span>#{p.numero} · {p.mesa_nome}</span>
-                <span className={`badge badge--${p.status}`}>{STATUS_ROTULO[p.status]}</span>
-                <strong>{brl(p.total)}</strong>
-              </li>
-            ))}
-          </ul>
-        )}
-        {ultimos[0] && <small className="muted">Última venda {tempoDesde(ultimos[0].criado_em, agora) === 'agora' ? 'agora mesmo' : `há ${tempoDesde(ultimos[0].criado_em, agora)}`}</small>}
-      </div>
+    <div className="rl-vivo" aria-live="polite">
+      <span className="rl-vivo__selo"><Radio size={13} /> Ao vivo · hoje</span>
+      <strong>{brl(total)}</strong>
+      <span className="rl-vivo__info">
+        {deHoje.length} {deHoje.length === 1 ? 'pedido' : 'pedidos'}
+        {ultimo && <> · último #{ultimo.numero} {ultimo.mesa_nome} {ha === 'agora' ? 'agora mesmo' : `há ${ha}`}</>}
+      </span>
+    </div>
+  );
+}
+
+/* ---------------- Painel operacional (cartões compactos) ---------------- */
+function PainelOperacional({ rel, ant, extra, rotuloComparacao }: { rel: Relatorio; ant: Relatorio | null; extra: Extra | null; rotuloComparacao: string }) {
+  const r = rel.resumo;
+  const a = ant?.resumo;
+  const cartoes: { icone: ReactNode; valor: string; rotulo: string; dica?: string; atual?: number; anterior?: number; tom?: 'perigo' | 'ok' }[] = [
+    { icone: <DollarSign size={17} />, valor: brl(r.faturamento), rotulo: 'Total das vendas', atual: r.faturamento, anterior: a?.faturamento },
+    { icone: <ReceiptText size={17} />, valor: inteiro(r.pedidos), rotulo: 'Total de pedidos', atual: r.pedidos, anterior: a?.pedidos },
+    { icone: <Ticket size={17} />, valor: brl(r.ticket_medio), rotulo: 'Ticket médio', atual: r.ticket_medio, anterior: a?.ticket_medio },
+    { icone: <Package size={17} />, valor: inteiro(r.itens), rotulo: 'Itens vendidos', atual: r.itens, anterior: a?.itens },
+    { icone: <Wallet size={17} />, valor: brl(r.recebido), rotulo: 'Valor recebido', dica: 'Contas já fechadas no caixa', tom: 'ok' },
+    { icone: <Clock size={17} />, valor: brl(r.em_aberto), rotulo: 'Em aberto', dica: 'Mesas e pedidos ainda sem pagamento' },
+    { icone: <Bike size={17} />, valor: brl(Number(extra?.taxas ?? 0)), rotulo: 'Taxas de entrega', dica: 'Somadas nos pedidos de delivery' },
+    { icone: <BadgePercent size={17} />, valor: brl(Number(extra?.descontos ?? 0)), rotulo: 'Descontos', dica: 'Descontos dados no balcão (PDV)' },
+    { icone: <XCircle size={17} />, valor: inteiro(rel.cancelados.pedidos), rotulo: 'Cancelados', dica: `${brl(rel.cancelados.valor)} que não entraram nas vendas`, tom: 'perigo' },
+  ];
+  return (
+    <div className="rl-painel">
+      {cartoes.map((c) => (
+        <div key={c.rotulo} className={cx('rl-stat', c.tom && `rl-stat--${c.tom}`)}>
+          <span className="rl-stat__icone">{c.icone}</span>
+          <div>
+            <strong>{c.valor}</strong>
+            <span>{c.rotulo}</span>
+            {c.atual !== undefined ? <DeltaCurto atual={c.atual} anterior={c.anterior} rotulo={rotuloComparacao} /> : c.dica && <small>{c.dica}</small>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Comparação numa linha só: "▲ +12% vs. mês anterior". */
+function DeltaCurto({ atual, anterior, rotulo }: { atual: number; anterior?: number; rotulo: string }) {
+  if (anterior === undefined) return null;
+  if (anterior === 0) return <span className="delta delta--neutro" title={`Sem vendas no ${rotulo} para comparar`}><Minus size={13} /> sem histórico</span>;
+  const v = (atual - anterior) / anterior;
+  if (Math.abs(v) < 0.005) return <span className="delta delta--neutro"><Minus size={13} /> igual ao {rotulo}</span>;
+  return (
+    <span className={cx('delta', v > 0 ? 'delta--sobe' : 'delta--desce')} title={`Comparado com ${rotulo}`}>
+      {v > 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+      {`${v > 0 ? '+' : ''}${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} <span className="muted">vs. {rotulo}</span>
+    </span>
+  );
+}
+
+/* ---------------- Horários com mais pedidos ---------------- */
+function HorariosPedidos({ porHora, rotuloPeriodo }: { porHora: Relatorio['por_hora']; rotuloPeriodo: string }) {
+  const [medida, setMedida] = useState<'pedidos' | 'faturamento'>('pedidos');
+  const mapa = new Map(porHora.map((h) => [h.hora, h]));
+  const horas = porHora.map((h) => h.hora);
+  const lista: { h: number; v: number; n: number; fat: number }[] = [];
+  if (horas.length) {
+    // Pelo menos 12 horas na tela (com poucos horários as barras não ficam soltas)
+    let ini = Math.max(0, Math.min(...horas) - 1);
+    let fim = Math.min(23, Math.max(...horas) + 1);
+    while (fim - ini < 11) { if (ini > 0) ini--; if (fim - ini < 11 && fim < 23) fim++; }
+    for (let h = ini; h <= fim; h++) {
+      const d = mapa.get(h);
+      const n = d?.pedidos ?? 0;
+      const fat = Number(d?.faturamento ?? 0);
+      lista.push({ h, n, fat, v: medida === 'pedidos' ? n : fat });
+    }
+  }
+  const max = Math.max(1, ...lista.map((x) => x.v));
+  const pico = lista.reduce((m, x, i) => (x.v > (lista[m]?.v ?? -1) ? i : m), 0);
+  // Celular: o gráfico rola de lado; já abre mostrando o horário de pico
+  const area = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = area.current;
+    const alvo = el?.children[pico] as HTMLElement | undefined;
+    if (el && alvo && el.scrollWidth > el.clientWidth) el.scrollLeft = alvo.offsetLeft - el.clientWidth / 2 + alvo.offsetWidth / 2;
+  }, [pico, lista.length]);
+  return (
+    <section className="card rl-card">
+      <header className="rl-card__cab">
+        <div>
+          <h2>Horários com mais pedidos</h2>
+          <small>{rotuloPeriodo}{lista.length ? ` · pico às ${lista[pico].h}h` : ''}</small>
+        </div>
+        <div className="rl-seg" role="tablist">
+          <button role="tab" aria-selected={medida === 'pedidos'} className={cx(medida === 'pedidos' && 'ativo')} onClick={() => setMedida('pedidos')}>Pedidos</button>
+          <button role="tab" aria-selected={medida === 'faturamento'} className={cx(medida === 'faturamento' && 'ativo')} onClick={() => setMedida('faturamento')}>Faturamento</button>
+        </div>
+      </header>
+      {!lista.length ? <p className="muted vazio-mini">Nenhuma venda no período.</p> : (
+        <div className="rl-horas" ref={area} role="img" aria-label={`${medida === 'pedidos' ? 'Pedidos' : 'Faturamento'} por horário`}>
+          {lista.map((x, i) => (
+            <div key={x.h} className={cx('rl-hora', i === pico && x.v > 0 && 'pico')} title={`${x.h}h às ${x.h + 1}h · ${x.n} ${x.n === 1 ? 'pedido' : 'pedidos'} · ${brl(x.fat)}`}>
+              <span className="rl-hora__valor">{x.v > 0 ? (medida === 'pedidos' ? x.v : eixoReais(x.v)) : ''}</span>
+              <span className="rl-hora__trilho"><i style={{ height: `${Math.max(x.v > 0 ? 3 : 0, (x.v / max) * 100)}%` }} /></span>
+              <span className="rl-hora__rotulo">{x.h}h</span>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
-/* ---------------- Resumo com comparação ---------------- */
-function Resumo({ rel, ant, rotuloComparacao }: { rel: Relatorio; ant: Relatorio | null; rotuloComparacao: string }) {
-  const r = rel.resumo;
-  const a = ant?.resumo;
+/* ---------------- Quantidade de pedidos (forma de pagamento, tipo, mesas) ---------------- */
+const FORMAS: Record<string, { rotulo: string; icone: ReactNode }> = {
+  pix: { rotulo: 'Pix', icone: <QrCode size={16} /> },
+  dinheiro: { rotulo: 'Dinheiro', icone: <Banknote size={16} /> },
+  credito: { rotulo: 'Cartão de crédito', icone: <CreditCard size={16} /> },
+  debito: { rotulo: 'Cartão de débito', icone: <CreditCard size={16} /> },
+  aberto: { rotulo: 'Ainda em aberto', icone: <Clock size={16} /> },
+  outro: { rotulo: 'Outra forma', icone: <Wallet size={16} /> },
+};
+const TIPOS: Record<string, { rotulo: string; icone: ReactNode }> = {
+  mesa: { rotulo: 'Mesa (salão)', icone: <UtensilsCrossed size={16} /> },
+  delivery: { rotulo: 'Delivery', icone: <Bike size={16} /> },
+  retirada: { rotulo: 'Retirada no balcão', icone: <Store size={16} /> },
+  balcao: { rotulo: 'Balcão (PDV)', icone: <ShoppingBasket size={16} /> },
+};
+
+function QuantidadePedidos({ rel, extra }: { rel: Relatorio; extra: Extra | null }) {
+  const [aba, setAba] = useState<'forma' | 'tipo' | 'mesa'>('forma');
+  const linhas: { chave: string; rotulo: string; icone: ReactNode; pedidos: number; receita: number }[] =
+    aba === 'forma'
+      ? (extra?.por_forma ?? []).map((f) => ({ chave: f.forma, rotulo: FORMAS[f.forma]?.rotulo ?? f.forma, icone: FORMAS[f.forma]?.icone ?? <Wallet size={16} />, pedidos: f.pedidos, receita: Number(f.receita) }))
+      : aba === 'tipo'
+        ? (extra?.por_tipo ?? []).map((t) => ({ chave: t.tipo, rotulo: TIPOS[t.tipo]?.rotulo ?? t.tipo, icone: TIPOS[t.tipo]?.icone ?? <ReceiptText size={16} />, pedidos: t.pedidos, receita: Number(t.receita) }))
+        : rel.por_mesa.map((m) => ({ chave: m.mesa, rotulo: m.mesa, icone: <UtensilsCrossed size={16} />, pedidos: m.pedidos, receita: Number(m.faturamento) }));
+  const totalPedidos = linhas.reduce((s, l) => s + l.pedidos, 0);
+  const totalReceita = linhas.reduce((s, l) => s + l.receita, 0);
   return (
-    <div className="resumo">
-      <div className="resumo__hero card">
-        <span className="resumo__rotulo">Faturamento</span>
-        <strong className="resumo__hero-valor">{brl(r.faturamento)}</strong>
-        <Delta atual={r.faturamento} anterior={a?.faturamento} rotulo={rotuloComparacao} />
-        <div className="resumo__caixa">
-          <span><i className="ponto ponto--ok" /> Recebido (contas fechadas) <b>{brl(r.recebido)}</b></span>
-          <span><i className="ponto ponto--aberto" /> Em aberto nas mesas <b>{brl(r.em_aberto)}</b></span>
+    <section className="card rl-card">
+      <header className="rl-card__cab"><div><h2>Quantidade de pedidos</h2><small>Como os pedidos chegaram e foram pagos</small></div></header>
+      <nav className="rl-abas" role="tablist">
+        {([['forma', 'Forma de pagamento'], ['tipo', 'Tipo de pedido'], ['mesa', 'Mesas']] as const).map(([id, r]) => (
+          <button key={id} role="tab" aria-selected={aba === id} className={cx(aba === id && 'ativo')} onClick={() => setAba(id)}>{r}</button>
+        ))}
+      </nav>
+      {!linhas.length ? <p className="muted vazio-mini">Nenhum pedido no período.</p> : (
+        <div className="tabela-wrap">
+          <table className="tabela rl-tabela">
+            <thead><tr><th>{aba === 'forma' ? 'Forma' : aba === 'tipo' ? 'Tipo' : 'Mesa'}</th><th className="num">% do total</th><th className="num">Pedidos</th><th className="num">Receita</th></tr></thead>
+            <tbody>
+              {linhas.map((l) => {
+                const pct = totalReceita ? (l.receita / totalReceita) * 100 : 0;
+                return (
+                  <tr key={l.chave}>
+                    <td><span className="rl-nome"><span className="rl-nome__icone">{l.icone}</span>{l.rotulo}</span></td>
+                    <td className="num"><span className="rl-pct"><span className="rl-pct__trilho"><i style={{ width: `${pct}%` }} /></span>{pct < 1 && pct > 0 ? '<1' : Math.round(pct)}%</span></td>
+                    <td className="num">{inteiro(l.pedidos)}</td>
+                    <td className="num"><b>{brl(l.receita)}</b></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot><tr><td>Total</td><td className="num">100%</td><td className="num">{inteiro(totalPedidos)}</td><td className="num">{brl(totalReceita)}</td></tr></tfoot>
+          </table>
         </div>
-      </div>
-      <Tile rotulo="Pedidos" valor={inteiro(r.pedidos)} atual={r.pedidos} anterior={a?.pedidos} comparacao={rotuloComparacao} />
-      <Tile rotulo="Ticket médio" valor={brl(r.ticket_medio)} atual={r.ticket_medio} anterior={a?.ticket_medio} comparacao={rotuloComparacao} />
-      <Tile rotulo="Itens vendidos" valor={inteiro(r.itens)} atual={r.itens} anterior={a?.itens} comparacao={rotuloComparacao} />
-      <div className="card tile">
-        <span className="resumo__rotulo">Cancelados</span>
-        <strong className="tile__valor">{inteiro(rel.cancelados.pedidos)}</strong>
-        <span className="muted tile__sub">{brl(rel.cancelados.valor)} não faturados</span>
-      </div>
-    </div>
+      )}
+    </section>
   );
 }
 
-function Tile({ rotulo, valor, atual, anterior, comparacao }: { rotulo: string; valor: string; atual: number; anterior?: number; comparacao: string }) {
+/* ---------------- Ranking (produtos, categorias) em tabela compacta ---------------- */
+function Ranking({ linhas, coluna, unidade }: { linhas: { nome: string; qtd: number; valor: number }[]; coluna: string; unidade: string }) {
+  if (!linhas.length) return <p className="muted vazio-mini">Nenhuma venda no período.</p>;
+  const max = Math.max(...linhas.map((l) => l.valor), 1);
   return (
-    <div className="card tile">
-      <span className="resumo__rotulo">{rotulo}</span>
-      <strong className="tile__valor">{valor}</strong>
-      <Delta atual={atual} anterior={anterior} rotulo={comparacao} />
+    <div className="tabela-wrap">
+      <table className="tabela rl-tabela rl-ranking">
+        <thead><tr><th>#</th><th>{coluna}</th><th className="num">Qtd.</th><th className="num">Receita</th></tr></thead>
+        <tbody>
+          {linhas.map((l, i) => (
+            <tr key={l.nome}>
+              <td className="rl-ranking__pos">{i + 1}</td>
+              <td><span className="rl-ranking__nome">{l.nome}<i style={{ width: `${(l.valor / max) * 100}%` }} /></span></td>
+              <td className="num">{inteiro(l.qtd)} <small className="muted">{unidade}</small></td>
+              <td className="num"><b>{brl(l.valor)}</b></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
-  );
-}
-
-function Delta({ atual, anterior, rotulo }: { atual: number; anterior?: number; rotulo: string }) {
-  if (anterior === undefined) return null;
-  if (anterior === 0) {
-    return <span className="delta delta--neutro"><Minus size={14} /> {atual > 0 ? `sem vendas no ${rotulo}` : `igual ao ${rotulo}`}</span>;
-  }
-  const v = (atual - anterior) / anterior;
-  const pctTxt = `${v > 0 ? '+' : ''}${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
-  if (Math.abs(v) < 0.005) return <span className="delta delta--neutro"><Minus size={14} /> igual ao {rotulo}</span>;
-  return (
-    <span className={cx('delta', v > 0 ? 'delta--sobe' : 'delta--desce')}>
-      {v > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-      {pctTxt} <span className="muted">vs. {rotulo}</span>
-    </span>
   );
 }
 
@@ -386,12 +487,12 @@ function GraficoMensal({ meses, aoEscolher }: { meses: Mes[]; aoEscolher: (mes: 
   return (
     <>
       <div className="grafico-topo">
-        <span className="muted">Total em 12 meses: <b className="texto">{brl(total)}</b> · toque num mês para ver o relatório dele</span>
+        <span className="muted">Total em 12 meses: <b className="texto">{brl(total)}</b></span>
         <AlternarTabela tabela={tabela} aoMudar={setTabela} />
       </div>
       {tabela
         ? <TabelaPontos pontos={pontos} coluna="Mês" />
-        : <GraficoColunas dados={pontos} formatar={brl} formatarEixo={eixoReais} rotuloAria="Faturamento por mês" aoClicar={(i) => aoEscolher(pontos[i].chave)} destacar={pontos.length - 1} />}
+        : <GraficoColunas dados={pontos} formatar={brl} formatarEixo={eixoReais} altura={190} rotuloAria="Faturamento por mês" aoClicar={(i) => aoEscolher(pontos[i].chave)} destacar={pontos.length - 1} />}
     </>
   );
 }
@@ -449,26 +550,8 @@ function GraficoPeriodo({ rel, periodo, dias }: { rel: Relatorio; periodo: Perio
       ) : tabela ? (
         <TabelaPontos pontos={pontos} coluna={coluna} />
       ) : (
-        <GraficoColunas dados={pontos} formatar={brl} formatarEixo={eixoReais} rotuloAria={`Faturamento por ${coluna.toLowerCase()}`} destacar={hojeIdx >= 0 ? hojeIdx : undefined} />
+        <GraficoColunas dados={pontos} formatar={brl} formatarEixo={eixoReais} altura={190} rotuloAria={`Faturamento por ${coluna.toLowerCase()}`} destacar={hojeIdx >= 0 ? hojeIdx : undefined} />
       )}
-    </>
-  );
-}
-
-function GraficoHoras({ porHora }: { porHora: Relatorio['por_hora'] }) {
-  if (!porHora.length) return <p className="muted vazio-mini">Nenhuma venda no período.</p>;
-  const mapa = new Map(porHora.map((h) => [h.hora, h]));
-  const horas = porHora.map((h) => h.hora);
-  const pontos: Ponto[] = [];
-  for (let h = Math.max(0, Math.min(...horas) - 1); h <= Math.min(23, Math.max(...horas) + 1); h++) {
-    const d = mapa.get(h);
-    pontos.push({ chave: String(h), rotulo: `${h}h`, detalhe: `${h}h às ${h + 1}h`, valor: Number(d?.faturamento ?? 0), sub: subPedidos(d?.pedidos ?? 0), n: d?.pedidos ?? 0 });
-  }
-  const pico = pontos.reduce((m, p, i) => (p.valor > pontos[m].valor ? i : m), 0);
-  return (
-    <>
-      <p className="muted" style={{ margin: '0 0 12px' }}>Maior movimento: <b className="texto">{pontos[pico].detalhe}</b></p>
-      <GraficoColunas dados={pontos} formatar={brl} formatarEixo={eixoReais} altura={180} rotuloAria="Faturamento por horário" />
     </>
   );
 }

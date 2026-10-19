@@ -92,9 +92,12 @@ function StatusLoja({ loja }: { loja: Loja }) {
   const amanha = new Date(d).setHours(0, 0, 0, 0) !== new Date(agora).setHours(0, 0, 0, 0);
   const falta = min < 60 ? `${min} min` : min < 24 * 60 ? `${Math.floor(min / 60)}h${min % 60 ? ` ${min % 60}min` : ''}` : null;
   return (
-    <span className="loja-status fechada" title={`Fechado agora · ${proximaAbertura(loja.horarios!) ?? ''}`}>
-      Abre {amanha ? (falta ? 'amanhã ' : `${DIAS[d.getDay()]} `) : ''}às {hhmm(d)}{falta && <em className="loja-status__falta"> · faltam {falta}</em>}
-    </span>
+    <>
+      <span className="loja-status fechada">Fechado agora</span>
+      <small className="loja-status__abre">
+        Abre {amanha ? (falta ? 'amanhã ' : `${DIAS[d.getDay()]} `) : ''}às {hhmm(d)}{falta && <> · <b>faltam {falta}</b></>}
+      </small>
+    </>
   );
 }
 

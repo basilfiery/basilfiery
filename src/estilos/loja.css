@@ -210,4 +210,5 @@
 /* Loja fechada: quando abre e quanto falta, no cabeçalho */
 .mesa__marca .loja-status { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mesa__marca .loja-status::before { display: inline-block; margin-right: 6px; vertical-align: 1px; }
-.loja-status__falta { font-style: normal; font-weight: 600; color: var(--muted); }
+.mesa__marca .loja-status__abre { display: block; margin-top: 1px; color: var(--muted); font-size: .8rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loja-status__abre b { color: var(--text); font-weight: 700; }

@@ -102,7 +102,7 @@ export default function Estabelecimento() {
   const [tempoDe, tempoAte] = lerTempo(r.delivery_tempo ?? '');
 
   const inicial = () => ({
-    nome: r.nome, segmento: r.segmento ?? '', instagram: r.instagram ?? '', whatsapp: r.whatsapp ?? '', logo_url: r.logo_url,
+    nome: r.nome, segmento: r.segmento ?? '', instagram: r.instagram ?? '', mapa_url: r.mapa_url ?? '', whatsapp: r.whatsapp ?? '', logo_url: r.logo_url,
     end: { ...END_VAZIO, ...(r.endereco_info ?? {}) },
     horarios: Array.from({ length: 7 }, (_, i) => r.horarios?.[i] ?? HORARIO_PADRAO),
     horarios_ativos: r.horarios_ativos ?? false,
@@ -209,6 +209,7 @@ export default function Estabelecimento() {
     if (f.modo === 'bairro' && bairros.some((x) => !Number.isFinite(x.taxa) || x.taxa < 0)) return erro('Confira a taxa dos bairros.', 'taxa');
     if (!f.formas.length) return erro('Escolha pelo menos uma forma de pagamento.', 'pagamento');
     for (const h of f.horarios) if (h.aberto && (!h.de || !h.ate)) return erro('Preencha os horários dos dias abertos.', 'horarios');
+    if (f.mapa_url.trim() && !/^https:\/\/\S+$/i.test(f.mapa_url.trim())) return erro('Cole o link do mapa completo (começa com https://).', 'endereco');
 
     const e = f.end;
     const temEndereco = e.rua.trim() && e.numero.trim();
@@ -222,6 +223,7 @@ export default function Estabelecimento() {
         nome: f.nome.trim(), segmento: f.segmento || null, instagram: f.instagram.trim().replace(/^@/, '') || null,
         whatsapp: digitos(f.whatsapp) || null, logo_url: f.logo_url,
         endereco_info: temEndereco ? { ...e, uf: e.uf.toUpperCase() } : r.endereco_info, endereco: enderecoTexto,
+        mapa_url: f.mapa_url.trim() || null,
         horarios: f.horarios, horarios_ativos: f.horarios_ativos,
         delivery_tempo: `${de} a ${ate} min`, entrega_ativa: f.entrega_ativa, retirada_ativa: f.retirada_ativa,
         delivery_minimo: minimo, delivery_taxa: taxa, formas_pagamento: f.formas,
@@ -347,6 +349,9 @@ export default function Estabelecimento() {
             <CampoAjuda rotulo="Cidade"><input className="input" maxLength={80} value={f.end.cidade} onChange={(e) => setEnd('cidade', e.target.value)} /></CampoAjuda>
             <CampoAjuda rotulo="UF"><input className="input" maxLength={2} value={f.end.uf} onChange={(e) => setEnd('uf', e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} /></CampoAjuda>
           </div>
+          <CampoAjuda rotulo="Link do Google Maps (opcional)" ajuda="No Google Maps, abra a sua loja, toque em Compartilhar e cole o link aqui. O botão “Ver no mapa” do cardápio abre direto nele.">
+            <span className="input-icone"><MapPin size={17} /><input className="input" inputMode="url" maxLength={300} placeholder="https://maps.app.goo.gl/…" value={f.mapa_url} onChange={(e) => set('mapa_url', e.target.value.trim())} /></span>
+          </CampoAjuda>
         </div>
       )}
 

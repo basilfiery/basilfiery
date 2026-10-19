@@ -29,6 +29,8 @@ export interface Restaurante {
   /** Estabelecimento */
   segmento: string | null;
   instagram: string | null;
+  /** Link do Google Maps da loja */
+  mapa_url?: string | null;
   endereco_info: EnderecoLoja | null;
   /** Domingo (0) a sábado (6) */
   horarios: HorarioDia[] | null;

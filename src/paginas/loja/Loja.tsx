@@ -28,7 +28,7 @@ interface Loja {
   id: string; nome: string; slogan: string | null; logo_url: string | null; cor: string;
   aberto: boolean; taxa: number; minimo: number; tempo: string; retirada: boolean; whatsapp: string | null; endereco: string | null;
   /** Chave "Cardápio ativado" (aberto = ligado e dentro do horário) */
-  ligado?: boolean; entrega?: boolean; segmento?: string | null; instagram?: string | null; capa_url?: string | null; capa_video_url?: string | null;
+  ligado?: boolean; entrega?: boolean; segmento?: string | null; instagram?: string | null; mapa_url?: string | null; capa_url?: string | null; capa_video_url?: string | null;
   descricao?: string | null; rodape?: string | null; obs?: boolean; formas?: Forma[];
   horarios?: { aberto: boolean; de: string; ate: string }[] | null;
   ads?: { pixel?: string; ga4?: string; gads?: string };
@@ -364,7 +364,7 @@ export default function LojaCardapio() {
               <AtSign size={20} /> <span className="mesa__rotulo">Instagram</span>
             </a>
           )}
-          {(loja.endereco || loja.horarios || loja.rodape) && (
+          {(loja.endereco || loja.mapa_url || loja.horarios || loja.rodape) && (
             <button type="button" className="btn btn--contorno mesa__acao" onClick={() => setVerSobre(true)} aria-label="Sobre a loja: endereço e horários">
               <Info size={20} /> <span className="mesa__rotulo">Sobre a loja</span>
             </button>
@@ -894,7 +894,7 @@ export function LojaPedido() {
 /* ---------- Sobre a loja (endereço, Instagram, horários): fica no topo, ao lado da logo ---------- */
 function ModalSobreLoja({ loja, aoFechar }: { loja: Loja; aoFechar: () => void }) {
   const hoje = new Date().getDay();
-  const mapa = loja.endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loja.endereco)}` : '';
+  const mapa = loja.mapa_url || (loja.endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loja.endereco)}` : '');
   return (
     <Modal aberto aoFechar={aoFechar} largura={460} classe="mesa-modal sobre-loja">
       <div className="sobre-loja__topo">
@@ -905,10 +905,10 @@ function ModalSobreLoja({ loja, aoFechar }: { loja: Loja; aoFechar: () => void }
         </div>
       </div>
       <ul className="sobre-loja__lista">
-        {loja.endereco && (
+        {(loja.endereco || loja.mapa_url) && (
           <li>
             <span className="sobre-loja__icone"><MapPin size={18} /></span>
-            <div><small>Endereço</small><span>{loja.endereco}</span>{mapa && <a href={mapa} target="_blank" rel="noopener">Ver no mapa</a>}</div>
+            <div><small>Endereço</small>{loja.endereco && <span>{loja.endereco}</span>}{mapa && <a href={mapa} target="_blank" rel="noopener">Ver no mapa</a>}</div>
           </li>
         )}
         {loja.instagram && (

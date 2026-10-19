@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BarChart3, Bell, BellRing, Check, Palette, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
   Lock, LogOut, Radio, Receipt, Settings, ShieldCheck, Store, Target, Trophy, Wallet, XCircle, Zap,
@@ -231,17 +232,28 @@ function Entrada() {
 }
 
 /** Folha que sobe de baixo (login, meta, avisos, ajuda). */
-function Folha({ aoFechar, children, alta }: { aoFechar: () => void; children: ReactNode; alta?: boolean }) {
+function Folha({ aoFechar, children, alta, classe }: { aoFechar: () => void; children: ReactNode; alta?: boolean; classe?: string }) {
   const [saindo, setSaindo] = useState(false);
   const fechar = () => { setSaindo(true); setTimeout(aoFechar, 220); };
+  // Teclado do celular aberto: a folha sobe junto (no iPhone ele cobre a tela sem empurrar nada)
+  const [teclado, setTeclado] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const medir = () => setTeclado(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    medir();
+    vv.addEventListener('resize', medir);
+    vv.addEventListener('scroll', medir);
+    return () => { vv.removeEventListener('resize', medir); vv.removeEventListener('scroll', medir); };
+  }, []);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && fechar();
     document.addEventListener('keydown', esc);
     return () => document.removeEventListener('keydown', esc);
   });
   return (
-    <div className={cx('dn-folha-fundo', saindo && 'saindo')} onMouseDown={(e) => e.target === e.currentTarget && fechar()}>
-      <div className={cx('dn-folha', alta && 'dn-folha--alta', saindo && 'saindo')} role="dialog" aria-modal="true">
+    <div className={cx('dn-folha-fundo', saindo && 'saindo', teclado > 80 && 'com-teclado')} style={teclado > 80 ? { paddingBottom: teclado } : undefined} onMouseDown={(e) => e.target === e.currentTarget && fechar()}>
+      <div className={cx('dn-folha', alta && 'dn-folha--alta', classe, saindo && 'saindo')} role="dialog" aria-modal="true">
         <button className="dn-folha__alca" onClick={fechar} aria-label="Fechar" />
         {children}
       </div>
@@ -573,8 +585,9 @@ function LinhaVenda({ v, valor }: { v: Venda; valor: (v: number) => string }) {
   const foto = itens.find((i) => i.produto?.imagem_url)?.produto?.imagem_url;
   const titulo = primeiro ? `${primeiro.qtd > 1 ? `${primeiro.qtd}× ` : ''}${primeiro.nome}${itens.length > 1 ? ` + ${itens.length - 1}` : ''}` : `Pedido #${v.numero}`;
   const cancelado = v.status === 'cancelado';
+  const [aberto, setAberto] = useState(false);
   return (
-    <li className={cx('dn-venda', cancelado && 'dn-venda--cancelada')}>
+    <li className={cx('dn-venda', cancelado && 'dn-venda--cancelada')} role="button" tabIndex={0} onClick={() => setAberto(true)} onKeyDown={(e) => e.key === 'Enter' && setAberto(true)}>
       <span className="dn-venda__foto">
         {foto ? <img src={foto} alt="" loading="lazy" /> : <span>{primeiro?.produto?.emoji || v.mesa_nome.replace(/\D/g, '').slice(0, 2) || '#'}</span>}
       </span>
@@ -586,6 +599,7 @@ function LinhaVenda({ v, valor }: { v: Venda; valor: (v: number) => string }) {
         <small>{hora(v.criado_em)}</small>
         <strong>{cancelado ? 'Cancelado' : `+ ${valor(Number(v.total))}`}</strong>
       </div>
+      {aberto && <FolhaVenda id={v.id} aoFechar={() => setAberto(false)} />}
     </li>
   );
 }
@@ -721,6 +735,7 @@ function AoVivo({ pedidos, conectado, valor }: { pedidos: Pedido[]; conectado: b
   const contado = useContador(total);
   const ticket = validos.length ? total / validos.length : 0;
   const mesas = new Set(doDia.filter((p) => !p.pago_em && p.status !== 'cancelado').map((p) => p.mesa_nome)).size;
+  const [verId, setVerId] = useState<string | null>(null);
 
   return (
     <div className="dn-pagina dn-aovivo">
@@ -741,7 +756,7 @@ function AoVivo({ pedidos, conectado, valor }: { pedidos: Pedido[]; conectado: b
       {doDia.length === 0 ? <p className="dn-vazio-lista">Assim que chegar um pedido, ele aparece aqui na hora.</p> : (
         <ul className="dn-feed">
           {doDia.map((p) => (
-            <li key={p.id} className={cx('dn-feed__item', p.status === 'cancelado' && 'cancelado')}>
+            <li key={p.id} className={cx('dn-feed__item', p.status === 'cancelado' && 'cancelado')} role="button" tabIndex={0} onClick={() => setVerId(p.id)} onKeyDown={(e) => e.key === 'Enter' && setVerId(p.id)}>
               <span className={cx('dn-feed__ponto', `st-${p.pago_em ? 'pago' : p.status}`)} />
               <div className="dn-feed__info">
                 <strong>{p.mesa_nome} · #{p.numero}</strong>
@@ -755,7 +770,153 @@ function AoVivo({ pedidos, conectado, valor }: { pedidos: Pedido[]; conectado: b
           ))}
         </ul>
       )}
+      {verId && <FolhaVenda id={verId} aoFechar={() => setVerId(null)} />}
     </div>
+  );
+}
+
+/* ---------- Detalhes de uma venda (toque na linha) ---------- */
+type ItemDetalhe = { id: string; nome: string; qtd: number; preco_unit: number; obs: string | null; complementos: string | null; produto: { imagem_url: string | null; emoji: string | null; preco: number; preco_de: number | null } | null };
+type PedidoDetalhe = Omit<Pedido, 'pedido_itens'> & { cancel_motivo?: string | null; pedido_itens: ItemDetalhe[]; pagamento: { forma: string; valor: number } | null };
+type CanceladoDetalhe = { id: string; nome: string; qtd: number; valor: number; motivo: string | null; pedido_inteiro: boolean; por: string | null; criado_em: string };
+const FORMA_ROTULO: Record<string, string> = { pix: 'Pix', dinheiro: 'Dinheiro', credito: 'Cartão de crédito', debito: 'Cartão de débito' };
+const TIPO_ROTULO: Record<string, string> = { mesa: 'Mesa', delivery: 'Delivery', retirada: 'Retirada no balcão', balcao: 'Balcão (PDV)' };
+
+/** Abre por cima de tudo (fora da linha, que fica apagada quando cancelada) e não deixa o toque voltar para a linha. */
+function FolhaVenda(props: { id: string; aoFechar: () => void }) {
+  const raiz = document.querySelector('.dn') ?? document.body;
+  return createPortal(<div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><DetalheVenda {...props} /></div>, raiz);
+}
+
+function DetalheVenda({ id, aoFechar }: { id: string; aoFechar: () => void }) {
+  const [p, setP] = useState<PedidoDetalhe | null>(null);
+  const [cancelados, setCancelados] = useState<CanceladoDetalhe[]>([]);
+  const [nomes, setNomes] = useState<Record<string, string>>({});
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const [a, b] = await Promise.all([
+        supabase.from('pedidos').select('*, pagamento:pagamentos(forma, valor), pedido_itens(id, nome, qtd, preco_unit, obs, complementos, produto:produtos(imagem_url, emoji, preco, preco_de))').eq('id', id).single(),
+        supabase.from('itens_cancelados').select('id, nome, qtd, valor, motivo, pedido_inteiro, por, criado_em').eq('pedido_id', id).order('criado_em'),
+      ]);
+      if (!vivo) return;
+      if (a.error) return setErro(msgErro(a.error));
+      const ped = a.data as unknown as PedidoDetalhe;
+      setP(ped);
+      const canc = (b.data ?? []) as CanceladoDetalhe[];
+      setCancelados(canc);
+      const ids = [...new Set(canc.map((c) => c.por).filter(Boolean))] as string[];
+      if (ids.length) {
+        const { data } = await supabase.from('membros').select('user_id, nome').eq('restaurante_id', ped.restaurante_id).in('user_id', ids);
+        if (vivo) setNomes(Object.fromEntries((data ?? []).map((m) => [m.user_id as string, (m.nome as string) || 'Equipe'])));
+      }
+    })();
+    return () => { vivo = false; };
+  }, [id]);
+
+  const cancelado = p?.status === 'cancelado';
+  const itens = p?.pedido_itens ?? [];
+  const subtotal = itens.reduce((s, i) => s + Number(i.preco_unit) * i.qtd, 0);
+  // Promoção: o produto tem preço "de" maior que o cobrado
+  const promo = (i: ItemDetalhe) => {
+    const de = Number(i.produto?.preco_de ?? 0);
+    return de > Number(i.preco_unit) && !i.complementos ? (de - Number(i.preco_unit)) * i.qtd : 0;
+  };
+  const economia = itens.reduce((s, i) => s + promo(i), 0);
+  const desconto = Number(p?.desconto ?? 0);
+  const taxa = Number(p?.taxa_entrega ?? 0);
+  const fora = cancelados.filter((c) => !c.pedido_inteiro);
+  const inteiro = cancelados.find((c) => c.pedido_inteiro);
+  const motivo = p?.cancel_motivo ?? inteiro?.motivo ?? null;
+  const quemCancelou = inteiro?.por ? nomes[inteiro.por] : null;
+  const forma = p?.pagamento?.forma ?? p?.forma_pagamento ?? null;
+  const tel = (p?.cliente_telefone ?? '').replace(/\D/g, '');
+  const situacao = !p ? '' : cancelado ? 'Cancelado' : p.pago_em ? 'Pago' : STATUS_ROTULO[p.status];
+
+  return (
+    <Folha aoFechar={aoFechar} classe="dn-folha--detalhe">
+      {!p ? (
+        erro ? <p className="dn-erro">{erro}</p> : <Esqueleto linhas={4} />
+      ) : (
+        <div className="dn-det">
+          <header className="dn-det__cab">
+            <div>
+              <h2>Pedido #{p.numero}</h2>
+              <small>{p.tipo && p.tipo !== 'mesa' ? TIPO_ROTULO[p.tipo] : p.mesa_nome} · {quando(p.criado_em)}</small>
+            </div>
+            <span className={cx('dn-det__selo', cancelado ? 'cancelado' : p.pago_em ? 'pago' : 'aberto')}>{situacao}</span>
+          </header>
+
+          {cancelado && (
+            <div className="dn-det__alerta">
+              <XCircle size={18} />
+              <div>
+                <strong>Pedido cancelado{p.atualizado_em ? ` às ${hora(p.atualizado_em)}` : ''}</strong>
+                <span>{motivo ? <>Motivo: <b>{motivo}</b></> : 'Sem motivo informado'}{quemCancelou ? ` · por ${quemCancelou}` : ''}</span>
+              </div>
+            </div>
+          )}
+
+          <ul className="dn-det__itens">
+            {itens.map((i) => {
+              const off = promo(i);
+              return (
+                <li key={i.id}>
+                  <span className="dn-venda__foto">{i.produto?.imagem_url ? <img src={i.produto.imagem_url} alt="" /> : <span>{i.produto?.emoji || '•'}</span>}</span>
+                  <div>
+                    <strong>{i.qtd}× {i.nome}</strong>
+                    {i.complementos && <small>{i.complementos}</small>}
+                    {i.obs && <em>“{i.obs}”</em>}
+                    {off > 0 && <span className="dn-det__promo">Promoção · de {brl(Number(i.produto!.preco_de))} por {brl(Number(i.preco_unit))}</span>}
+                  </div>
+                  <b className={cx(cancelado && 'riscado')}>{brl(Number(i.preco_unit) * i.qtd)}</b>
+                </li>
+              );
+            })}
+            {cancelado && !itens.length && cancelados.map((c) => (
+              <li key={c.id}>
+                <span className="dn-venda__foto"><span>•</span></span>
+                <div><strong>{c.qtd}× {c.nome}</strong></div>
+                <b className="riscado">{brl(Number(c.valor))}</b>
+              </li>
+            ))}
+          </ul>
+
+          {fora.length > 0 && (
+            <section className="dn-det__bloco dn-det__fora">
+              <span className="dn-rotulo">Itens cancelados</span>
+              {fora.map((c) => (
+                <div key={c.id} className="dn-det__linha">
+                  <span><s>{c.qtd}× {c.nome}</s><small>{c.motivo ? `Motivo: ${c.motivo}` : 'Sem motivo'}{c.por && nomes[c.por] ? ` · por ${nomes[c.por]}` : ''} · {hora(c.criado_em)}</small></span>
+                  <b>− {brl(Number(c.valor))}</b>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section className="dn-det__bloco">
+            <div className="dn-det__linha"><span>Subtotal</span><b>{brl(subtotal)}</b></div>
+            {economia > 0 && <div className="dn-det__linha dn-det__linha--promo"><span>Economia em promoções</span><b>− {brl(economia)}</b></div>}
+            {taxa > 0 && <div className="dn-det__linha"><span>Taxa de entrega</span><b>{brl(taxa)}</b></div>}
+            {desconto > 0 && <div className="dn-det__linha dn-det__linha--promo"><span>Desconto dado</span><b>− {brl(desconto)}</b></div>}
+            <div className="dn-det__linha dn-det__total"><span>{cancelado ? 'Valor cancelado' : 'Total'}</span><b className={cx(cancelado && 'riscado')}>{brl(Number(p.total))}</b></div>
+          </section>
+
+          <section className="dn-det__bloco">
+            <div className="dn-det__linha"><span>Pagamento</span><b>{p.pago_em ? `${forma ? FORMA_ROTULO[forma] ?? forma : 'Pago'} · ${hora(p.pago_em)}` : cancelado ? '—' : 'Em aberto'}</b></div>
+            {p.troco_para && Number(p.troco_para) > 0 && <div className="dn-det__linha"><span>{p.tipo === 'balcao' ? 'Recebido' : 'Troco para'}</span><b>{brl(Number(p.troco_para))}</b></div>}
+            {p.cliente_nome && <div className="dn-det__linha"><span>Cliente</span><b>{p.cliente_nome}</b></div>}
+            {tel && <div className="dn-det__linha"><span>WhatsApp</span><a href={`https://wa.me/${tel.length <= 11 ? `55${tel}` : tel}`} target="_blank" rel="noopener">{tel.replace(/^(\d{2})(\d+)(\d{4})$/, '($1) $2-$3')}</a></div>}
+            {p.endereco && <div className="dn-det__linha"><span>Entrega</span><b>{p.endereco.rua}, {p.endereco.numero} · {p.endereco.bairro}</b></div>}
+          </section>
+
+          {p.observacao && <p className="dn-det__obs">“{p.observacao}”</p>}
+          <button className="dn-botao" onClick={aoFechar}>Fechar</button>
+        </div>
+      )}
+    </Folha>
   );
 }
 

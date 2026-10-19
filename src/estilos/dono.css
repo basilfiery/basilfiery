@@ -325,8 +325,10 @@ body:has(.dn) { background: #0a0a0a; }
 .dn-aovivo__cab .dn-titulo { margin: 8px 0 18px; text-align: left; font-size: 1.25rem; }
 .dn-pulso { display: inline-flex; align-items: center; gap: 8px; color: var(--dn-ouro); font-size: .78rem; font-weight: 500; }
 .dn-pulso::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
-.dn-pulso.on { color: var(--dn-verde2); }
-.dn-pulso.on::before { animation: dn-pulsa 1.6s ease-out infinite; }
+/* Conectado é sempre verde, qualquer que seja a cor do app */
+.dn-pulso.on { color: #32d583; }
+.dn-pulso.on::before { animation: dn-pulsa-verde 1.6s ease-out infinite; }
+@keyframes dn-pulsa-verde { 0% { box-shadow: 0 0 0 0 rgba(50, 213, 131, .6); } 100% { box-shadow: 0 0 0 12px rgba(50, 213, 131, 0); } }
 .dn-aovivo__total {
   display: grid; gap: 4px; padding: 22px 18px; margin-bottom: 22px; border-radius: 22px; text-align: center;
   background: radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--dn-verde) 22%, transparent), color-mix(in srgb, var(--dn-verde) 4%, transparent) 60%), var(--dn-sup);
@@ -420,3 +422,49 @@ body:has(.dn) { background: #0a0a0a; }
 .dn-temas button:active i { transform: scale(.94); }
 .dn-temas button.ativo i { box-shadow: 0 0 0 3px #161717, 0 0 0 5px var(--t1), 0 8px 22px color-mix(in srgb, var(--t1) 45%, transparent); }
 .dn-temas__loja { position: absolute; right: -2px; bottom: -2px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #161717; color: #fff; }
+
+/* ---------- Detalhes da venda ---------- */
+.dn-venda, .dn-feed__item { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.dn-venda:active, .dn-feed__item:active { background: rgba(255, 255, 255, .03); }
+.dn-folha--detalhe { max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
+.dn-det { display: grid; gap: 16px; }
+.dn-det__cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dn-det__cab h2 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+.dn-det__cab small { color: var(--dn-suave); font-size: .8rem; }
+.dn-det__selo { flex: none; padding: 6px 12px; border-radius: 99px; font-size: .76rem; font-weight: 600; }
+.dn-det__selo.pago { background: rgba(50, 213, 131, .14); color: #32d583; }
+.dn-det__selo.aberto { background: rgba(229, 184, 75, .14); color: var(--dn-ouro); }
+.dn-det__selo.cancelado { background: rgba(249, 112, 102, .14); color: var(--dn-vermelho); }
+.dn-det__alerta { display: flex; gap: 10px; padding: 12px 14px; border-radius: 16px; background: rgba(249, 112, 102, .09); border: 1px solid rgba(249, 112, 102, .28); color: var(--dn-vermelho); }
+.dn-det__alerta svg { flex: none; margin-top: 1px; }
+.dn-det__alerta > div { display: grid; gap: 3px; }
+.dn-det__alerta strong { font-size: .9rem; font-weight: 600; }
+.dn-det__alerta span { color: #f3d1cd; font-size: .84rem; line-height: 1.45; }
+.dn-det__alerta b { color: #fff; font-weight: 600; }
+.dn-det__itens { list-style: none; margin: 0; padding: 0; display: grid; }
+.dn-det__itens li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #202121; }
+.dn-det__itens li > div { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.dn-det__itens strong { font-size: .9rem; font-weight: 600; }
+.dn-det__itens small { color: var(--dn-suave); font-size: .76rem; line-height: 1.4; }
+.dn-det__itens em { color: #d9dbda; font-size: .78rem; }
+.dn-det__itens li > b { flex: none; font-size: .88rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dn-det__promo { justify-self: start; margin-top: 2px; padding: 3px 8px; border-radius: 8px; line-height: 1.35; background: rgba(229, 184, 75, .14); color: var(--dn-ouro); font-size: .7rem; font-weight: 600; }
+.dn-det .riscado { color: var(--dn-suave2); text-decoration: line-through; }
+.dn-det__bloco { display: grid; gap: 8px; padding: 14px; border-radius: 16px; background: var(--dn-sup); }
+.dn-det__bloco .dn-rotulo { margin: 0 0 2px; }
+.dn-det__linha { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: .86rem; }
+.dn-det__linha > span { flex: 1; color: var(--dn-suave); display: grid; gap: 2px; min-width: 0; }
+.dn-det__linha > b, .dn-det__linha > a { flex: none; white-space: nowrap; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dn-det__linha > a { color: #32d583 !important; text-decoration: none; }
+.dn-det__linha--promo b { color: var(--dn-ouro); }
+.dn-det__total { padding-top: 8px; border-top: 1px solid var(--dn-linha); font-size: 1rem; }
+.dn-det__total > span { color: var(--dn-texto); font-weight: 600; }
+.dn-det__fora s { color: var(--dn-texto); }
+.dn-det__fora small { color: var(--dn-suave); font-size: .74rem; }
+.dn-det__fora b { color: var(--dn-vermelho); }
+.dn-det__obs { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--dn-sup); color: #d9dbda; font-size: .84rem; font-style: italic; }
+
+/* Folha com o teclado aberto: fica logo acima dele, inteira e rolável */
+.dn-folha-fundo { transition: padding-bottom .18s ease-out; }
+.dn-folha { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.dn-folha-fundo.com-teclado .dn-folha { border-radius: 24px 24px 0 0; padding-bottom: 18px; }

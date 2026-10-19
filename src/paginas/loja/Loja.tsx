@@ -91,13 +91,16 @@ function StatusLoja({ loja }: { loja: Loja }) {
   const d = loja.ligado && loja.horarios ? dataAbertura(loja.horarios, new Date(agora)) : null;
   if (!d) return <span className="loja-status fechada">Fechado agora</span>;
   const min = Math.max(1, Math.ceil((d.getTime() - agora) / 60000));
-  const amanha = new Date(d).setHours(0, 0, 0, 0) !== new Date(agora).setHours(0, 0, 0, 0);
-  const falta = min < 60 ? `${min} min` : min < 24 * 60 ? `${Math.floor(min / 60)}h${min % 60 ? ` ${min % 60}min` : ''}` : null;
+  const hoje = new Date(d).setHours(0, 0, 0, 0) === new Date(agora).setHours(0, 0, 0, 0);
+  const dia = hoje ? 'hoje' : min < 48 * 60 && new Date(d).getDate() === new Date(agora + 86400000).getDate() ? 'amanhã' : DIAS[d.getDay()];
+  const h = `${d.getHours()}h${d.getMinutes() ? String(d.getMinutes()).padStart(2, '0') : ''}`;
+  // Curto para caber no celular: "Abre hoje 18h · em 45 min", "Abre amanhã 18h · em 17h56"
+  const falta = min < 60 ? `${min} min` : min < 24 * 60 ? `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, '0') : ''}` : null;
   return (
     <>
       <span className="loja-status fechada">Fechado agora</span>
-      <small className="loja-status__abre">
-        Abre {amanha ? (falta ? 'amanhã ' : `${DIAS[d.getDay()]} `) : ''}às {hhmm(d)}{falta && <> · <b>faltam {falta}</b></>}
+      <small className="loja-status__abre" title={`Abre ${dia} às ${hhmm(d)}`}>
+        Abre {dia} {h}{falta && <> · <b>em {falta}</b></>}
       </small>
     </>
   );

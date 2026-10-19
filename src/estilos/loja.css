@@ -303,3 +303,6 @@
 .conta__legal, .sobre-loja__legal, .loja-legal { margin: 2px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; text-align: center; }
 .conta__legal a, .sobre-loja__legal a, .loja-legal a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 .sobre-loja__legal { margin-top: 12px; }
+
+/* Linha "Abre…" nunca corta: se não couber, quebra em duas */
+.mesa__marca .loja-status__abre { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }

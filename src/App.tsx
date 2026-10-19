@@ -17,6 +17,7 @@ const Login = tela(() => import('./paginas/Login'));
 const Termos = tela(() => import('./paginas/site/Legal'));
 const Privacidade = tela(() => import('./paginas/site/Legal').then((m) => ({ default: m.Privacidade })));
 const TermosPoliticas = tela(() => import('./paginas/painel/TermosPoliticas'));
+const NotasFiscais = tela(() => import('./paginas/painel/NotasFiscais'));
 const Mesa = tela(() => import('./paginas/mesa/Mesa'));
 const Garcom = tela(() => import('./paginas/garcom/Garcom'));
 const AppGarcom = tela(() => import('./paginas/garcom/AppGarcom'));
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="cardapio/aparencia" element={<Aparencia />} />
           <Route path="apps" element={<AppsCelular />} />
           <Route path="termos" element={<TermosPoliticas />} />
+          <Route path="notas" element={<NotasFiscais />} />
           <Route path="estoque" element={<Estoque />} />
           <Route path="garcons" element={<Garcons />} />
           <Route path="equipe" element={<Equipe />} />

@@ -2414,3 +2414,68 @@
 .setores__barra .select { width: auto; min-width: 160px; }
 @media (max-width: 720px) { .mesas-visao { margin-left: 0; height: 44px; } }
 .mesas-setores .mc__nome small { display: none; }
+
+/* =====================================================================
+   Notas fiscais
+   ===================================================================== */
+.nf-aviso, .nf-faixa { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--warn) 13%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); font-size: .9rem; line-height: 1.5; }
+.nf-aviso > svg, .nf-faixa > svg { flex: none; margin-top: 1px; color: var(--warn); }
+.nf-aviso--perigo { background: color-mix(in srgb, var(--danger) 10%, transparent); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+.nf-aviso--perigo > svg { color: var(--danger); }
+.nf-faixa { align-items: center; flex-wrap: wrap; }
+.nf-faixa > span { flex: 1 1 260px; }
+.nf-faixa--teste { background: color-mix(in srgb, var(--info) 12%, transparent); border-color: color-mix(in srgb, var(--info) 35%, transparent); }
+.nf-faixa--teste > svg { color: var(--info); }
+.nf-checklist { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
+.nf-checklist li { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line); color: var(--muted); font-size: .82rem; font-weight: 600; }
+.nf-checklist li > span { width: 13px; height: 13px; border: 2px solid var(--line-2); border-radius: 50%; }
+.nf-checklist li.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); background: color-mix(in srgb, var(--ok) 8%, var(--bg-2)); }
+.nf-dica { display: flex; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--bg-2); color: var(--muted); font-size: .88rem; line-height: 1.55; }
+.nf-dica svg { flex: none; margin-top: 2px; color: var(--ok); }
+.nf-cert { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--line)); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); }
+.nf-cert > svg { flex: none; color: var(--ok); }
+.nf-cert div { display: grid; gap: 2px; min-width: 0; }
+.nf-cert small { color: var(--muted); overflow-wrap: anywhere; }
+.nf-cert--alerta { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
+.nf-cert--alerta > svg { color: var(--warn); }
+.nf-upload { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1.5px dashed var(--line-2); border-radius: 14px; background: var(--bg-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.nf-upload:hover { border-color: var(--acento); }
+.nf-upload > svg { flex: none; color: var(--acento); }
+.nf-upload span { display: grid; gap: 2px; }
+.nf-upload small { color: var(--muted); }
+.nf-upload.ok { border-style: solid; border-color: var(--acento); }
+
+.nf-abas { margin-bottom: 4px; }
+.nf-abas button { display: inline-flex; align-items: center; gap: 6px; }
+.nf-tabela td { vertical-align: middle; }
+.nf-motivo { display: block; max-width: 320px; margin-top: 4px; color: var(--muted); font-size: .76rem; line-height: 1.35; }
+.nf-recebidas__topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.nf-recebidas__topo p { flex: 1 1 320px; margin: 0; font-size: .9rem; }
+.nf-manif { width: auto; min-width: 190px; height: 36px; font-size: .84rem; }
+.nf-entrada .select { min-width: 200px; }
+.nf-qtd { width: 76px; text-align: right; }
+.nf-check { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; cursor: pointer; }
+.nf-produtos .input, .nf-produtos .select { height: 38px; font-size: .88rem; }
+.nf-produtos td:nth-child(2) .input { width: 128px; }
+.nf-produtos .select { min-width: 180px; }
+.nf-un { width: 70px; text-transform: uppercase; }
+.nf-produtos tr.mudado td { background: color-mix(in srgb, var(--acento) 5%, transparent); }
+
+.nf-emitir { display: grid; gap: 16px; }
+.nf-modelos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nf-modelos button { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.nf-modelos button > svg { flex: none; color: var(--muted); }
+.nf-modelos span { display: grid; gap: 2px; }
+.nf-modelos small { color: var(--muted); font-size: .78rem; }
+.nf-modelos button.ativo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 7%, var(--surface)); }
+.nf-modelos button.ativo > svg { color: var(--acento); }
+.nf-itens { margin: 0; padding: 12px 14px; list-style: none; display: grid; gap: 6px; border-radius: 12px; background: var(--bg-2); font-size: .88rem; }
+.nf-itens li { display: flex; justify-content: space-between; gap: 10px; }
+.nf-itens b { font-variant-numeric: tabular-nums; }
+.nf-resultado { display: grid; justify-items: center; gap: 10px; padding: 10px 0; text-align: center; }
+.nf-resultado__icone { width: 70px; height: 70px; display: grid; place-items: center; border-radius: 22px; background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.nf-resultado__icone--erro { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+.nf-resultado h2 { margin: 4px 0 0; font-size: 1.3rem; }
+.nf-resultado p { margin: 0; color: var(--muted); font-size: .9rem; }
+.nf-resultado__acoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+@media (max-width: 560px) { .nf-modelos { grid-template-columns: 1fr; } }

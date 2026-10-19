@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Ban, Bike, Check, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MapPin, MessageCircle, MoreVertical, Plus, Printer, SlidersHorizontal, Store, UtensilsCrossed, Wallet, X, ShoppingBasket,
+  Ban, Bike, Check, FileText, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MapPin, MessageCircle, MoreVertical, Plus, Printer, SlidersHorizontal, Store, UtensilsCrossed, Wallet, X, ShoppingBasket,
 } from 'lucide-react';
 import { FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -14,6 +14,7 @@ import { SeletorPagamento } from '../../componentes/Pagamento';
 import { STATUS_ROTULO, brl, cx, hora, minutosDesde, ordenarNome, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
+import { ModalEmitirNota } from '../../componentes/EmitirNota';
 
 type Coluna = 'novo' | 'preparando' | 'pronto' | 'entregue';
 type Aba = 'todos' | Coluna | 'finalizados';
@@ -439,6 +440,8 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
   aoImprimir: () => void;
 }) {
   const [aba, setAba] = useState<'detalhes' | 'historico'>('detalhes');
+  const { restaurante, papel } = usePainel();
+  const [emitindo, setEmitindo] = useState(false);
   useEffect(() => { setAba('detalhes'); }, [p.id]);
   const acao = acaoPrincipal(p);
   const subtotal = p.pedido_itens.reduce((s, i) => s + i.qtd * Number(i.preco_unit), 0);
@@ -545,6 +548,10 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
 
       <footer className="dp__acoes">
         <button className="icone-quadro icone-quadro--lg" onClick={aoImprimir} title="Imprimir" aria-label="Imprimir pedido"><Printer size={19} /></button>
+        {podeCaixa(papel) && p.status !== 'cancelado' && (
+          <button className="icone-quadro icone-quadro--lg" onClick={() => setEmitindo(true)} title="Emitir nota fiscal" aria-label="Emitir nota fiscal"><FileText size={19} /></button>
+        )}
+        {emitindo && <ModalEmitirNota pedido={p} restauranteId={restaurante.id} aoFechar={() => setEmitindo(false)} />}
         <MenuPedido p={p} aoImprimir={aoImprimir} aoMudar={aoMudar} />
         {acao ? (
           <button className={cx('btn', acao.classe)} onClick={() => aoMudar(acao.proximo)}>{acao.icone} {acao.longo}</button>

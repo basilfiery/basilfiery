@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  BellRing, BookOpen, Check, ChevronRight, ClipboardList, ConciergeBell, Megaphone, Play, Plug, Printer, Store, Users,
+  BellRing, BookOpen, Check, FileText, ChevronRight, ClipboardList, ConciergeBell, Megaphone, Play, Plug, Printer, Store, Users,
   type LucideIcon,
 } from 'lucide-react';
 import { Switch } from '../../componentes/Basicos';
@@ -22,6 +22,7 @@ import Anuncios from './config/Anuncios';
 import Clientes from './config/Clientes';
 import HistoricoPedidos from './config/HistoricoPedidos';
 import PaginaImpressora from './config/Impressora';
+import NotaFiscal from './config/NotaFiscal';
 
 interface Secao { id: string; titulo: string; descricao: string; icone: LucideIcon; pode: (p: Papel) => boolean; tela: () => ReactElement }
 
@@ -32,6 +33,7 @@ const SECOES: Secao[] = [
   { id: 'integracoes', titulo: 'Integrações', descricao: 'Chave (token) para conectar outros aplicativos', icone: Plug, pode: ehGestor, tela: () => <Integracoes /> },
   { id: 'cardapio-digital', titulo: 'Cardápio digital', descricao: 'Cor, capa, destaques, esgotados e link do delivery', icone: BookOpen, pode: ehGestor, tela: () => <CardapioDigitalConfig /> },
   { id: 'estabelecimento', titulo: 'Estabelecimento', descricao: 'Dados, endereço, horários, entrega e pagamento', icone: Store, pode: ehGestor, tela: () => <Estabelecimento /> },
+  { id: 'nota-fiscal', titulo: 'Nota fiscal', descricao: 'NFC-e, NF-e, certificado digital e notas recebidas', icone: FileText, pode: ehGestor, tela: () => <NotaFiscal /> },
   { id: 'anuncios', titulo: 'Integração de anúncios', descricao: 'Pixel do Facebook, Google Analytics e Google Ads', icone: Megaphone, pode: ehGestor, tela: () => <Anuncios /> },
   { id: 'avisos', titulo: 'Avisos e sons', descricao: 'Notificações neste aparelho e toque do chamado', icone: BellRing, pode: () => true, tela: () => <PaginaAvisos /> },
 ];

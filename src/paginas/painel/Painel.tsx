@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -66,6 +66,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
           { para: '/painel/cardapio/aparencia', rotulo: 'Aparência do cardápio', novo: true },
         ],
       },
+      { para: '/painel/notas', icone: FileText, rotulo: 'Notas fiscais', papeis: CAIXA },
       { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: CAIXA },
       { para: '/painel/compras', icone: ShoppingCart, rotulo: 'Lista de compras', curto: 'Compras', papeis: TODOS },
     ],
@@ -105,6 +106,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
           { para: '/painel/config/integracoes', rotulo: 'Integrações', papeis: GESTORES },
           { para: '/painel/config/cardapio-digital', rotulo: 'Cardápio digital', papeis: GESTORES, novo: true },
           { para: '/painel/config/estabelecimento', rotulo: 'Estabelecimento', papeis: GESTORES },
+          { para: '/painel/config/nota-fiscal', rotulo: 'Nota fiscal', papeis: GESTORES, novo: true },
           { para: '/painel/config/anuncios', rotulo: 'Integração de anúncios', papeis: GESTORES },
           { para: '/painel/config/avisos', rotulo: 'Avisos e sons' },
         ],

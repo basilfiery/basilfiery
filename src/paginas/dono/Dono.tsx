@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import {
-  BarChart3, Bell, BellRing, Check, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
+  BarChart3, Bell, BellRing, Check, Palette, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
   Lock, LogOut, Radio, Receipt, Settings, ShieldCheck, Store, Target, Trophy, Wallet, XCircle, Zap,
 } from 'lucide-react';
 import { Avatar } from '../../componentes/Perfil';
@@ -89,11 +89,48 @@ const chaveDia = (iso: string) => {
 
 /* ---------------------------------------------------------------- */
 
+
+/* ---------- Cor do app (o dono escolhe; padrão: a cor da loja) ---------- */
+const TEMAS = [
+  { id: 'loja', nome: 'Da loja' },
+  { id: 'verde', nome: 'Verde', cores: ['#12b76a', '#32d583', '#0a8a4f'] },
+  { id: 'vermelho', nome: 'Vermelho', cores: ['#e5383b', '#ff6b6b', '#a4161a'] },
+  { id: 'laranja', nome: 'Laranja', cores: ['#f76707', '#ff922b', '#b54708'] },
+  { id: 'dourado', nome: 'Dourado', cores: ['#d4a017', '#f2c94c', '#8f6b0e'] },
+  { id: 'rosa', nome: 'Rosa', cores: ['#e8458b', '#f472b6', '#a61e5d'] },
+  { id: 'roxo', nome: 'Roxo', cores: ['#7a5af8', '#a48afb', '#5925dc'] },
+  { id: 'azul', nome: 'Azul', cores: ['#2e90fa', '#53b1fd', '#1849a9'] },
+] as const;
+type TemaId = (typeof TEMAS)[number]['id'];
+type Cores = [string, string, string];
+
+function coresDoTema(id: TemaId, corLoja: string | null | undefined): Cores {
+  const t = TEMAS.find((x) => x.id === id);
+  if (t && 'cores' in t) return [...t.cores];
+  const c = /^#[0-9a-f]{6}$/i.test(corLoja ?? '') ? corLoja! : '#12b76a';
+  return [c, `color-mix(in srgb, ${c} 72%, #fff)`, `color-mix(in srgb, ${c} 66%, #000)`];
+}
+
+/** Aplica a cor em todo o app do dono (inclusive na abertura e no login da próxima vez). */
+function aplicarCores(cores: Cores) {
+  const r = document.documentElement.style;
+  r.setProperty('--tema-dono-1', cores[0]);
+  r.setProperty('--tema-dono-2', cores[1]);
+  r.setProperty('--tema-dono-3', cores[2]);
+  ls.gravar('bf:dono:tema-cores', cores);
+}
+
 export default function Dono() {
   const s = useSessao();
   useFonte();
   useAppInstalavel({ nome: `${MARCA} · Minhas vendas`, curto: 'Minhas vendas', inicio: '/dono', escopo: '/dono' });
   const [abertura, setAbertura] = useState(() => sessao.ler('bf:dono:abertura') !== '1');
+  // Última cor escolhida já vale na abertura e no login
+  useEffect(() => {
+    const salvas = ls.ler<Cores | null>('bf:dono:tema-cores', null);
+    if (salvas?.length === 3) aplicarCores(salvas);
+    return () => ['--tema-dono-1', '--tema-dono-2', '--tema-dono-3'].forEach((v) => document.documentElement.style.removeProperty(v));
+  }, []);
 
   useEffect(() => {
     const cor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -304,6 +341,9 @@ function AppDono({ restaurantes }: { restaurantes: RestauranteComPapel[] }) {
   const [aviso, setAviso] = useState<Pedido | null>(null);
   const [perguntaAvisos, setPerguntaAvisos] = useState(false);
   const [versao, setVersao] = useState(0);
+  const [tema, setTemaEstado] = useState<TemaId>(() => ls.ler<TemaId>('bf:dono:tema', 'loja'));
+  const setTema = (id: TemaId) => { setTemaEstado(id); ls.gravar('bf:dono:tema', id); };
+  useEffect(() => { aplicarCores(coresDoTema(tema, rest.cor)); }, [tema, rest.cor]);
 
   const vivo = usePedidosAoVivo(rest.id, {
     aoNovoPedido: (p) => {
@@ -353,6 +393,8 @@ function AppDono({ restaurantes }: { restaurantes: RestauranteComPapel[] }) {
         {aba === 'relatorios' && <Relatorios rest={rest} valor={valor} versao={versao} />}
         {aba === 'ajustes' && (
           <Ajustes
+            tema={tema}
+            setTema={setTema}
             rest={rest}
             restaurantes={restaurantes}
             trocar={trocar}
@@ -805,7 +847,9 @@ function Relatorios({ rest, valor, versao }: { rest: RestauranteComPapel; valor:
 }
 
 /* ---------- Ajustes ---------- */
-function Ajustes({ rest, restaurantes, trocar, oculto, setOculto, aoSair, avisarErro }: {
+function Ajustes({ tema, setTema, rest, restaurantes, trocar, oculto, setOculto, aoSair, avisarErro }: {
+  tema: TemaId;
+  setTema: (id: TemaId) => void;
   rest: RestauranteComPapel;
   restaurantes: RestauranteComPapel[];
   trocar: (id: string) => void;
@@ -815,6 +859,7 @@ function Ajustes({ rest, restaurantes, trocar, oculto, setOculto, aoSair, avisar
   avisarErro: (m: string) => void;
 }) {
   const [push, setPush] = useState<EstadoPush | null>(null);
+  const [verTemas, setVerTemas] = useState(false);
   useEffect(() => { void estadoPush().then(setPush); }, []);
 
   async function alternarAvisos() {
@@ -846,6 +891,11 @@ function Ajustes({ rest, restaurantes, trocar, oculto, setOculto, aoSair, avisar
           <span>Avisar a cada venda<small>{push === 'ativo' ? 'Ligado neste celular' : push === 'precisa-instalar' ? 'Adicione o app à Tela de Início primeiro' : push === 'bloqueado' ? 'Bloqueado nas configurações do celular' : 'Desligado'}</small></span>
           <span className={cx('dn-chave', push === 'ativo' && 'on')} />
         </button>
+        <button className="dn-lista__item" onClick={() => setVerTemas(true)}>
+          <Palette size={19} />
+          <span>Cor do app<small>{tema === 'loja' ? `A mesma do ${rest.nome}` : TEMAS.find((x) => x.id === tema)?.nome}</small></span>
+          <i className="dn-tema-atual" />
+        </button>
         <button className="dn-lista__item" onClick={() => setOculto(!oculto)}>
           {oculto ? <EyeOff size={19} /> : <Eye size={19} />}
           <span>Esconder valores<small>Mostra R$ •••• até você tocar no olho</small></span>
@@ -858,7 +908,35 @@ function Ajustes({ rest, restaurantes, trocar, oculto, setOculto, aoSair, avisar
         <button className="dn-lista__item dn-lista__item--perigo" onClick={aoSair}><LogOut size={19} /><span>Sair</span></button>
       </section>
       <small className="dn-versao dn-versao--fixa">{MARCA} · v{VERSAO_CURTA}</small>
+      {verTemas && <FolhaTemas atual={tema} corLoja={rest.cor} aoEscolher={setTema} aoFechar={() => setVerTemas(false)} />}
     </div>
+  );
+}
+
+function FolhaTemas({ atual, corLoja, aoEscolher, aoFechar }: { atual: TemaId; corLoja: string | null | undefined; aoEscolher: (id: TemaId) => void; aoFechar: () => void }) {
+  return (
+    <Folha aoFechar={aoFechar}>
+      <div className="dn-folha__centro">
+        <span className="dn-folha__icone"><Palette size={26} /></span>
+        <h2>Cor do app</h2>
+        <p>Muda na hora. “Da loja” usa a mesma cor do seu cardápio.</p>
+        <div className="dn-temas">
+          {TEMAS.map((x) => {
+            const [c1, c2, c3] = coresDoTema(x.id, corLoja);
+            return (
+              <button key={x.id} type="button" className={cx(atual === x.id && 'ativo')} onClick={() => aoEscolher(x.id)} aria-pressed={atual === x.id}>
+                <i style={{ '--t1': c1, '--t2': c2, '--t3': c3 } as CSSProperties}>
+                  {atual === x.id && <Check size={22} strokeWidth={2.6} />}
+                  {x.id === 'loja' && <span className="dn-temas__loja"><Store size={11} /></span>}
+                </i>
+                {x.nome}
+              </button>
+            );
+          })}
+        </div>
+        <button className="dn-botao" onClick={aoFechar}>Pronto</button>
+      </div>
+    </Folha>
   );
 }
 

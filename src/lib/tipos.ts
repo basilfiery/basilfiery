@@ -170,6 +170,10 @@ export interface Mesa {
   token: string;
   ativo: boolean;
   ordem: number;
+  /** Salão, Varanda, Área externa… */
+  setor?: string | null;
+  /** Quantas pessoas estão na mesa agora (zera ao fechar a conta) */
+  pessoas?: number | null;
 }
 
 export interface PedidoItem {

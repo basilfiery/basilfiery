@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRightLeft, ConciergeBell, LayoutGrid, Plus, Printer, Receipt, RefreshCw, Smartphone, Tablet, Trash2, Wallet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRightLeft, ChevronDown, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
+import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { SeletorPagamento } from '../../componentes/Pagamento';
@@ -16,16 +18,32 @@ import { confirmar } from '../../componentes/Confirmar';
 
 const linkMesa = (token: string) => `${window.location.origin}/mesa/${token}`;
 
+type Situacao = 'livre' | 'ocupada' | 'pagando' | 'inativa';
+type Filtro = 'todas' | 'livre' | 'ocupada' | 'pagando';
+const ROTULO_SITUACAO: Record<Situacao, string> = { livre: 'Livre', ocupada: 'Ocupada', pagando: 'Pagando conta', inativa: 'Desativada' };
+
+/** "42 min", "1h 05 min" */
+function duracao(desde: string, agora: number) {
+  const min = Math.max(0, Math.floor((agora - new Date(desde).getTime()) / 60000));
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')} min`;
+}
+
 export default function Mesas() {
   const { restaurante, papel, pedidos: aoVivo, chamados, acessos } = usePainel();
   const toast = useToast();
+  const navegar = useNavigate();
   const agora = useAgora(30000);
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [abertos, setAbertos] = useState<Pedido[]>([]);
   const [carregado, setCarregado] = useState(false);
   const [selecionada, setSelecionada] = useState<Mesa | null>(null);
+  const [trocandoDe, setTrocandoDe] = useState<Mesa | null>(null);
   const [criando, setCriando] = useState(false);
   const [verLinks, setVerLinks] = useState(false);
+  const [filtro, setFiltro] = useState<Filtro>('todas');
+  const [busca, setBusca] = useState('');
+  const [setor, setSetor] = useState('');
   const gestor = ehGestor(papel);
 
   const carregar = useCallback(async () => {
@@ -47,63 +65,147 @@ export default function Mesas() {
   const pedidosDa = (mesaId: string) => abertos.filter((p) => p.mesa_id === mesaId);
   const totalDa = (mesaId: string) => pedidosDa(mesaId).reduce((s, p) => s + Number(p.total), 0);
   const chamadosDa = (mesaId: string) => chamados.filter((c) => c.mesa_id === mesaId);
-  const ocupadas = mesas.filter((m) => pedidosDa(m.id).length > 0).length;
-  const emAberto = abertos.reduce((s, p) => s + Number(p.total), 0);
+  const situacao = (m: Mesa): Situacao => {
+    if (!m.ativo) return 'inativa';
+    if (!pedidosDa(m.id).length) return 'livre';
+    return chamadosDa(m.id).some((c) => c.tipo === 'conta') ? 'pagando' : 'ocupada';
+  };
+
+  async function definirPessoas(m: Mesa, n: number | null) {
+    setMesas((l) => l.map((x) => (x.id === m.id ? { ...x, pessoas: n } : x)));
+    const { error } = await supabase.rpc('mesa_definir_pessoas', { p_mesa: m.id, p_pessoas: n ?? 0 });
+    if (error) { toast(msgErro(error), 'erro'); void carregar(); }
+  }
+
+  const setores = [...new Set(mesas.map((m) => (m.setor ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const termo = busca.trim().toLowerCase();
+  const base = mesas.filter((m) => (!setor || (m.setor ?? '') === setor) && (!termo || m.nome.toLowerCase().includes(termo)));
+  const conta = (f: Filtro) => (f === 'todas' ? base.length : base.filter((m) => situacao(m) === f).length);
+  const lista = filtro === 'todas' ? base : base.filter((m) => situacao(m) === filtro);
+  const FILTROS: { id: Filtro; rotulo: string }[] = [
+    { id: 'todas', rotulo: 'Todas' }, { id: 'livre', rotulo: 'Livres' }, { id: 'ocupada', rotulo: 'Ocupadas' }, { id: 'pagando', rotulo: 'Pagando conta' },
+  ];
 
   return (
-    <div className="pagina">
-      <div className="pagina__cab">
-        <div style={{ flex: 1 }}>
+    <div className="pagina mesas-pag">
+      <div className="mesas-cab">
+        <div className="mesas-cab__titulo">
           <h1 className="titulo">Mesas</h1>
-          <p>{ocupadas} de {mesas.filter((m) => m.ativo).length} ocupadas · {brl(emAberto)} em contas abertas</p>
+          <p>Acompanhe as mesas do seu estabelecimento em tempo real.</p>
         </div>
-        {mesas.length > 0 && (
-          <button className="btn btn--contorno" onClick={() => setVerLinks(true)}><Tablet size={18} /> Links dos tablets</button>
-        )}
-        {gestor && <button className="btn btn--primario" onClick={() => setCriando(true)}><Plus size={18} /> Nova mesa</button>}
+        <div className="mesas-cab__acoes">
+          <label className="mesas-busca">
+            <Search size={19} />
+            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar mesa..." aria-label="Buscar mesa" />
+          </label>
+          <span className="mesas-setor">
+            <select value={setor} onChange={(e) => setSetor(e.target.value)} aria-label="Setor">
+              <option value="">Todos os setores</option>
+              {setores.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <ChevronDown size={18} />
+          </span>
+          {mesas.length > 0 && (
+            <button className="mesas-icone" onClick={() => setVerLinks(true)} title="Links dos tablets" aria-label="Links dos tablets"><Tablet size={19} /></button>
+          )}
+          {gestor && <button className="mesas-nova" onClick={() => setCriando(true)}><Plus size={20} /> Nova mesa</button>}
+        </div>
       </div>
 
       {mesas.length > 0 && (
-        <p className="dica-mesas">
-          <Tablet size={16} /> Cada mesa tem um link próprio para o tablet. Toque numa mesa para ver o link e o QR code, ou use <b>Links dos tablets</b>.
-        </p>
+        <div className="mesas-filtros" role="tablist" aria-label="Filtrar mesas">
+          {FILTROS.map((f) => (
+            <button key={f.id} role="tab" aria-selected={filtro === f.id} className={cx('mesas-filtro', `mesas-filtro--${f.id}`, filtro === f.id && 'ativo')} onClick={() => setFiltro(f.id)}>
+              {f.id !== 'todas' && <i aria-hidden="true" />}
+              {f.rotulo}
+              <b>{conta(f.id)}</b>
+            </button>
+          ))}
+        </div>
       )}
 
       {carregado && mesas.length === 0 ? (
         <Vazio icone={<LayoutGrid size={36} />} titulo="Nenhuma mesa cadastrada">
           {gestor ? 'Crie as mesas e abra o link de cada uma no tablet correspondente.' : 'Peça ao gerente para cadastrar as mesas.'}
         </Vazio>
+      ) : lista.length === 0 && carregado ? (
+        <p className="mesas-nada">Nenhuma mesa {filtro === 'livre' ? 'livre' : filtro === 'ocupada' ? 'ocupada' : filtro === 'pagando' ? 'pagando a conta' : 'encontrada'}{termo ? ` com “${busca.trim()}”` : ''}.</p>
       ) : (
-        <div className="mesas-grade">
-          {mesas.map((m) => {
+        <div className="mesas-grade2">
+          {lista.map((m) => {
             const ps = pedidosDa(m.id);
             const total = ps.reduce((s, p) => s + Number(p.total), 0);
-            const cs = chamadosDa(m.id);
+            const st = situacao(m);
+            const cs = chamadosDa(m.id).filter((c) => c.tipo !== 'conta');
             const pedindo = acessos.filter((a) => a.mesa_id === m.id).length;
+            const comConta = st === 'ocupada' || st === 'pagando';
             return (
-              <button key={m.id} className={cx('mesa-card', ps.length > 0 && 'mesa-card--ocupada', !m.ativo && 'mesa-card--inativa')} onClick={() => setSelecionada(m)}>
-                <strong>{m.nome}</strong>
-                {ps.length > 0 ? (
-                  <>
-                    <span className="mesa-card__total">{brl(total)}</span>
-                    <span className="mesa-card__info">{ps.length} pedido(s) · desde {hora(ps[0].criado_em)}</span>
-                  </>
-                ) : (
-                  <span className="mesa-card__info">{m.ativo ? 'Livre' : 'Desativada'}</span>
-                )}
-                {(cs.length > 0 || pedindo > 0) && (
-                  <div className="mesa-card__alertas">
-                    {pedindo > 0 && (
-                      <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>
-                    )}
-                    {cs.map((c) => (
-                      <span key={c.id} className={`badge badge--icone ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
-                        {c.tipo === 'conta' ? <Receipt size={13} /> : <ConciergeBell size={13} />} {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}
-                      </span>
-                    ))}
+              <article
+                key={m.id}
+                className={cx('mc', `mc--${st}`)}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelecionada(m)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setSelecionada(m); }}
+                aria-label={`${m.nome}, ${ROTULO_SITUACAO[st]}`}
+              >
+                <header className="mc__topo">
+                  <div className="mc__nome">
+                    <strong>{m.nome}</strong>
+                    {m.setor && <small>{m.setor}</small>}
                   </div>
-                )}
-              </button>
+                  <div className="mc__acoes" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    {m.ativo && (
+                      <button className="mc__pedido" onClick={() => navegar(`/painel/pdv?mesa=${m.id}`)}><Plus size={17} /> Pedido</button>
+                    )}
+                    <Suspenso
+                      largura={268}
+                      gatilho={(aberto, alternar) => (
+                        <button className={cx('mc__menu', aberto && 'aberto')} onClick={alternar} aria-label={`Mais opções da ${m.nome}`}><ChevronDown size={18} /></button>
+                      )}
+                    >
+                      {(fechar) => (
+                        <>
+                          <button className="menu-item" onClick={() => { fechar(); setSelecionada(m); }}><Receipt size={17} /> {comConta ? 'Ver conta e fechar' : 'Detalhes da mesa'}</button>
+                          {comConta && <button className="menu-item" onClick={() => { fechar(); imprimirConta(m.nome, restaurante.nome, ps); }}><Printer size={17} /> Imprimir conta</button>}
+                          {comConta && <button className="menu-item" onClick={() => { fechar(); setTrocandoDe(m); }}><ArrowRightLeft size={17} /> Trocar de mesa</button>}
+                          <div className="menu-sep" />
+                          <div className="mc-pessoas">
+                            <span><Users size={16} /> Pessoas na mesa</span>
+                            <div>
+                              <button aria-label="Menos uma pessoa" disabled={!m.pessoas} onClick={() => void definirPessoas(m, m.pessoas && m.pessoas > 1 ? m.pessoas - 1 : null)}><Minus size={15} /></button>
+                              <b>{m.pessoas ?? '—'}</b>
+                              <button aria-label="Mais uma pessoa" onClick={() => void definirPessoas(m, Math.min(99, (m.pessoas ?? 0) + 1))}><Plus size={15} /></button>
+                            </div>
+                          </div>
+                          <div className="menu-sep" />
+                          <button className="menu-item" onClick={() => { fechar(); void navigator.clipboard?.writeText(linkMesa(m.token)).then(() => toast('Link do tablet copiado.', 'ok')); }}><Tablet size={17} /> Copiar link do tablet</button>
+                        </>
+                      )}
+                    </Suspenso>
+                  </div>
+                </header>
+
+                <div className="mc__meio">
+                  {comConta ? (
+                    <>
+                      <span className="mc__dado"><Users size={16} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : <em>— pessoas</em>}</span>
+                      <span className="mc__dado"><Clock size={16} /> {duracao(ps[0].criado_em, agora)}</span>
+                      <strong className="mc__total">{brl(total)}</strong>
+                    </>
+                  ) : null}
+                  {(cs.length > 0 || pedindo > 0) && (
+                    <div className="mc__alertas">
+                      {pedindo > 0 && <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>}
+                      {cs.map((c) => (
+                        <span key={c.id} className="badge badge--icone badge--laranja"><ConciergeBell size={13} /> {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <footer className="mc__status"><i aria-hidden="true" /> {ROTULO_SITUACAO[st]}</footer>
+              </article>
             );
           })}
         </div>
@@ -111,16 +213,27 @@ export default function Mesas() {
 
       {selecionada && (
         <ModalMesa
-          mesa={selecionada}
+          mesa={mesas.find((x) => x.id === selecionada.id) ?? selecionada}
           pedidos={pedidosDa(selecionada.id)}
           chamados={chamadosDa(selecionada.id)}
           restauranteNome={restaurante.nome}
           podeFechar={podeCaixa(papel)}
           gestor={gestor}
           mesas={mesas}
+          setores={setores}
           totalDa={totalDa}
           aoFechar={() => setSelecionada(null)}
           aoMudar={() => void carregar()}
+        />
+      )}
+
+      {trocandoDe && (
+        <ModalTrocarMesa
+          origem={trocandoDe}
+          mesas={mesas}
+          totalDa={totalDa}
+          aoFechar={() => setTrocandoDe(null)}
+          aoTrocar={() => { setTrocandoDe(null); void carregar(); }}
         />
       )}
 
@@ -132,6 +245,7 @@ export default function Mesas() {
           sugestao={proximoNome(mesas)}
           nomesUsados={mesas.map((m) => m.nome.trim().toLowerCase())}
           ordem={Math.max(0, ...mesas.map((m) => m.ordem)) + 1}
+          setores={setores}
           aoFechar={() => setCriando(false)}
           aoCriar={() => { setCriando(false); void carregar(); }}
         />
@@ -140,8 +254,9 @@ export default function Mesas() {
   );
 }
 
-function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, mesas, totalDa, aoFechar, aoMudar }: {
+function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, mesas, setores, totalDa, aoFechar, aoMudar }: {
   mesa: Mesa;
+  setores: string[];
   pedidos: Pedido[];
   chamados: Chamado[];
   restauranteNome: string;
@@ -156,6 +271,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const { caixa, abrirCaixa, recarregarCaixa } = usePainel();
   const caixaAberto = !!caixa;
   const [nome, setNome] = useState(mesa.nome);
+  const [setorMesa, setSetorMesa] = useState(mesa.setor ?? '');
   const [token, setToken] = useState(mesa.token);
   const [ativo, setAtivo] = useState(mesa.ativo);
   const [ocupado, setOcupado] = useState(false);
@@ -279,6 +395,21 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
               Salvar nome
             </button>
           </div>
+          <div className="acoes-linha" style={{ alignItems: 'flex-end' }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <Campo rotulo="Setor" dica="Ex.: Salão, Varanda, Área externa. Serve para filtrar as mesas.">
+                <input className="input" list="setores-mesa" value={setorMesa} onChange={(e) => setSetorMesa(e.target.value)} maxLength={40} placeholder="Sem setor" />
+                <datalist id="setores-mesa">{setores.map((x) => <option key={x} value={x} />)}</datalist>
+              </Campo>
+            </div>
+            <button
+              className="btn btn--contorno"
+              disabled={setorMesa.trim() === (mesa.setor ?? '')}
+              onClick={() => void salvar({ setor: setorMesa.trim() || null }).then((ok) => ok && toast('Setor atualizado.', 'ok'))}
+            >
+              Salvar setor
+            </button>
+          </div>
           <Switch marcado={ativo} aoMudar={(v) => { setAtivo(v); void salvar({ ativo: v }); }}>
             Mesa ativa (desligada, o tablet para de aceitar pedidos)
           </Switch>
@@ -328,8 +459,9 @@ function proximoNome(mesas: Mesa[]) {
   return `Mesa ${n}`;
 }
 
-function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, aoFechar, aoCriar }: {
+function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, setores, aoFechar, aoCriar }: {
   restauranteId: string;
+  setores: string[];
   sugestao: string;
   nomesUsados: string[];
   ordem: number;
@@ -338,6 +470,7 @@ function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, aoFechar, 
 }) {
   const toast = useToast();
   const [nome, setNome] = useState(sugestao);
+  const [setor, setSetor] = useState('');
   const [salvando, setSalvando] = useState(false);
 
   const repetido = nomesUsados.includes(nome.trim().toLowerCase());
@@ -347,7 +480,7 @@ function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, aoFechar, 
     setSalvando(true);
     // "Mesa 1" entra na posição 1 da lista (não no fim)
     const numero = /^mesa\s+(\d+)$/i.exec(nome.trim())?.[1];
-    const { error } = await supabase.from('mesas').insert({ restaurante_id: restauranteId, nome: nome.trim(), ordem: numero ? Number(numero) : ordem });
+    const { error } = await supabase.from('mesas').insert({ restaurante_id: restauranteId, nome: nome.trim(), ordem: numero ? Number(numero) : ordem, setor: setor.trim() || null });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
     toast('Mesa criada.', 'ok');
@@ -368,6 +501,10 @@ function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, aoFechar, 
     >
       <Campo rotulo="Nome" dica={repetido ? 'Já existe uma mesa com esse nome.' : 'Ex.: Mesa 12, Varanda 3, Balcão'}>
         <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={40} autoFocus />
+      </Campo>
+      <Campo rotulo="Setor (opcional)" dica="Ex.: Salão, Varanda, Área externa.">
+        <input className="input" list="setores-nova" value={setor} onChange={(e) => setSetor(e.target.value)} maxLength={40} placeholder="Sem setor" />
+        <datalist id="setores-nova">{setores.map((x) => <option key={x} value={x} />)}</datalist>
       </Campo>
     </Modal>
   );

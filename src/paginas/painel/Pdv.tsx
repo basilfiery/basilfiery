@@ -51,7 +51,8 @@ export default function Pdv() {
   const { restaurante: r, papel, caixa, abrirCaixa } = usePainel();
   const toast = useToast();
   const podeBalcao = podeCaixa(papel);
-  const [modo, setModo] = useState<Modo>(podeBalcao ? 'balcao' : 'mesa');
+  const mesaDaUrl = new URLSearchParams(window.location.search).get('mesa') ?? '';
+  const [modo, setModo] = useState<Modo>(mesaDaUrl || !podeBalcao ? 'mesa' : 'balcao');
   const [dados, setDados] = useState<Dados | null>(null);
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [busca, setBusca] = useState('');
@@ -64,7 +65,7 @@ export default function Pdv() {
   const [verDesconto, setVerDesconto] = useState(false);
   const [cliTel, setCliTel] = useState('');
   const [cliNome, setCliNome] = useState('');
-  const [mesaId, setMesaId] = useState('');
+  const [mesaId, setMesaId] = useState(mesaDaUrl);
   const [forma, setForma] = useState<FormaPagamento | null>(null);
   const [recebido, setRecebido] = useState('');
   const [cozinhaManual, setCozinhaManual] = useState<boolean | null>(null);

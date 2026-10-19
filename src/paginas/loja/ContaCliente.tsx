@@ -35,10 +35,13 @@ function CampoSenha({ valor, aoMudar, autoComplete, placeholder }: { valor: stri
 }
 
 /** Entrar, criar conta, esqueci a senha, nova senha e "Minha conta" — tudo numa janela só. */
-export function ModalConta({ conta, codigo, nomeLoja, aoFechar, aoVerPedidos }: {
+export function ModalConta({ conta, codigo, nomeLoja, logo, obrigatorio, aoFechar, aoVerPedidos }: {
   conta: ContaCliente;
   codigo: string;
   nomeLoja: string;
+  logo?: string | null;
+  /** Sem conta não dá para fechar: o cardápio pede o login logo na entrada */
+  obrigatorio?: boolean;
   aoFechar: () => void;
   aoVerPedidos: () => void;
 }) {
@@ -85,7 +88,7 @@ export function ModalConta({ conta, codigo, nomeLoja, aoFechar, aoVerPedidos }: 
 
   /* ---------- Entrar / criar conta ---------- */
   return (
-    <Modal aberto aoFechar={aoFechar} largura={440} classe="mesa-modal conta-modal">
+    <Modal aberto aoFechar={obrigatorio ? () => {} : aoFechar} largura={440} classe={cx('mesa-modal conta-modal', obrigatorio && 'conta-modal--obrigatorio')}>
       {modo === 'enviado' ? (
         <div className="conta">
           <span className="conta__icone conta__icone--ok"><MailCheck size={28} /></span>
@@ -104,9 +107,11 @@ export function ModalConta({ conta, codigo, nomeLoja, aoFechar, aoVerPedidos }: 
         </form>
       ) : (
         <div className="conta">
-          <span className="conta__icone"><UserRound size={28} /></span>
-          <h2>{modo === 'criar' ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
-          <p>Acompanhe seus pedidos na {nomeLoja} e peça de novo com um toque. Seus dados já vêm preenchidos.</p>
+          {obrigatorio && logo ? <img className="conta__logo" src={logo} alt="" /> : <span className="conta__icone"><UserRound size={28} /></span>}
+          <h2>{obrigatorio ? `Bem-vindo à ${nomeLoja}` : modo === 'criar' ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
+          <p>{obrigatorio
+            ? (modo === 'criar' ? 'Crie sua conta em segundos para ver o cardápio e fazer seu pedido.' : 'Entre na sua conta para ver o cardápio e fazer seu pedido. É rápido!')
+            : `Acompanhe seus pedidos na ${nomeLoja} e peça de novo com um toque. Seus dados já vêm preenchidos.`}</p>
 
           {conta.temGoogle && (
             <>

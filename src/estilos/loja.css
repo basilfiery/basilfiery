@@ -309,3 +309,8 @@
 
 /* Contador até abrir: números fixos (não "pulam" a cada segundo) */
 .loja-status__contador { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
+/* Login obrigatório na entrada do cardápio */
+.conta-modal--obrigatorio { box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+.modal-fundo:has(.conta-modal--obrigatorio) { background: rgba(0, 0, 0, .78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.conta__logo { justify-self: center; width: 72px; height: 72px; border-radius: 20px; object-fit: cover; box-shadow: 0 10px 26px rgba(0, 0, 0, .35); }

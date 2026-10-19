@@ -187,6 +187,8 @@ export default function LojaCardapio() {
   useAlturaTela();
   const [verSobre, setVerSobre] = useState(false);
   const conta = useContaCliente();
+  // Login obrigatório: quem abre o cardápio já entra (ou cria a conta) antes de pedir
+  const precisaLogin = !conta.carregando && !conta.usuario;
   const [verConta, setVerConta] = useState(false);
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState('');
@@ -480,8 +482,11 @@ export default function LojaCardapio() {
       )}
 
       {verSobre && <ModalSobreLoja loja={loja} aoFechar={() => setVerSobre(false)} />}
-      {(verConta || (conta.novaSenha && !!conta.usuario)) && (
-        <ModalConta conta={conta} codigo={codigo} nomeLoja={loja.nome} aoFechar={() => setVerConta(false)} aoVerPedidos={() => irAba('pedidos')} />
+      {(verConta || precisaLogin || (conta.novaSenha && !!conta.usuario)) && (
+        <ModalConta
+          conta={conta} codigo={codigo} nomeLoja={loja.nome} logo={loja.logo_url} obrigatorio={precisaLogin}
+          aoFechar={() => setVerConta(false)} aoVerPedidos={() => irAba('pedidos')}
+        />
       )}
 
       {/* Barra de baixo, como nos apps de delivery */}

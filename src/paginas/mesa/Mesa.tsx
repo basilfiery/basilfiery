@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Ban, Check, CheckCircle2, ChevronRight, Citrus, ConciergeBell, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Minus, Play, Plus, Receipt,
+  Ban, Check, CheckCircle2, ChevronRight, Citrus, ConciergeBell, Gamepad2, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Minus, Play, Plus, Receipt,
   ShieldCheck, ShoppingBag, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
 } from 'lucide-react';
 import { FotoProduto, Selos, Stepper, VideoCapa } from '../../componentes/Basicos';
@@ -19,7 +19,11 @@ import { destravarSom, tocarAviso, tocarEnviado } from '../../lib/som';
 import { fraseCancelamento } from '../../lib/cancelamento';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
+import { JogoMemoria } from './JogoMemoria';
 import '../../estilos/mesa.css';
+
+/** Jogo da memória no topo do cardápio da mesa (para tirar: false). */
+const JOGO_NA_MESA = true;
 
 export interface ProdutoMesa {
   id: string;
@@ -130,6 +134,7 @@ export default function Mesa() {
   const [verCarrinho, setVerCarrinho] = useState(false);
   const [verConta, setVerConta] = useState(false);
   const [verChamado, setVerChamado] = useState(false);
+  const [verJogo, setVerJogo] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState<number[] | null>(null);
@@ -313,6 +318,7 @@ export default function Mesa() {
       setProdutoAberto(null);
       setVerCarrinho(false);
       setVerConta(false);
+      setVerJogo(false);
       setConfirmar(false);
       setCatAtiva('');
       setSubAtiva('');
@@ -562,6 +568,11 @@ export default function Mesa() {
           </div>
         </div>
         <div className="mesa__acoes">
+          {JOGO_NA_MESA && (
+            <button className="btn btn--contorno mesa__acao mesa__jogar" onClick={() => setVerJogo(true)} aria-label="Jogar enquanto espera">
+              <Gamepad2 size={20} /> <span className="mesa__rotulo">Jogar</span>
+            </button>
+          )}
           <button className="btn btn--contorno mesa__acao" onClick={() => exigirMesaAberta(() => setVerChamado(true))} aria-label="Chamar garçom">
             <ConciergeBell size={20} /> <span className="mesa__rotulo">Chamar garçom</span>
           </button>
@@ -734,7 +745,9 @@ export default function Mesa() {
         />
       )}
 
-      {sucesso !== null && <TelaSucesso numeros={sucesso} aoFechar={() => setSucesso(null)} />}
+      {sucesso !== null && <TelaSucesso numeros={sucesso} aoFechar={() => setSucesso(null)} aoJogar={JOGO_NA_MESA ? () => { setSucesso(null); setVerJogo(true); } : undefined} />}
+
+      {verJogo && <JogoMemoria aoFechar={() => setVerJogo(false)} />}
 
       {cancelados.avisos.length > 0 && <AvisoCancelamento avisos={cancelados.avisos} aoFechar={cancelados.entendi} />}
     </div>
@@ -1412,7 +1425,7 @@ function ModalConta({ token, dispositivo, aoFechar, aoPedirConta, aoMesaFechada 
   );
 }
 
-function TelaSucesso({ numeros, aoFechar }: { numeros: number[]; aoFechar: () => void }) {
+function TelaSucesso({ numeros, aoFechar, aoJogar }: { numeros: number[]; aoFechar: () => void; aoJogar?: () => void }) {
   useEffect(() => {
     const t = setTimeout(aoFechar, 8000);
     return () => clearTimeout(t);
@@ -1427,6 +1440,11 @@ function TelaSucesso({ numeros, aoFechar }: { numeros: number[]; aoFechar: () =>
         <br />Acompanhe em “Minha conta”.
       </p>
       <button className="btn btn--primario btn--lg">Voltar ao cardápio</button>
+      {aoJogar && (
+        <button className="btn btn--contorno btn--lg sucesso__jogar" onClick={(e) => { e.stopPropagation(); aoJogar(); }}>
+          <Gamepad2 size={20} /> Jogar enquanto espera
+        </button>
+      )}
     </div>
   );
 }

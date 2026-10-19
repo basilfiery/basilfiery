@@ -601,3 +601,46 @@ html:has(.mesa), body:has(.mesa) { height: 100%; overflow: hidden; overscroll-be
   .funil-passos li.atual button { max-width: 100%; }
   .funil-passos li.atual .funil-passos__nome { overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* ---------- Jogo da memória (enquanto espera o pedido) ---------- */
+.mesa__jogar svg { color: var(--acento); }
+.sucesso__jogar { gap: 8px; margin-top: 10px; background: transparent; }
+.jogo-modal .modal__corpo { padding: 16px 18px 20px; }
+.jogo { display: grid; gap: 14px; }
+.jogo__niveis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
+.jogo__niveis button { height: 38px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; }
+.jogo__niveis button.ativo { background: var(--acento); color: #fff; }
+.jogo__placar { display: flex; justify-content: space-between; gap: 8px; }
+.jogo__placar span { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 6px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-weight: 700; font-size: .92rem; font-variant-numeric: tabular-nums; }
+.jogo__placar svg { color: var(--acento); }
+.jogo__grade { display: grid; gap: 10px; perspective: 900px; }
+.jogo__carta { position: relative; aspect-ratio: 3 / 4; padding: 0; border: 0; background: none; cursor: pointer; transform-style: preserve-3d; transition: transform .38s cubic-bezier(.2, .8, .3, 1.2); -webkit-tap-highlight-color: transparent; }
+.jogo__carta.virada { transform: rotateY(180deg); cursor: default; }
+.jogo__carta:active:not(.virada) { transform: scale(.95); }
+.jogo__face { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.jogo__face--costas {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, .25), transparent 45%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .09) 0 8px, transparent 8px 16px),
+    var(--acento);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .25), 0 6px 14px rgba(0, 0, 0, .25);
+}
+.jogo__face--costas::after { content: '?'; color: rgba(255, 255, 255, .9); font-size: clamp(1.4rem, 5vw, 2rem); font-weight: 900; }
+.jogo__face--frente { transform: rotateY(180deg); background: var(--surface); border: 2px solid var(--line); font-size: clamp(1.8rem, 8vw, 2.8rem); box-shadow: 0 6px 14px rgba(0, 0, 0, .2); }
+.jogo__carta.achada .jogo__face--frente { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--surface)); }
+.jogo__carta.pulo { animation: jogo-pulo .5s ease-out; }
+@keyframes jogo-pulo { 40% { transform: rotateY(180deg) scale(1.12); } 100% { transform: rotateY(180deg) scale(1); } }
+.jogo__dica { margin: 0; color: var(--muted); font-size: .88rem; text-align: center; }
+.jogo__fim { display: grid; justify-items: center; gap: 10px; padding: 18px 6px 6px; text-align: center; animation: subir .3s ease-out; }
+.jogo__trofeu { width: 84px; height: 84px; display: grid; place-items: center; border-radius: 26px; background: color-mix(in srgb, #f5b301 18%, transparent); color: #f5b301; animation: jogo-trofeu .6s cubic-bezier(.2, 1.4, .3, 1); }
+@keyframes jogo-trofeu { from { transform: scale(.4) rotate(-15deg); opacity: 0; } }
+.jogo__fim h2 { margin: 4px 0 0; font-size: 1.6rem; }
+.jogo__fim p { margin: 0; color: var(--muted); }
+.jogo__fim p b { color: var(--text); }
+.jogo__recorde { font-size: .88rem; }
+.jogo__fim-acoes { display: grid; gap: 10px; width: 100%; margin-top: 8px; }
+.jogo__fim-acoes .btn { gap: 8px; }
+@media (max-height: 520px) and (orientation: landscape) {
+  .jogo__grade { max-width: 520px; margin: 0 auto; width: 100%; }
+  .jogo__carta { aspect-ratio: 4 / 3; }
+}

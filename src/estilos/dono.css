@@ -468,3 +468,120 @@ body:has(.dn) { background: #0a0a0a; }
 .dn-folha-fundo { transition: padding-bottom .18s ease-out; }
 .dn-folha { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
 .dn-folha-fundo.com-teclado .dn-folha { border-radius: 24px 24px 0 0; padding-bottom: 18px; }
+
+/* =====================================================================
+   Entrada do app do dono (boas-vindas e acesso): foto do forno, logo BasilFiery, vermelho
+   ===================================================================== */
+.dl {
+  --dl-vermelho: #f01c22; --dl-vermelho-2: #d3161b;
+  position: relative; display: flex; flex-direction: column; overflow: hidden; isolation: isolate;
+  min-height: var(--altura-tela, 100vh); padding: calc(env(safe-area-inset-top) + 40px) 24px calc(env(safe-area-inset-bottom) + 18px);
+  background: #070504; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@supports (min-height: 100dvh) { .dl { min-height: 100dvh; } }
+.dl > * { position: relative; z-index: 1; }
+.dl-fundo {
+  position: absolute !important; z-index: 0 !important; left: 0; right: 0; top: env(safe-area-inset-top);
+  aspect-ratio: 849 / 1067; background: url('/dono-fundo.jpg') center top / cover no-repeat;
+}
+.dl-fundo::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(7, 5, 4, .55) 0%, transparent 18%, transparent 72%, #070504 99%),
+    linear-gradient(90deg, rgba(7, 5, 4, .55) 0%, transparent 55%);
+}
+.dl--acesso .dl-fundo { top: calc(env(safe-area-inset-top) - 10px); }
+
+.dl-marca { display: flex; align-items: center; gap: 4px; }
+.dl-marca img { width: 80px; height: auto; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .5)); }
+.dl-marca div { display: grid; gap: 2px; }
+.dl-marca strong { color: #fff; font-size: 2.05rem; font-weight: 800; letter-spacing: -.025em; line-height: 1; }
+.dl-marca strong span { color: var(--dl-vermelho); }
+.dl-marca small { color: #d7d4d2; font-size: .6rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.dl-marca--espacada small { letter-spacing: .26em; font-size: .56rem; }
+
+.dl-titulo { margin: 26px 0 0; color: #fff; font-size: 2.15rem; font-weight: 800; letter-spacing: -.025em; line-height: 1.04; }
+.dl-titulo em { color: var(--dl-vermelho); font-style: normal; }
+.dl-titulo--grande { margin-top: 22px; font-size: 2.3rem; }
+.dl-texto { margin: 14px 0 0; color: #c9c5c3; font-size: 1.02rem; line-height: 1.38; }
+.dl-espaco { flex: 1; min-height: 150px; }
+.dl--acesso .dl-espaco { min-height: 120px; }
+
+.dl-botao {
+  width: 100%; height: 54px; display: grid; grid-template-columns: 34px 1fr 34px; align-items: center; justify-items: center; padding: 0 16px;
+  border: 0; border-radius: 16px; color: #fff !important; font-size: 1.05rem; font-weight: 600;
+  background: linear-gradient(180deg, #f5272d 0%, var(--dl-vermelho-2) 100%);
+  box-shadow: 0 12px 32px rgba(240, 28, 34, .38), inset 0 1px 0 rgba(255, 255, 255, .22);
+  transition: transform .12s, filter .15s;
+}
+.dl-botao:active { transform: scale(.985); filter: brightness(.95); }
+
+.dl-recursos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 34px 0 0; padding: 0; list-style: none; text-align: center; }
+.dl-recursos li { display: grid; justify-items: center; gap: 6px; }
+.dl-recursos li > span {
+  width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 4px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #5a1214, #2a0809); color: var(--dl-vermelho); box-shadow: 0 0 18px rgba(240, 28, 34, .18);
+}
+.dl-recursos b { color: #fff; font-size: .95rem; font-weight: 700; }
+.dl-recursos small { color: #a9a4a1; font-size: .74rem; line-height: 1.35; }
+
+.dl-versao { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 32px; }
+.dl-versao i { width: 72px; height: 1px; background: linear-gradient(90deg, transparent, #3a3433); }
+.dl-versao i:last-child { background: linear-gradient(90deg, #3a3433, transparent); }
+.dl-versao small { color: #7d7674; font-size: .76rem; letter-spacing: .02em; }
+
+.dl-cartao {
+  display: grid; gap: 14px; padding: 18px 10px 4px; border-radius: 22px;
+  border: 1px solid rgba(240, 28, 34, .55); background: linear-gradient(180deg, rgba(22, 16, 16, .94), rgba(12, 10, 10, .97));
+  box-shadow: 0 -8px 34px rgba(240, 28, 34, .16), 0 18px 40px rgba(0, 0, 0, .55);
+  animation: dl-sobe .55s cubic-bezier(.2, .9, .2, 1) both;
+}
+@keyframes dl-sobe { from { opacity: 0; transform: translateY(26px); } }
+.dl-cartao h2 { margin: 0 8px; color: #fff; font-size: 1.32rem; font-weight: 700; letter-spacing: -.01em; }
+.dl-cartao > p { margin: -10px 8px 0; color: #a9a4a1; font-size: .92rem; }
+.dl-atalhos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+.dl-atalhos span {
+  position: relative; display: grid; justify-items: center; align-content: start; gap: 5px; margin: 0 4px; padding: 14px 4px 12px;
+  border: 1px solid #262021; border-radius: 14px; background: #120f0f; color: var(--dl-vermelho); text-align: center;
+  animation: dl-sobe .45s ease-out both;
+}
+.dl-atalhos span + span::before { content: ''; position: absolute; left: -5px; top: 18%; bottom: 18%; width: 1px; background: #2a2324; }
+.dl-atalhos b { margin-top: 4px; color: #fff; font-size: .82rem; font-weight: 600; }
+.dl-atalhos small { color: #a39d9a; font-size: .66rem; line-height: 1.35; }
+.dl-cartao .dl-botao { width: auto; margin: 2px 6px 0; }
+.dl-ajuda {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; margin: 4px 6px 0; padding: 14px 4px 14px 24px;
+  border: 0; border-top: 1px solid #241e1e; background: none; color: #c9c5c3 !important; font-size: .95rem;
+}
+.dl-ajuda span { text-align: center; }
+.dl-ajuda svg { color: #a39d9a; }
+.dl--acesso .dl-versao { margin-top: 22px; }
+@media (max-height: 700px) {
+  .dl-titulo { font-size: 1.85rem; } .dl-titulo--grande { font-size: 1.95rem; }
+  .dl-espaco { min-height: 90px; } .dl--acesso .dl-espaco { min-height: 70px; }
+  .dl-recursos { margin-top: 22px; } .dl-versao { margin-top: 18px; }
+}
+@media (max-width: 360px) {
+  .dl { padding-left: 18px; padding-right: 18px; }
+  .dl-marca strong { font-size: 1.75rem; } .dl-marca img { width: 68px; }
+  .dl-atalhos small { display: none; }
+}
+/* Ajuste fino com as imagens de referência */
+.dl-recursos { gap: 4px; margin-top: 30px; }
+.dl-recursos li { align-content: start; gap: 4px; }
+.dl-recursos b { margin-top: 6px; }
+.dl-recursos small { font-size: .7rem; padding: 0 2px; }
+.dl-espaco { min-height: 40px; }
+.dl--acesso .dl-espaco { min-height: 24px; }
+.dl--acesso .dl-fundo { top: calc(env(safe-area-inset-top) + 56px); }
+.dl-cartao { gap: 12px; padding-top: 16px; }
+.dl-cartao > p { font-size: .84rem; }
+.dl-atalhos span { padding: 12px 3px 10px; gap: 4px; }
+.dl-atalhos b { margin-top: 2px; font-size: .78rem; }
+.dl-atalhos small { font-size: .6rem; }
+.dl-atalhos svg { width: 24px; height: 24px; }
+.dl-ajuda { padding-block: 12px; }
+.dl--acesso .dl-versao { margin-top: 16px; }
+.dl--acesso .dl-titulo--grande { margin-top: 20px; }
+/* Boas-vindas: a pizza encosta no botão, como na referência, em qualquer altura de tela */
+.dl--boas .dl-fundo { aspect-ratio: auto; bottom: calc(env(safe-area-inset-bottom) + 296px); background-position: center bottom; }

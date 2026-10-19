@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BarChart3, Bell, BellRing, Check, Palette, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
+  ArrowRight, BarChart3, Bell, BellRing, Check, Palette, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
   Lock, LogOut, Radio, Receipt, Settings, ShieldCheck, Store, Target, Trophy, Wallet, XCircle, Zap,
 } from 'lucide-react';
 import { Avatar } from '../../componentes/Perfil';
@@ -16,7 +16,6 @@ import { STATUS_ROTULO, brl, cx, duracao, hora, inicioDoDia, lerPreco, ls, masca
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import { VERSAO_CURTA } from '../../lib/versao';
 import { SITE } from '../../config/site';
-import { CenaMesa } from './Cena';
 import '../../estilos/dono.css';
 
 /* =====================================================================
@@ -181,53 +180,71 @@ function Entrada() {
 
   if (etapa === 'boas') {
     return (
-      <div className="dn dn-boas dn-entra">
-        <header className="dn-logo"><img src={ICONE} alt="" /><span>{MARCA}</span></header>
-        <h1 className="dn-boas__titulo">Suas vendas<br /><em>na palma da mão.</em></h1>
-        <p className="dn-boas__texto">Acompanhe o seu restaurante ao vivo, de onde estiver.</p>
-        <div className="dn-espaco" />
-        <button className="dn-pilula" onClick={() => { sessao.gravar('bf:dono:viu-boas', '1'); setEtapa('acesso'); }}>
-          <Lock size={18} />
+      <div className="dn dl dl--boas dn-entra">
+        <div className="dl-fundo" aria-hidden="true" />
+        <MarcaLogin />
+        <h1 className="dl-titulo">Suas vendas<br /><em>na palma da mão.</em></h1>
+        <p className="dl-texto">Acompanhe o seu restaurante ao<br />vivo, de onde estiver.</p>
+        <div className="dl-espaco" />
+        <button className="dl-botao" onClick={() => { sessao.gravar('bf:dono:viu-boas', '1'); setEtapa('acesso'); }}>
+          <Lock size={21} />
           <span>Acessar minha conta</span>
-          <ChevronRight size={18} />
+          <ChevronRight size={22} />
         </button>
-        <ul className="dn-recursos">
-          <li><span><ShieldCheck size={17} /></span><b>Seguro</b><small>Só você, dono, tem acesso.</small></li>
-          <li><span><Zap size={17} /></span><b>Ao vivo</b><small>Cada venda na hora em que acontece.</small></li>
-          <li><span><BarChart3 size={17} /></span><b>Completo</b><small>Relatórios do dia, semana e mês.</small></li>
+        <ul className="dl-recursos">
+          <li><span><ShieldCheck size={22} /></span><b>Seguro</b><small>Só você, dono, tem acesso.</small></li>
+          <li><span><Zap size={22} fill="currentColor" /></span><b>Ao vivo</b><small>Cada venda na hora em que acontece.</small></li>
+          <li><span><BarChart3 size={22} /></span><b>Completo</b><small>Relatórios do dia, semana e mês.</small></li>
         </ul>
-        <small className="dn-versao">v{VERSAO_CURTA}</small>
+        <div className="dl-versao"><i /><small>v{VERSAO_CURTA}</small><i /></div>
       </div>
     );
   }
 
   return (
-    <div className="dn dn-acesso dn-entra">
-      <CenaMesa />
-      <div className="dn-acesso__marca">
-        <div className="dn-logo dn-logo--grande"><img src={ICONE} alt="" /><span>{MARCA}</span></div>
-        <p>Sua gestão de vendas,<br />mais inteligente.</p>
-      </div>
-      <section className="dn-cartao-acesso">
+    <div className="dn dl dl--acesso dn-entra">
+      <div className="dl-fundo" aria-hidden="true" />
+      <MarcaLogin espacada />
+      <h1 className="dl-titulo dl-titulo--grande">Sua gestão<br />de vendas,<br /><em>mais inteligente.</em></h1>
+      <p className="dl-texto">Acompanhe em tempo real<br />tudo que acontece no seu<br />estabelecimento.</p>
+      <div className="dl-espaco" />
+      <section className="dl-cartao">
         <h2>Acesse sua conta</h2>
         <p>Entrar para acompanhar vendas, pedidos e caixa.</p>
-        <div className="dn-atalhos">
+        <div className="dl-atalhos">
           {[
-            { i: <DollarSign size={22} />, t: 'Vendas' },
-            { i: <ClipboardList size={22} />, t: 'Pedidos' },
-            { i: <Wallet size={22} />, t: 'Caixa' },
-            { i: <BarChart3 size={22} />, t: 'Relatórios' },
-          ].map((a, n) => (
-            <span key={a.t} style={{ animationDelay: `${0.35 + n * 0.12}s` }}>{a.i}<b>{a.t}</b></span>
+            { i: <BarChart3 size={26} />, t: 'Vendas', d: 'Acompanhe em tempo real' },
+            { i: <ClipboardList size={26} />, t: 'Pedidos', d: 'Controle todos os pedidos' },
+            { i: <Wallet size={26} />, t: 'Caixa', d: 'Abertura, venda e movimentação' },
+            { i: <ClipboardList size={26} />, t: 'Relatórios', d: 'Resultados do dia, semana e mês' },
+          ].map((x, n) => (
+            <span key={x.t} style={{ animationDelay: `${0.3 + n * 0.1}s` }}>{x.i}<b>{x.t}</b><small>{x.d}</small></span>
           ))}
         </div>
-        <button className="dn-botao dn-botao--surge" onClick={() => setLogin(true)}>Acessar conta</button>
-        <button className="dn-linha-ajuda" onClick={() => setAjuda(true)}>Precisa de ajuda? <ChevronRight size={16} /></button>
+        <button className="dl-botao" onClick={() => setLogin(true)}>
+          <Lock size={21} />
+          <span>Acessar minha conta</span>
+          <ArrowRight size={22} />
+        </button>
+        <button className="dl-ajuda" onClick={() => setAjuda(true)}><span>Precisa de ajuda?</span><ChevronRight size={18} /></button>
       </section>
-      <small className="dn-versao">v{VERSAO_CURTA}</small>
+      <div className="dl-versao"><i /><small>v{VERSAO_CURTA}</small><i /></div>
       {login && <FolhaLogin aoFechar={() => setLogin(false)} aoAjuda={() => setAjuda(true)} />}
       {ajuda && <FolhaAjuda aoFechar={() => setAjuda(false)} />}
     </div>
+  );
+}
+
+/** Logo da tela de entrada: mascote + "BasilFiery" + "Pizzaria & Conveniência". */
+function MarcaLogin({ espacada }: { espacada?: boolean }) {
+  return (
+    <header className={cx('dl-marca', espacada && 'dl-marca--espacada')}>
+      <img src="/dono-mascote.png" alt="" />
+      <div>
+        <strong>Basil<span>Fiery</span></strong>
+        <small>Pizzaria &amp; Conveniência</small>
+      </div>
+    </header>
   );
 }
 

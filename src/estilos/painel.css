@@ -2218,3 +2218,10 @@
   .rl-tabela th { white-space: normal; }
   .rl-tabela td.num { white-space: nowrap; }
 }
+
+/* Barra lateral: nada passa da largura (o selo "Novo" sempre aparece inteiro; o nome encurta com "…") */
+.lateral__menu { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
+.lateral__secao, .lateral__grupo, .lateral__filhos, .lateral__item, .lateral__filho { min-width: 0; max-width: 100%; }
+.lateral__filho { padding-right: 10px; }
+.lateral__filho > span { flex: 1 1 auto; }
+.lateral__secao, .lateral__filhos { grid-template-columns: minmax(0, 1fr); }

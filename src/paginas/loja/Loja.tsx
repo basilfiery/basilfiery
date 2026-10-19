@@ -394,7 +394,9 @@ export default function LojaCardapio() {
         <div className="mesa__acoes">
           <button type="button" className={cx('btn btn--contorno mesa__acao loja-conta-btn', conta.usuario && 'logado')} onClick={() => setVerConta(true)} aria-label={conta.usuario ? 'Minha conta' : 'Entrar na minha conta'}>
             {conta.usuario
-              ? <span className="loja-conta-btn__inicial">{(conta.perfil?.nome || conta.usuario.email || '?').charAt(0).toUpperCase()}</span>
+              ? (conta.perfil?.foto_url
+                ? <img className="loja-conta-btn__inicial" src={conta.perfil.foto_url} alt="" />
+                : <span className="loja-conta-btn__inicial">{(conta.perfil?.nome || conta.usuario.email || '?').charAt(0).toUpperCase()}</span>)
               : <UserRound size={20} />}
             <span className="mesa__rotulo">{conta.usuario ? (conta.perfil?.nome?.split(' ')[0] || 'Minha conta') : 'Entrar'}</span>
           </button>

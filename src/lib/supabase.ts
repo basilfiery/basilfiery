@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // A chave publicável foi feita para ficar no navegador: quem protege os dados
 // são as regras de acesso (RLS) do banco. Pode ser trocada por variáveis de ambiente.
@@ -61,8 +61,8 @@ export const LIMITE_VIDEO_MB = 50;
 export const ehImagem = (f: File) => f.type.startsWith('image/') || EXT_IMAGEM.test(f.name);
 const ehVideo = (f: File) => f.type.startsWith('video/') || EXT_VIDEO.test(f.name);
 
-async function subir(caminho: string, conteudo: Blob, contentType: string) {
-  const { error } = await supabase.storage.from('imagens').upload(caminho, conteudo, {
+async function subir(caminho: string, conteudo: Blob, contentType: string, cliente: SupabaseClient = supabase) {
+  const { error } = await cliente.storage.from('imagens').upload(caminho, conteudo, {
     cacheControl: '31536000',
     contentType,
   });
@@ -70,7 +70,7 @@ async function subir(caminho: string, conteudo: Blob, contentType: string) {
     if (/exceeded|too large|payload/i.test(error.message)) throw new Error('Arquivo grande demais para o armazenamento.');
     throw error;
   }
-  return supabase.storage.from('imagens').getPublicUrl(caminho).data.publicUrl;
+  return cliente.storage.from('imagens').getPublicUrl(caminho).data.publicUrl;
 }
 
 const ehHeic = (f: Blob & { name?: string }) => /hei[cf]/i.test(f.type) || /\.hei[cf]$/i.test(f.name ?? '');
@@ -131,13 +131,13 @@ export async function enviarImagem(restauranteId: string, arquivo: Blob, pasta: 
 }
 
 /** Foto de perfil da própria pessoa (fica em avatars/<id da pessoa>/). */
-export async function enviarFotoPerfil(userId: string, arquivo: Blob): Promise<string> {
+export async function enviarFotoPerfil(userId: string, arquivo: Blob, cliente?: SupabaseClient): Promise<string> {
   if (arquivo instanceof File && !ehImagem(arquivo)) throw new Error('Escolha uma foto.');
   const blob = await prepararImagem(arquivo);
   if (blob.size > 15 * 1024 * 1024) throw new Error('Foto muito grande (máximo 15 MB).');
   const tipo = blob.type || 'image/jpeg';
   const ext = tipo.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-  return subir(`avatars/${userId}/${crypto.randomUUID()}.${ext}`, blob, tipo);
+  return subir(`avatars/${userId}/${crypto.randomUUID()}.${ext}`, blob, tipo, cliente);
 }
 
 /** Envia um vídeo (MP4, MOV, WEBM…) e devolve a URL pública. */

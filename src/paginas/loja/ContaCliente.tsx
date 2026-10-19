@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Eye, EyeOff, KeyRound, LogOut, MailCheck, MapPin, ReceiptText, Trash2, UserRound } from 'lucide-react';
+import { Camera, Check, Eye, EyeOff, KeyRound, LogOut, MailCheck, MapPin, ReceiptText, Trash2, UserRound } from 'lucide-react';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
-import { msgErro } from '../../lib/supabase';
-import type { ContaCliente } from '../../lib/contaCliente';
+import { ACEITA_IMAGEM, enviarFotoPerfil, msgErro } from '../../lib/supabase';
+import { AjustarFoto } from '../../componentes/AjustarFoto';
+import { supabaseCliente, type ContaCliente } from '../../lib/contaCliente';
 import { cx } from '../../lib/util';
 
 const telefoneFormatado = (t: string) => {
@@ -268,7 +269,30 @@ function MinhaConta({ conta, aoFechar, aoVerPedidos }: { conta: ContaCliente; ao
   const [salvando, setSalvando] = useState(false);
   const mudou = (p?.nome ?? '') !== nome || (p?.telefone ?? '') !== telefone;
   const inicial = (nome || conta.usuario?.email || '?').charAt(0).toUpperCase();
-  const foto = (conta.usuario?.user_metadata as { avatar_url?: string } | undefined)?.avatar_url;
+  const foto = p?.foto_url ?? null;
+  const arquivoRef = useRef<HTMLInputElement>(null);
+  const [ajustar, setAjustar] = useState<File | null>(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+
+  async function enviarFoto(recorte: Blob) {
+    if (!conta.usuario) return;
+    setEnviandoFoto(true);
+    try {
+      const url = await enviarFotoPerfil(conta.usuario.id, recorte, supabaseCliente);
+      await conta.salvarPerfil({ foto_url: url });
+      toast('Foto atualizada.', 'ok');
+      setAjustar(null);
+    } catch (er) { toast(msgErro(er), 'erro'); }
+    setEnviandoFoto(false);
+  }
+  /** Reajustar a foto atual (enquadrar de novo) */
+  async function reajustar() {
+    if (!foto) return;
+    try {
+      const b = await (await fetch(foto)).blob();
+      setAjustar(new File([b], 'foto.jpg', { type: b.type || 'image/jpeg' }));
+    } catch { toast('Não consegui abrir a foto. Envie de novo.', 'erro'); }
+  }
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
@@ -281,9 +305,21 @@ function MinhaConta({ conta, aoFechar, aoVerPedidos }: { conta: ContaCliente; ao
     <Modal aberto aoFechar={aoFechar} largura={460} classe="mesa-modal conta-modal">
       <div className="conta conta--logada">
         <div className="conta__perfil">
-          {foto ? <img src={foto} alt="" /> : <span>{inicial}</span>}
-          <div><strong>{p?.nome || 'Minha conta'}</strong><small>{conta.usuario?.email}</small></div>
+          <button type="button" className="conta__avatar" onClick={() => arquivoRef.current?.click()} aria-label={foto ? 'Trocar foto de perfil' : 'Colocar foto de perfil'} disabled={enviandoFoto}>
+            {foto ? <img src={foto} alt="" /> : <span>{inicial}</span>}
+            <i className="conta__avatar-camera">{enviandoFoto ? <span className="spinner" /> : <Camera size={15} />}</i>
+          </button>
+          <div>
+            <strong>{p?.nome || 'Minha conta'}</strong>
+            <small>{conta.usuario?.email}</small>
+            <span className="conta__foto-acoes">
+              <button type="button" onClick={() => arquivoRef.current?.click()}>{foto ? 'Trocar foto' : 'Colocar foto'}</button>
+              {foto && <><b>·</b><button type="button" onClick={() => void reajustar()}>Ajustar</button><b>·</b><button type="button" className="perigo" onClick={() => void conta.salvarPerfil({ foto_url: null }).then(() => toast('Foto removida.', 'info'))}>Remover</button></>}
+            </span>
+          </div>
+          <input ref={arquivoRef} type="file" accept={ACEITA_IMAGEM} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) setAjustar(f); e.target.value = ''; }} />
         </div>
+        {ajustar && <AjustarFoto arquivo={ajustar} formato="circulo" titulo="Ajustar foto de perfil" aoConfirmar={enviarFoto} aoCancelar={() => setAjustar(null)} />}
 
         <button type="button" className="conta__atalho" onClick={() => { aoVerPedidos(); aoFechar(); }}>
           <ReceiptText size={20} /><span>Meus pedidos<small>Acompanhe e peça de novo com um toque</small></span>

@@ -410,3 +410,22 @@
 .conta__confere { display: block; margin-top: 6px; font-size: .82rem; font-weight: 600; }
 .conta__confere.ok { color: var(--ok); }
 .conta__confere.erro { color: var(--danger); }
+
+/* Foto de perfil do cliente */
+img.loja-conta-btn__inicial { object-fit: cover; }
+.conta__avatar { position: relative; flex: none; width: 64px; height: 64px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.conta__avatar img, .conta__avatar > span { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; }
+.conta__avatar > span { background: var(--acento); color: #fff; font-size: 1.5rem; font-weight: 800; }
+.conta__avatar-camera {
+  position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--bg); color: var(--text); font-style: normal; box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+}
+.conta__avatar-camera .spinner { width: 14px; height: 14px; border-width: 2px; }
+.conta__avatar:hover .conta__avatar-camera { background: var(--acento); color: #fff; }
+.conta__foto-acoes { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: .82rem; }
+.conta__foto-acoes button { padding: 0; border: 0; background: none; color: var(--acento); font: inherit; font-weight: 700; cursor: pointer; }
+.conta__foto-acoes button.perigo { color: var(--danger); }
+.conta__foto-acoes b { color: var(--muted-2); font-weight: 400; }
+.conta__perfil > div { flex: 1; }
+.conta__foto-acoes { flex-wrap: wrap; white-space: nowrap; }
+.conta__avatar img { background: var(--bg-2); }

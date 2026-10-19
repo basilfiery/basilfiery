@@ -11,9 +11,9 @@ export const supabaseCliente = createClient(SUPABASE_URL, SUPABASE_CHAVE, {
 });
 
 export interface EnderecoSalvo { rua: string; numero: string; bairro: string; complemento: string; referencia: string }
-export interface PerfilCliente { nome: string; telefone: string; enderecos: EnderecoSalvo[] }
+export interface PerfilCliente { nome: string; telefone: string; enderecos: EnderecoSalvo[]; foto_url?: string | null }
 
-const PERFIL_VAZIO: PerfilCliente = { nome: '', telefone: '', enderecos: [] };
+const PERFIL_VAZIO: PerfilCliente = { nome: '', telefone: '', enderecos: [], foto_url: null };
 
 /** O login com o Google só aparece quando estiver ligado no Supabase (Authentication › Providers › Google). */
 let googleAtivo: Promise<boolean> | null = null;
@@ -48,14 +48,14 @@ export function useContaCliente() {
 
   const carregarPerfil = useCallback(async () => {
     if (!usuario) { setPerfil(null); return; }
-    const { data } = await supabaseCliente.from('clientes_perfis').select('nome, telefone, enderecos').eq('user_id', usuario.id).maybeSingle();
+    const { data } = await supabaseCliente.from('clientes_perfis').select('nome, telefone, enderecos, foto_url').eq('user_id', usuario.id).maybeSingle();
     if (data) {
-      setPerfil({ nome: data.nome ?? '', telefone: data.telefone ?? '', enderecos: (data.enderecos as EnderecoSalvo[]) ?? [] });
+      setPerfil({ nome: data.nome ?? '', telefone: data.telefone ?? '', enderecos: (data.enderecos as EnderecoSalvo[]) ?? [], foto_url: data.foto_url ?? null });
       return;
     }
     // Primeira vez (ex.: entrou com o Google): cria o perfil com o nome da conta
-    const meta = usuario.user_metadata as { nome?: string; full_name?: string; name?: string; telefone?: string };
-    const novo = { ...PERFIL_VAZIO, nome: (meta.nome || meta.full_name || meta.name || '').slice(0, 80), telefone: meta.telefone ?? '' };
+    const meta = usuario.user_metadata as { nome?: string; full_name?: string; name?: string; telefone?: string; avatar_url?: string };
+    const novo = { ...PERFIL_VAZIO, nome: (meta.nome || meta.full_name || meta.name || '').slice(0, 80), telefone: meta.telefone ?? '', foto_url: meta.avatar_url ?? null };
     await supabaseCliente.from('clientes_perfis').upsert({ user_id: usuario.id, ...novo });
     setPerfil(novo);
   }, [usuario?.id]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -97,7 +97,7 @@ export function useContaCliente() {
     esqueci: (email: string, codigo: string) =>
       supabaseCliente.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/loja/${codigo}?conta=senha` }),
     trocarSenha: (senha: string) => supabaseCliente.auth.updateUser({ password: senha }),
-    sair: () => supabaseCliente.auth.signOut(),
+    sair: () => supabaseCliente.auth.signOut({ scope: 'local' }),
     salvarPerfil,
     lembrarEndereco,
   };

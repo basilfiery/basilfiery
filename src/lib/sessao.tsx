@@ -75,7 +75,8 @@ export function ProvedorSessao({ children }: { children: ReactNode }) {
   }, []);
 
   const sair = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Sai só deste aparelho: o celular, o caixa e os outros computadores continuam conectados
+    await supabase.auth.signOut({ scope: 'local' });
     setDados(null);
   }, []);
 

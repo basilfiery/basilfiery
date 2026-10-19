@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, ChevronDown, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
+import { ArrowRightLeft, Check, ChevronDown, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
 import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -12,7 +12,7 @@ import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, FormaPagamento, Mesa, MesaAcesso, Pedido } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
+import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 import { confirmar } from '../../componentes/Confirmar';
 
@@ -82,6 +82,94 @@ export default function Mesas() {
   const base = mesas.filter((m) => (!setor || (m.setor ?? '') === setor) && (!termo || m.nome.toLowerCase().includes(termo)));
   const conta = (f: Filtro) => (f === 'todas' ? base.length : base.filter((m) => situacao(m) === f).length);
   const lista = filtro === 'todas' ? base : base.filter((m) => situacao(m) === filtro);
+  // Setores na ordem das mesas (o setor da primeira mesa vem primeiro); "Sem setor" por último
+  const [agrupar, setAgruparEstado] = useState(() => ls.ler('bf:mesas:agrupar', true));
+  const setAgrupar = (v: boolean) => { setAgruparEstado(v); ls.gravar('bf:mesas:agrupar', v); };
+  const [organizando, setOrganizando] = useState(false);
+  const grupos: { nome: string; mesas: Mesa[] }[] = [];
+  for (const m of lista) {
+    const nome = (m.setor ?? '').trim();
+    const g = grupos.find((x) => x.nome === nome);
+    if (g) g.mesas.push(m); else grupos.push({ nome, mesas: [m] });
+  }
+  grupos.sort((a, b) => (a.nome ? 0 : 1) - (b.nome ? 0 : 1) || mesas.indexOf(a.mesas[0]) - mesas.indexOf(b.mesas[0]));
+
+  const cartao = (m: Mesa) => {
+    const ps = pedidosDa(m.id);
+    const total = ps.reduce((s, p) => s + Number(p.total), 0);
+    const st = situacao(m);
+    const cs = chamadosDa(m.id).filter((c) => c.tipo !== 'conta');
+    const pedindo = acessos.filter((a) => a.mesa_id === m.id).length;
+    const comConta = st === 'ocupada' || st === 'pagando';
+    return (
+      <article
+        key={m.id}
+        className={cx('mc', `mc--${st}`)}
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelecionada(m)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setSelecionada(m); }}
+        aria-label={`${m.nome}, ${ROTULO_SITUACAO[st]}`}
+      >
+        <header className="mc__topo">
+          <div className="mc__nome">
+            <strong>{m.nome}</strong>
+            {m.setor && <small>{m.setor}</small>}
+          </div>
+          <div className="mc__acoes" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            {m.ativo && (
+              <button className="mc__pedido" onClick={() => navegar(`/painel/pdv?mesa=${m.id}`)}><Plus size={17} /> Pedido</button>
+            )}
+            <Suspenso
+              largura={268}
+              gatilho={(aberto, alternar) => (
+                <button className={cx('mc__menu', aberto && 'aberto')} onClick={alternar} aria-label={`Mais opções da ${m.nome}`}><ChevronDown size={18} /></button>
+              )}
+            >
+              {(fechar) => (
+                <>
+                  <button className="menu-item" onClick={() => { fechar(); setSelecionada(m); }}><Receipt size={17} /> {comConta ? 'Ver conta e fechar' : 'Detalhes da mesa'}</button>
+                  {comConta && <button className="menu-item" onClick={() => { fechar(); imprimirConta(m.nome, restaurante.nome, ps); }}><Printer size={17} /> Imprimir conta</button>}
+                  {comConta && <button className="menu-item" onClick={() => { fechar(); setTrocandoDe(m); }}><ArrowRightLeft size={17} /> Trocar de mesa</button>}
+                  <div className="menu-sep" />
+                  <div className="mc-pessoas">
+                    <span><Users size={16} /> Pessoas na mesa</span>
+                    <div>
+                      <button aria-label="Menos uma pessoa" disabled={!m.pessoas} onClick={() => void definirPessoas(m, m.pessoas && m.pessoas > 1 ? m.pessoas - 1 : null)}><Minus size={15} /></button>
+                      <b>{m.pessoas ?? '—'}</b>
+                      <button aria-label="Mais uma pessoa" onClick={() => void definirPessoas(m, Math.min(99, (m.pessoas ?? 0) + 1))}><Plus size={15} /></button>
+                    </div>
+                  </div>
+                  <div className="menu-sep" />
+                  <button className="menu-item" onClick={() => { fechar(); void navigator.clipboard?.writeText(linkMesa(m.token)).then(() => toast('Link do tablet copiado.', 'ok')); }}><Tablet size={17} /> Copiar link do tablet</button>
+                </>
+              )}
+            </Suspenso>
+          </div>
+        </header>
+
+        <div className="mc__meio">
+          {comConta ? (
+            <>
+              <span className="mc__dado"><Users size={16} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : <em>— pessoas</em>}</span>
+              <span className="mc__dado"><Clock size={16} /> {duracao(ps[0].criado_em, agora)}</span>
+              <strong className="mc__total">{brl(total)}</strong>
+            </>
+          ) : null}
+          {(cs.length > 0 || pedindo > 0) && (
+            <div className="mc__alertas">
+              {pedindo > 0 && <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>}
+              {cs.map((c) => (
+                <span key={c.id} className="badge badge--icone badge--laranja"><ConciergeBell size={13} /> {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <footer className="mc__status"><i aria-hidden="true" /> {ROTULO_SITUACAO[st]}</footer>
+      </article>
+    );
+  };
   const FILTROS: { id: Filtro; rotulo: string }[] = [
     { id: 'todas', rotulo: 'Todas' }, { id: 'livre', rotulo: 'Livres' }, { id: 'ocupada', rotulo: 'Ocupadas' }, { id: 'pagando', rotulo: 'Pagando conta' },
   ];
@@ -108,6 +196,9 @@ export default function Mesas() {
           {mesas.length > 0 && (
             <button className="mesas-icone" onClick={() => setVerLinks(true)} title="Links dos tablets" aria-label="Links dos tablets"><Tablet size={19} /></button>
           )}
+          {gestor && mesas.length > 0 && (
+            <button className="mesas-icone mesas-icone--texto" onClick={() => setOrganizando(true)} title="Organizar mesas por setor"><Columns3 size={19} /> Setores</button>
+          )}
           {gestor && <button className="mesas-nova" onClick={() => setCriando(true)}><Plus size={20} /> Nova mesa</button>}
         </div>
       </div>
@@ -121,6 +212,11 @@ export default function Mesas() {
               <b>{conta(f.id)}</b>
             </button>
           ))}
+          {setores.length > 0 && (
+            <button className={cx('mesas-visao', agrupar && 'ativo')} onClick={() => setAgrupar(!agrupar)} title={agrupar ? 'Mostrar todas juntas' : 'Separar por setor'}>
+              {agrupar ? <LayoutList size={17} /> : <Columns3 size={17} />} {agrupar ? 'Separadas por setor' : 'Todas juntas'}
+            </button>
+          )}
         </div>
       )}
 
@@ -131,84 +227,31 @@ export default function Mesas() {
       ) : lista.length === 0 && carregado ? (
         <p className="mesas-nada">Nenhuma mesa {filtro === 'livre' ? 'livre' : filtro === 'ocupada' ? 'ocupada' : filtro === 'pagando' ? 'pagando a conta' : 'encontrada'}{termo ? ` com “${busca.trim()}”` : ''}.</p>
       ) : (
-        <div className="mesas-grade2">
-          {lista.map((m) => {
-            const ps = pedidosDa(m.id);
-            const total = ps.reduce((s, p) => s + Number(p.total), 0);
-            const st = situacao(m);
-            const cs = chamadosDa(m.id).filter((c) => c.tipo !== 'conta');
-            const pedindo = acessos.filter((a) => a.mesa_id === m.id).length;
-            const comConta = st === 'ocupada' || st === 'pagando';
-            return (
-              <article
-                key={m.id}
-                className={cx('mc', `mc--${st}`)}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelecionada(m)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setSelecionada(m); }}
-                aria-label={`${m.nome}, ${ROTULO_SITUACAO[st]}`}
-              >
-                <header className="mc__topo">
-                  <div className="mc__nome">
-                    <strong>{m.nome}</strong>
-                    {m.setor && <small>{m.setor}</small>}
-                  </div>
-                  <div className="mc__acoes" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    {m.ativo && (
-                      <button className="mc__pedido" onClick={() => navegar(`/painel/pdv?mesa=${m.id}`)}><Plus size={17} /> Pedido</button>
-                    )}
-                    <Suspenso
-                      largura={268}
-                      gatilho={(aberto, alternar) => (
-                        <button className={cx('mc__menu', aberto && 'aberto')} onClick={alternar} aria-label={`Mais opções da ${m.nome}`}><ChevronDown size={18} /></button>
-                      )}
-                    >
-                      {(fechar) => (
-                        <>
-                          <button className="menu-item" onClick={() => { fechar(); setSelecionada(m); }}><Receipt size={17} /> {comConta ? 'Ver conta e fechar' : 'Detalhes da mesa'}</button>
-                          {comConta && <button className="menu-item" onClick={() => { fechar(); imprimirConta(m.nome, restaurante.nome, ps); }}><Printer size={17} /> Imprimir conta</button>}
-                          {comConta && <button className="menu-item" onClick={() => { fechar(); setTrocandoDe(m); }}><ArrowRightLeft size={17} /> Trocar de mesa</button>}
-                          <div className="menu-sep" />
-                          <div className="mc-pessoas">
-                            <span><Users size={16} /> Pessoas na mesa</span>
-                            <div>
-                              <button aria-label="Menos uma pessoa" disabled={!m.pessoas} onClick={() => void definirPessoas(m, m.pessoas && m.pessoas > 1 ? m.pessoas - 1 : null)}><Minus size={15} /></button>
-                              <b>{m.pessoas ?? '—'}</b>
-                              <button aria-label="Mais uma pessoa" onClick={() => void definirPessoas(m, Math.min(99, (m.pessoas ?? 0) + 1))}><Plus size={15} /></button>
-                            </div>
-                          </div>
-                          <div className="menu-sep" />
-                          <button className="menu-item" onClick={() => { fechar(); void navigator.clipboard?.writeText(linkMesa(m.token)).then(() => toast('Link do tablet copiado.', 'ok')); }}><Tablet size={17} /> Copiar link do tablet</button>
-                        </>
-                      )}
-                    </Suspenso>
-                  </div>
-                </header>
-
-                <div className="mc__meio">
-                  {comConta ? (
-                    <>
-                      <span className="mc__dado"><Users size={16} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : <em>— pessoas</em>}</span>
-                      <span className="mc__dado"><Clock size={16} /> {duracao(ps[0].criado_em, agora)}</span>
-                      <strong className="mc__total">{brl(total)}</strong>
-                    </>
-                  ) : null}
-                  {(cs.length > 0 || pedindo > 0) && (
-                    <div className="mc__alertas">
-                      {pedindo > 0 && <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>}
-                      {cs.map((c) => (
-                        <span key={c.id} className="badge badge--icone badge--laranja"><ConciergeBell size={13} /> {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <footer className="mc__status"><i aria-hidden="true" /> {ROTULO_SITUACAO[st]}</footer>
-              </article>
-            );
-          })}
-        </div>
+        agrupar && grupos.length > 1 ? (
+          <div className="mesas-setores">
+            {grupos.map((g) => {
+              const livres = g.mesas.filter((m) => situacao(m) === 'livre').length;
+              const comConta = g.mesas.filter((m) => situacao(m) === 'ocupada' || situacao(m) === 'pagando');
+              const totalSetor = comConta.reduce((s2, m) => s2 + totalDa(m.id), 0);
+              return (
+                <section key={g.nome || "sem"} className="mesas-setor-bloco">
+                  <header className="mesas-setor-bloco__cab">
+                    <h2>{g.nome || "Sem setor"}</h2>
+                    <span className="mesas-setor-bloco__info">
+                      {g.mesas.length} {g.mesas.length === 1 ? 'mesa' : 'mesas'}
+                      <i className="livre" />{livres} {livres === 1 ? 'livre' : 'livres'}
+                      <i className="ocupada" />{comConta.length} {comConta.length === 1 ? 'ocupada' : 'ocupadas'}
+                      {totalSetor > 0 && <b>{brl(totalSetor)}</b>}
+                    </span>
+                  </header>
+                  <div className="mesas-grade2">{g.mesas.map(cartao)}</div>
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mesas-grade2">{lista.map(cartao)}</div>
+        )
       )}
 
       {selecionada && (
@@ -234,6 +277,14 @@ export default function Mesas() {
           totalDa={totalDa}
           aoFechar={() => setTrocandoDe(null)}
           aoTrocar={() => { setTrocandoDe(null); void carregar(); }}
+        />
+      )}
+
+      {organizando && (
+        <ModalSetores
+          mesas={mesas}
+          aoFechar={() => setOrganizando(false)}
+          aoMudar={(ids, setorNovo) => setMesas((l) => l.map((x) => (ids.includes(x.id) ? { ...x, setor: setorNovo } : x)))}
         />
       )}
 
@@ -570,5 +621,89 @@ function AparelhosMesa({ mesa }: { mesa: Mesa }) {
         </ul>
       )}
     </section>
+  );
+}
+
+/* ---------------- Organizar mesas por setor ---------------- */
+const SUGESTOES_SETOR = ['Salão', 'Área externa', 'Lado de fora', 'Varanda', 'Mezanino', 'Balcão'];
+
+function ModalSetores({ mesas, aoFechar, aoMudar }: { mesas: Mesa[]; aoFechar: () => void; aoMudar: (ids: string[], setor: string | null) => void }) {
+  const toast = useToast();
+  const existentes = [...new Set(mesas.map((m) => (m.setor ?? '').trim()).filter(Boolean))];
+  const [setores, setSetores] = useState<string[]>(existentes.length ? existentes : []);
+  const [novo, setNovo] = useState('');
+  const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
+  const [destino, setDestino] = useState(existentes[0] ?? '');
+  const [salvando, setSalvando] = useState(false);
+
+  function criarSetor(nome: string) {
+    const n = nome.trim().slice(0, 40);
+    if (!n) return;
+    if (!setores.some((x) => x.toLowerCase() === n.toLowerCase())) setSetores((l) => [...l, n]);
+    setDestino(n);
+    setNovo('');
+  }
+
+  async function mover(ids: string[], setor: string) {
+    if (!ids.length) return;
+    setSalvando(true);
+    const valor = setor.trim() || null;
+    const { error } = await supabase.from('mesas').update({ setor: valor }).in('id', ids);
+    setSalvando(false);
+    if (error) return toast(msgErro(error), 'erro');
+    aoMudar(ids, valor);
+    setMarcadas(new Set());
+    toast(`${ids.length} ${ids.length === 1 ? 'mesa movida' : 'mesas movidas'} para ${valor ?? 'Sem setor'}.`, 'ok');
+  }
+
+  const alternar = (id: string) => setMarcadas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const sugestoes = SUGESTOES_SETOR.filter((x) => !setores.some((y) => y.toLowerCase() === x.toLowerCase()));
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo="Organizar mesas por setor" largura={640} classe="setores-modal">
+      <div className="setores">
+        <section className="setores__bloco">
+          <h3>1. Seus setores</h3>
+          <div className="setores__chips">
+            {setores.map((x) => (
+              <button key={x} type="button" className={cx('setores__chip', destino === x && 'ativo')} onClick={() => setDestino(x)}>{x}</button>
+            ))}
+            {sugestoes.slice(0, 4).map((x) => (
+              <button key={x} type="button" className="setores__chip setores__chip--sugestao" onClick={() => criarSetor(x)}><Plus size={14} /> {x}</button>
+            ))}
+          </div>
+          <form className="setores__novo" onSubmit={(e) => { e.preventDefault(); criarSetor(novo); }}>
+            <input className="input" value={novo} onChange={(e) => setNovo(e.target.value)} maxLength={40} placeholder="Outro setor (ex.: Deck, Piscina)" />
+            <button className="btn btn--contorno" disabled={!novo.trim()}><Plus size={16} /> Criar</button>
+          </form>
+        </section>
+
+        <section className="setores__bloco">
+          <h3>2. Marque as mesas e mova para o setor</h3>
+          <ul className="setores__mesas">
+            {mesas.map((m) => (
+              <li key={m.id}>
+                <button type="button" className={cx('setores__mesa', marcadas.has(m.id) && 'marcada')} onClick={() => alternar(m.id)} aria-pressed={marcadas.has(m.id)}>
+                  <span className="setores__check">{marcadas.has(m.id) && <Check size={13} strokeWidth={3} />}</span>
+                  <b>{m.nome}</b>
+                  <small>{m.setor || 'Sem setor'}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+      <div className="setores__barra">
+        <span>{marcadas.size ? `${marcadas.size} ${marcadas.size === 1 ? 'mesa marcada' : 'mesas marcadas'}` : 'Marque as mesas acima'}</span>
+        <select className="select" value={destino} onChange={(e) => setDestino(e.target.value)} aria-label="Setor de destino">
+          {!setores.length && <option value="">Crie um setor primeiro</option>}
+          {setores.map((x) => <option key={x} value={x}>{x}</option>)}
+          <option value="">Sem setor</option>
+        </select>
+        <button className="btn btn--primario" disabled={!marcadas.size || salvando} onClick={() => void mover([...marcadas], destino)}>
+          {salvando ? 'Movendo…' : `Mover para ${destino || 'Sem setor'}`}
+        </button>
+      </div>
+    </Modal>
   );
 }

@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Endereço que o programa abre (troca para o domínio próprio quando ele estiver no ar)
-const SITE = 'https://basilfiery.vercel.app';
+const SITE = 'https://basilfiery.com.br';
 // Endereços do sistema: navegar entre eles fica dentro do programa
 const SITES = ['https://basilfiery.vercel.app', 'https://basilfiery.com.br', 'https://www.basilfiery.com.br', 'https://basilfiery.com', 'https://www.basilfiery.com'];
 const INICIO = `${SITE}/painel`;

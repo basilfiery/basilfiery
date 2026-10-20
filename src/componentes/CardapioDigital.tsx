@@ -8,7 +8,8 @@ import { useToast } from './Toast';
 import { msgErro, supabase } from '../lib/supabase';
 import type { RestauranteComPapel } from '../lib/tipos';
 
-export const linkLoja = (codigo: string) => `${window.location.origin}/loja/${codigo}`;
+export { linkLoja } from '../lib/linkCurto';
+import { linkLoja } from '../lib/linkCurto';
 
 /**
  * "O link do seu Cardápio Digital": abre ao clicar na empresa (canto superior direito).
@@ -22,7 +23,7 @@ export function ModalCardapioDigital({ restaurante, gestor, aoMudarDelivery, aoF
   rodape?: ReactNode;
 }) {
   const toast = useToast();
-  const link = linkLoja(restaurante.codigo);
+  const link = linkLoja(restaurante);
   const [qr, setQr] = useState('');
   const [ativo, setAtivo] = useState(restaurante.delivery_ativo);
 

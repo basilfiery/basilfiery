@@ -40,6 +40,7 @@ const Pdv = tela(() => import('./paginas/painel/Pdv'));
 const Compras = tela(() => import('./paginas/painel/Compras'));
 const Aparencia = tela(() => import('./paginas/painel/Aparencia'));
 const AppsCelular = tela(() => import('./paginas/painel/AppsCelular'));
+const LinkCurto = tela(() => import('./paginas/LinkCurto'));
 const ListaCompras = tela(() => import('./paginas/compras/ListaCompras'));
 
 /** Telas do painel: baixadas em segundo plano para trocar de aba sem esperar. */
@@ -97,6 +98,10 @@ export default function App() {
           <Route path="conta" element={<Conta />} />
           <Route path="conta/:aba" element={<Conta />} />
         </Route>
+        {/* Links curtos: /<loja>, /<loja>/<mesa>, /<loja>/pedido/<acompanhar> */}
+        <Route path="/:loja" element={<LinkCurto />} />
+        <Route path="/:loja/:mesa" element={<LinkCurto />} />
+        <Route path="/:loja/pedido/:acompanhar" element={<LinkCurto />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

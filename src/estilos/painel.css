@@ -2479,3 +2479,15 @@
 .nf-resultado p { margin: 0; color: var(--muted); font-size: .9rem; }
 .nf-resultado__acoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
 @media (max-width: 560px) { .nf-modelos { grid-template-columns: 1fr; } }
+
+/* Endereço curto do cardápio */
+.cfg-endereco { display: flex; gap: 10px; align-items: stretch; }
+.cfg-endereco__campo {
+  flex: 1; min-width: 0; display: flex; align-items: center; height: 44px; padding: 0 12px; gap: 0;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-2); cursor: text;
+}
+.cfg-endereco__campo:focus-within { outline: 2px solid var(--acento); border-color: transparent; }
+.cfg-endereco__campo span { flex: none; color: var(--muted); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.cfg-endereco__campo input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--text); font: inherit; font-size: 16px; font-weight: 700; padding: 0; }
+.cfg-endereco .btn { flex: none; height: 44px; }
+@media (max-width: 520px) { .cfg-endereco { flex-direction: column; } }

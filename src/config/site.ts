@@ -5,6 +5,9 @@
 export const SITE = {
   marca: 'BasilFiery',
 
+  // Domínio oficial (os links usam o endereço em que o sistema está aberto; este é o padrão fora do navegador)
+  dominio: 'https://basilfiery.com.br',
+
   // Contato que aparece nos Termos de uso e na Política de privacidade (e para pedidos de exclusão de dados)
   emailContato: 'basilfiery@gmail.com',
 

@@ -11,7 +11,7 @@ import '../../estilos/legal.css';
 
 const ATUALIZADO = '19 de outubro de 2026';
 const EMAIL = SITE.emailContato;
-const SITE_URL = 'https://basilfiery.vercel.app';
+const SITE_URL = typeof window !== 'undefined' ? window.location.origin : SITE.dominio;
 
 function Pagina({ tipo, titulo, resumo, secoes }: { tipo: 'termos' | 'privacidade'; titulo: string; resumo: ReactNode; secoes: { id: string; titulo: string; corpo: ReactNode }[] }) {
   useEffect(() => {

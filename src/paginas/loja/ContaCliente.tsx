@@ -37,9 +37,8 @@ function CampoSenha({ valor, aoMudar, autoComplete, placeholder }: { valor: stri
 }
 
 /** Entrar, criar conta, esqueci a senha, nova senha e "Minha conta" — tudo numa janela só. */
-export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, aoFechar, aoVerPedidos }: {
+export function ModalConta({ conta, nomeLoja, logo, cor, obrigatorio, aoFechar, aoVerPedidos }: {
   conta: ContaCliente;
-  codigo: string;
   nomeLoja: string;
   logo?: string | null;
   cor?: string;
@@ -103,7 +102,7 @@ export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, ao
       <button className="btn btn--contorno btn--lg btn--bloco" onClick={() => setModo('entrar')}>Voltar para entrar</button>
     </div>
   ) : modo === 'esqueci' ? (
-    <form className="conta" onSubmit={(e) => { e.preventDefault(); void rodar(() => conta.esqueci(email, codigo), () => setModo('enviado')); }}>
+    <form className="conta" onSubmit={(e) => { e.preventDefault(); void rodar(() => conta.esqueci(email), () => setModo('enviado')); }}>
       <span className="conta__icone"><KeyRound size={28} /></span>
       <h2>Esqueceu a senha?</h2>
       <p>Digite o e-mail da sua conta. Mandamos um link para você criar uma senha nova.</p>
@@ -121,7 +120,7 @@ export function ModalConta({ conta, codigo, nomeLoja, logo, cor, obrigatorio, ao
 
       {conta.temGoogle && (
         <>
-          <button type="button" className="conta__google" disabled={ocupado} onClick={() => void rodar(() => conta.google(codigo))}>
+          <button type="button" className="conta__google" disabled={ocupado} onClick={() => void rodar(() => conta.google())}>
             <LogoGoogle /> Continuar com o Google
           </button>
           <div className="conta__ou"><span>ou</span></div>

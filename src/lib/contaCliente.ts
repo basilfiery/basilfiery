@@ -92,10 +92,10 @@ export function useContaCliente() {
     entrar: (email: string, senha: string) => supabaseCliente.auth.signInWithPassword({ email: email.trim(), password: senha }),
     cadastrar: (nome: string, telefone: string, email: string, senha: string) =>
       supabaseCliente.auth.signUp({ email: email.trim(), password: senha, options: { data: { nome: nome.trim(), telefone: telefone.replace(/\D/g, '') } } }),
-    google: (codigo: string) =>
-      supabaseCliente.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/loja/${codigo}`, queryParams: { prompt: 'select_account' } } }),
-    esqueci: (email: string, codigo: string) =>
-      supabaseCliente.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/loja/${codigo}?conta=senha` }),
+    google: () =>
+      supabaseCliente.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}${window.location.pathname}`, queryParams: { prompt: 'select_account' } } }),
+    esqueci: (email: string) =>
+      supabaseCliente.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}${window.location.pathname}?conta=senha` }),
     trocarSenha: (senha: string) => supabaseCliente.auth.updateUser({ password: senha }),
     sair: () => supabaseCliente.auth.signOut({ scope: 'local' }),
     salvarPerfil,

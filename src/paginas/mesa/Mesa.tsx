@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useLinkCurto } from '../../lib/linkCurto';
 import {
   Ban, Check, CheckCircle2, ChevronRight, Citrus, ConciergeBell, Gamepad2, Hourglass, Layers, Lock, Maximize, MessageCircleMore, Minus, Play, Plus, Receipt,
   ShieldCheck, ShoppingBag, Star, Trash2, Users, Utensils, UtensilsCrossed, XCircle,
@@ -122,7 +123,10 @@ function useAlturaTela() {
 }
 
 export default function Mesa() {
-  const { token = '' } = useParams();
+  const curto = useLinkCurto();
+  const params = useParams();
+  const token = curto?.token ?? params.token ?? '';
+  const base = curto?.base ?? `/mesa/${token}`;
   const navegar = useNavigate();
   const toast = useToast();
   const dispositivo = useMemo(idDispositivo, []);
@@ -152,8 +156,8 @@ export default function Mesa() {
   useAppInstalavel(dados ? {
     nome: `${dados.mesa.nome} · ${dados.restaurante.nome}`,
     curto: dados.mesa.nome,
-    inicio: `/mesa/${token}`,
-    escopo: `/mesa/${token}`,
+    inicio: base,
+    escopo: base,
   } : null);
 
   const podePedir = acesso === 'liberado' || acesso === 'equipe';

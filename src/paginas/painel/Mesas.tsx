@@ -14,9 +14,9 @@ import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, FormaPagamento, Mesa, MesaAcesso, Pedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
+import { linkMesa } from '../../lib/linkCurto';
 import { confirmar } from '../../componentes/Confirmar';
 
-const linkMesa = (token: string) => `${window.location.origin}/mesa/${token}`;
 
 type Situacao = 'livre' | 'ocupada' | 'pagando' | 'inativa';
 type Filtro = 'todas' | 'livre' | 'ocupada' | 'pagando';
@@ -141,7 +141,7 @@ export default function Mesas() {
                     </div>
                   </div>
                   <div className="menu-sep" />
-                  <button className="menu-item" onClick={() => { fechar(); void navigator.clipboard?.writeText(linkMesa(m.token)).then(() => toast('Link do tablet copiado.', 'ok')); }}><Tablet size={17} /> Copiar link do tablet</button>
+                  <button className="menu-item" onClick={() => { fechar(); void navigator.clipboard?.writeText(linkMesa(restaurante.slug, m, mesas)).then(() => toast('Link do tablet copiado.', 'ok')); }}><Tablet size={17} /> Copiar link do tablet</button>
                 </>
               )}
             </Suspenso>
@@ -328,7 +328,8 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const [ocupado, setOcupado] = useState(false);
   const [trocando, setTrocando] = useState(false);
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
-  const link = linkMesa(token);
+  const { restaurante } = usePainel();
+  const link = linkMesa(restaurante.slug, { ...mesa, token }, mesas);
 
   async function fecharConta(forma: FormaPagamento) {
     setOcupado(true);
@@ -484,6 +485,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
 }
 
 function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }) {
+  const { restaurante } = usePainel();
   return (
     <Modal aberto aoFechar={aoFechar} titulo="Links dos tablets" largura={640}>
       <p className="muted" style={{ marginTop: 0 }}>
@@ -494,7 +496,7 @@ function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }
         {mesas.map((m) => (
           <li key={m.id}>
             <strong>{m.nome}</strong>
-            <LinkCopiavel link={linkMesa(m.token)} compacto />
+            <LinkCopiavel link={linkMesa(restaurante.slug, m, mesas)} compacto />
           </li>
         ))}
       </ul>

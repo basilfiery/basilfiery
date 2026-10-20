@@ -36,7 +36,7 @@ async function carregarConfig() {
     if (e2) throw e2;
     vapid = salvo as Vapid;
   }
-  webpush.setVapidDetails('https://basilfiery.vercel.app', vapid!.publica, vapid!.privada);
+  webpush.setVapidDetails('mailto:basilfiery@gmail.com', vapid!.publica, vapid!.privada);
 }
 
 Deno.serve(async (req) => {

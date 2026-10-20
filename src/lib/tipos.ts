@@ -14,6 +14,8 @@ export interface Restaurante {
   criado_em: string;
   /** Código curto dos links próprios: app do garçom (/g/<codigo>) e delivery (/loja/<codigo>) */
   codigo: string;
+  /** Endereço do cardápio: basilfiery.com.br/<slug> (mesas: /<slug>/mesa1) */
+  slug: string;
   /** Delivery: aceitando pedidos de casa agora */
   delivery_ativo: boolean;
   delivery_taxa: number;

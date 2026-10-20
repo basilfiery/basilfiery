@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Star } from 'lucide-react';
 import { FotoProduto, Stepper, Switch } from '../../../componentes/Basicos';
-import { linkLoja } from '../../../componentes/CardapioDigital';
+import { linkLoja, slugLoja } from '../../../lib/linkCurto';
 import { LinkCopiavel, QrCartao } from '../../../componentes/Link';
 import { useToast } from '../../../componentes/Toast';
 import { useSessao } from '../../../lib/sessao';
@@ -91,15 +91,54 @@ export default function CardapioDigitalConfig() {
       {passo.id === 'link' && (
         <div className="cfg-link">
           <div className="form">
+            <EnderecoCardapio />
             <CampoAjuda rotulo="Link do seu cardápio digital" ajuda="Quem abrir este link pede para entrega ou retirada.">
-              <LinkCopiavel link={linkLoja(r.codigo)} />
+              <LinkCopiavel link={linkLoja(r)} />
             </CampoAjuda>
-            <a className="btn btn--contorno" target="_blank" rel="noopener" href={`https://wa.me/?text=${encodeURIComponent(`Peça pelo nosso cardápio digital: ${linkLoja(r.codigo)}`)}`}>Enviar pelo WhatsApp</a>
+            <a className="btn btn--contorno" target="_blank" rel="noopener" href={`https://wa.me/?text=${encodeURIComponent(`Peça pelo nosso cardápio digital: ${linkLoja(r)}`)}`}>Enviar pelo WhatsApp</a>
           </div>
-          <QrCartao link={linkLoja(r.codigo)} legenda="Aponte a câmera e peça" arquivo={`qr-cardapio-${r.codigo}`} />
+          <QrCartao link={linkLoja(r)} legenda="Aponte a câmera e peça" arquivo={`qr-cardapio-${r.codigo}`} />
         </div>
       )}
     </PaginaConfig>
+  );
+}
+
+/** Endereço curto do cardápio: basilfiery.com.br/<slug> (e /<slug>/mesa1 nas mesas) */
+function EnderecoCardapio() {
+  const { restaurante: r } = usePainel();
+  const s = useSessao();
+  const toast = useToast();
+  const [slug, setSlug] = useState(r.slug);
+  const [salvando, setSalvando] = useState(false);
+  const limpo = slug.replace(/-+$/, '');
+  const alterado = limpo !== r.slug;
+
+  async function salvar() {
+    if (limpo.length < 3) return toast('Use pelo menos 3 letras ou números.', 'erro');
+    setSalvando(true);
+    const { error } = await supabase.from('restaurantes').update({ slug: limpo }).eq('id', r.id);
+    setSalvando(false);
+    if (error) {
+      if (error.code === '23505') return toast('Esse endereço já é de outra loja. Tente outro.', 'erro');
+      if (error.code === '23514') return toast('Esse endereço é reservado pelo sistema. Tente outro.', 'erro');
+      return toast(msgErro(error), 'erro');
+    }
+    setSlug(limpo);
+    await s.recarregar();
+    toast('Endereço do cardápio atualizado.', 'ok');
+  }
+
+  return (
+    <CampoAjuda rotulo="Endereço do cardápio" ajuda={`As mesas usam o mesmo endereço: ${window.location.host}/${limpo || 'sua-loja'}/mesa1. Ao trocar, QR codes já impressos param de funcionar.`}>
+      <div className="cfg-endereco">
+        <label className="cfg-endereco__campo">
+          <span>{window.location.host}/</span>
+          <input value={slug} maxLength={40} onChange={(e) => setSlug(slugLoja(e.target.value))} placeholder="sua-loja" spellCheck={false} autoCapitalize="none" aria-label="Endereço do cardápio" />
+        </label>
+        <button className="btn btn--primario" disabled={!alterado || salvando} onClick={() => void salvar()}>{salvando ? 'Salvando…' : 'Salvar'}</button>
+      </div>
+    </CampoAjuda>
   );
 }
 

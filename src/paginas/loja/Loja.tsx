@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactElement } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLinkCurto } from '../../lib/linkCurto';
 import {
   AtSign, BadgePercent, Ban, Banknote, Bike, Gift, House, Info, ReceiptText, RotateCcw, UserRound, Check, Clock, CreditCard, MapPin, MessageCircle, Play, Plus, Receipt, ShoppingBag, Star, Store, Trash2, UtensilsCrossed,
 } from 'lucide-react';
@@ -180,8 +181,16 @@ function useAlturaTela() {
   }, []);
 }
 
+/** Código da loja e o endereço base (/basilfiery ou o antigo /loja/<codigo>) */
+function useLoja() {
+  const curto = useLinkCurto();
+  const params = useParams();
+  const codigo = curto?.codigo ?? params.codigo ?? '';
+  return { codigo, base: curto?.base ?? `/loja/${codigo}` };
+}
+
 export default function LojaCardapio() {
-  const { codigo = '' } = useParams();
+  const { codigo, base } = useLoja();
   const navegar = useNavigate();
   const toast = useToast();
   useAlturaTela();
@@ -218,7 +227,7 @@ export default function LojaCardapio() {
   useEffect(() => ls.gravar(`bf:loja:carrinho:${codigo}`, carrinho), [carrinho, codigo]);
   const ads = dados?.restaurante.ads;
   useEffect(() => { if (ads) iniciarAnuncios(ads); }, [ads]);
-  useAppInstalavel(dados ? { nome: dados.restaurante.nome, curto: dados.restaurante.nome.slice(0, 12), inicio: `/loja/${codigo}`, escopo: `/loja/${codigo}` } : null);
+  useAppInstalavel(dados ? { nome: dados.restaurante.nome, curto: dados.restaurante.nome.slice(0, 12), inicio: base, escopo: base } : null);
 
   // Sabores de grupo e preço de subcategoria: igual ao cardápio da mesa
   const { produtosLoja, saboresPorCategoria } = useMemo(() => {
@@ -486,7 +495,7 @@ export default function LojaCardapio() {
       {verSobre && <ModalSobreLoja loja={loja} aoFechar={() => setVerSobre(false)} />}
       {(verConta || precisaLogin || (conta.novaSenha && !!conta.usuario)) && (
         <ModalConta
-          conta={conta} codigo={codigo} nomeLoja={loja.nome} logo={loja.logo_url} cor={loja.cor} obrigatorio={precisaLogin}
+          conta={conta} nomeLoja={loja.nome} logo={loja.logo_url} cor={loja.cor} obrigatorio={precisaLogin}
           aoFechar={() => setVerConta(false)} aoVerPedidos={() => irAba('pedidos')}
         />
       )}
@@ -536,7 +545,7 @@ export default function LojaCardapio() {
             setCarrinho([]);
             const ultimos = ls.ler<string[]>(`bf:loja:pedidos:${codigo}`, []);
             ls.gravar(`bf:loja:pedidos:${codigo}`, [acompanhar, ...ultimos].slice(0, 30));
-            navegar(`/loja/${codigo}/pedido/${acompanhar}`);
+            navegar(`${base}/pedido/${acompanhar}`);
           }}
         />
       )}
@@ -626,6 +635,7 @@ function AbaPedidos({ codigo, loja, conta, aoEntrar, aoPedirDeNovo }: {
   aoEntrar: () => void;
   aoPedirDeNovo: (itens: ItemAnterior[]) => void;
 }) {
+  const { base } = useLoja();
   const [lista, setLista] = useState<PedidoAnterior[] | null>(null);
   const logado = !!conta.usuario;
   useEffect(() => {
@@ -691,7 +701,7 @@ function AbaPedidos({ codigo, loja, conta, aoEntrar, aoPedirDeNovo }: {
               <div className="meu-pedido__base">
                 <span>Total: <b>{brl(Number(p.total))}</b></span>
                 <div className="meu-pedido__acoes">
-                  <Link className="btn btn--contorno btn--sm" to={`/loja/${codigo}/pedido/${p.acompanhar}`}>Detalhes</Link>
+                  <Link className="btn btn--contorno btn--sm" to={`${base}/pedido/${p.acompanhar}`}>Detalhes</Link>
                   {podeRepetir && <button type="button" className="btn btn--primario btn--sm" onClick={() => aoPedirDeNovo(itens)}><RotateCcw size={15} /> Pedir de novo</button>}
                 </div>
               </div>
@@ -928,7 +938,8 @@ interface StatusPedido {
 }
 
 export function LojaPedido() {
-  const { codigo = '', acompanhar = '' } = useParams();
+  const { acompanhar = '' } = useParams();
+  const { base } = useLoja();
   const [p, setP] = useState<StatusPedido | null | undefined>(undefined);
   useAlturaTela();
 
@@ -949,7 +960,7 @@ export function LojaPedido() {
       <div className="mesa-erro">
         <span className="mesa-erro__icone"><Receipt size={40} strokeWidth={1.5} /></span>
         <h1 className="titulo">Pedido não encontrado</h1>
-        <Link className="btn btn--primario btn--lg" to={`/loja/${codigo}`}>Ver o cardápio</Link>
+        <Link className="btn btn--primario btn--lg" to={base}>Ver o cardápio</Link>
       </div>
     );
   }
@@ -1013,7 +1024,7 @@ export function LojaPedido() {
 
       <div className="loja-pedido__acoes">
         {whats && <a className="btn btn--contorno btn--lg" href={whats} target="_blank" rel="noopener"><MessageCircle size={18} /> Falar com a loja</a>}
-        <Link className="btn btn--primario btn--lg" to={`/loja/${codigo}`}><UtensilsCrossed size={18} /> Fazer outro pedido</Link>
+        <Link className="btn btn--primario btn--lg" to={base}><UtensilsCrossed size={18} /> Fazer outro pedido</Link>
       </div>
       <p className="loja-pedido__nota">Esta página se atualiza sozinha.</p>
     </div>

@@ -1,9 +1,9 @@
 import { useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { BellRing, Boxes, Check, ChefHat, ConciergeBell, Flame, LayoutDashboard, Menu, MessageCircle, Printer, ShieldCheck, Smartphone, Tablet, X } from 'lucide-react';
+import { BellRing, Boxes, Check, ChefHat, ConciergeBell, Download, Flame, LayoutDashboard, Menu, MessageCircle, MonitorDown, Printer, ShieldCheck, Smartphone, Tablet, X } from 'lucide-react';
 import { Logo } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
-import { SITE, linkWhatsVendas } from '../../config/site';
+import { SITE, linkWhatsVendas, noProgramaWindows } from '../../config/site';
 import '../../estilos/site.css';
 
 const PASSOS = [
@@ -37,6 +37,7 @@ export default function Site() {
   const toast = useToast();
   const [menuAberto, setMenuAberto] = useState(false);
   const whats = linkWhatsVendas();
+  const programa = noProgramaWindows();
 
   const aoContratar = (e: MouseEvent) => {
     if (!whats) {
@@ -63,6 +64,7 @@ export default function Site() {
             <a href="#perguntas">Dúvidas</a>
           </nav>
           <div className="site-nav__acoes">
+            {!programa && <a href={SITE.downloadWindows} className="btn btn--fantasma btn--sm so-desktop site-baixar"><Download size={16} /> Baixar o sistema</a>}
             <Link to="/login" className="btn btn--contorno btn--sm">Entrar</Link>
             <span className="so-desktop"><BotaoContratar /></span>
             <button className="icone-btn so-mobile" onClick={() => setMenuAberto((v) => !v)} aria-label="Menu">
@@ -186,17 +188,44 @@ export default function Site() {
                 <ul>
                   {p.itens.map((i) => <li key={i}><Check size={16} /> {i}</li>)}
                 </ul>
-                <a
-                  className={`btn btn--bloco ${p.destaque ? 'btn--primario' : 'btn--contorno'}`}
-                  href={linkWhatsVendas(`Olá! Tenho interesse no plano ${p.nome} do BasilFiery.`) ?? '#'}
-                  target="_blank" rel="noopener" onClick={aoContratar}
-                >
-                  Quero o {p.nome}
-                </a>
+                {p.checkout ? (
+                  <a className={`btn btn--bloco ${p.destaque ? 'btn--primario' : 'btn--contorno'}`} href={p.checkout} target="_blank" rel="noopener">
+                    Assinar o {p.nome}
+                  </a>
+                ) : (
+                  <a
+                    className={`btn btn--bloco ${p.destaque ? 'btn--primario' : 'btn--contorno'}`}
+                    href={linkWhatsVendas(`Olá! Tenho interesse no plano ${p.nome} do BasilFiery.`) ?? '#'}
+                    target="_blank" rel="noopener" onClick={aoContratar}
+                  >
+                    Quero o {p.nome}
+                  </a>
+                )}
               </article>
             ))}
           </div>
+          <p className="planos__ja">Já assinou? <Link to="/ativar">Crie seu acesso aqui</Link> com o e-mail e o CPF/CNPJ do pagamento.</p>
         </section>
+
+        {/* ---------- Programa para Windows ---------- */}
+        {!programa && (
+          <section className="secao" id="baixar">
+            <div className="baixar">
+              <span className="baixar__icone"><MonitorDown size={34} /></span>
+              <div className="baixar__texto">
+                <span className="etiqueta">Programa para Windows</span>
+                <h2 className="titulo">Instale o sistema no computador do caixa</h2>
+                <p>Abre sozinho com o Windows, imprime direto na térmica sem janela de impressão e continua recebendo pedidos minimizado.</p>
+                <ul className="hero__checks">
+                  <li><Check size={16} /> Windows 10 e 11</li>
+                  <li><Check size={16} /> Atualiza sozinho</li>
+                  <li><Check size={16} /> Mesmo login do site</li>
+                </ul>
+              </div>
+              <a className="btn btn--primario btn--lg baixar__botao" href={SITE.downloadWindows}><Download size={19} /> Baixar para Windows</a>
+            </div>
+          </section>
+        )}
 
         {/* ---------- Perguntas ---------- */}
         <section className="secao secao--estreita" id="perguntas">
@@ -228,6 +257,7 @@ export default function Site() {
           <a href="#recursos">Recursos</a>
           <a href="#planos">Planos</a>
           <Link to="/login">Área do cliente</Link>
+          {!programa && <a href={SITE.downloadWindows}>Baixar para Windows</a>}
           <Link to="/termos">Termos de uso</Link>
           <Link to="/privacidade">Privacidade</Link>
         </nav>

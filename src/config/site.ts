@@ -14,6 +14,13 @@ export const SITE = {
   // WhatsApp de vendas: DDI + DDD + número, só dígitos. Ex.: '5511987654321'
   whatsappVendas: '',
 
+  // Link do checkout da Kirvano ("Assinar agora" no login). Vazio = leva para os planos do site.
+  // Cada plano abaixo também pode ter o seu (campo checkout).
+  checkoutAssinatura: '',
+
+  // Programa para Windows (instalador publicado nas Releases do GitHub: sempre a versão mais nova)
+  downloadWindows: 'https://github.com/basilfiery/basilfiery/releases/latest/download/BasilFiery-Instalador.exe',
+
   // Valores de exemplo — ajuste para os seus preços reais
   planos: [
     {
@@ -23,6 +30,7 @@ export const SITE = {
       descricao: 'Para começar a vender pelo tablet.',
       itens: ['Até 10 mesas', 'Cardápio no tablet', 'Painel de pedidos ao vivo', 'Impressão automática no caixa', 'Aviso no celular do garçom'],
       destaque: false,
+      checkout: '',
     },
     {
       nome: 'Profissional',
@@ -31,6 +39,7 @@ export const SITE = {
       descricao: 'Para a casa cheia todos os dias.',
       itens: ['Até 30 mesas', 'Tudo do Essencial', 'Controle de estoque', 'Equipe com cargos e permissões', 'Fotos nos pratos'],
       destaque: true,
+      checkout: '',
     },
     {
       nome: 'Rede',
@@ -39,9 +48,16 @@ export const SITE = {
       descricao: 'Para quem tem mais de uma unidade.',
       itens: ['Mesas ilimitadas', 'Várias unidades na mesma conta', 'Implantação acompanhada', 'Suporte prioritário'],
       destaque: false,
+      checkout: '',
     },
   ],
 };
+
+/** Para onde vai o "Assinar agora": checkout da Kirvano ou os planos do site */
+export const linkAssinar = () => SITE.checkoutAssinatura || '/#planos';
+
+/** Rodando dentro do programa para Windows */
+export const noProgramaWindows = () => typeof window !== 'undefined' && 'basilfieryDesktop' in window;
 
 export function linkWhatsVendas(mensagem = 'Olá! Quero conhecer o BasilFiery para o meu restaurante.') {
   return SITE.whatsappVendas ? `https://wa.me/${SITE.whatsappVendas}?text=${encodeURIComponent(mensagem)}` : null;

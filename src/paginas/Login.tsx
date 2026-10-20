@@ -1,16 +1,16 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
-  ArrowRight, BarChart3, CheckCircle2, Eye, EyeOff, Headset, KeyRound, Lock, Mail, ShieldCheck, ShoppingBag, Store, TrendingUp, UserRound, Wallet,
+  ArrowRight, BadgeCheck, BarChart3, CheckCircle2, Eye, EyeOff, Headset, KeyRound, Lock, Mail, ShieldCheck, ShoppingBag, Sparkles, TrendingUp, Wallet,
 } from 'lucide-react';
 import { Carregando } from '../componentes/Carregando';
 import { destinoInicial, useSessao } from '../lib/sessao';
-import { gestao, msgErro, supabase } from '../lib/supabase';
-import { SITE } from '../config/site';
+import { msgErro, supabase } from '../lib/supabase';
+import { SITE, linkAssinar } from '../config/site';
 import '../estilos/painel.css';
 import '../estilos/login.css';
 
-type Modo = 'entrar' | 'criar' | 'esqueci' | 'enviado' | 'nova-senha';
+type Modo = 'entrar' | 'esqueci' | 'enviado' | 'nova-senha';
 
 const SUPORTE = SITE.whatsappVendas ? `https://wa.me/${SITE.whatsappVendas}?text=${encodeURIComponent(`Olá! Preciso de ajuda para entrar no ${SITE.marca}.`)}` : '';
 
@@ -27,9 +27,7 @@ export default function Login() {
   const local = useLocation();
   const busca = new URLSearchParams(local.search);
   const [modo, setModo] = useState<Modo>(() =>
-    busca.get('senha') === 'nova' || local.hash.includes('type=recovery') ? 'nova-senha' : busca.get('criar') !== null ? 'criar' : 'entrar');
-  const [nome, setNome] = useState('');
-  const [restaurante, setRestaurante] = useState('');
+    busca.get('senha') === 'nova' || local.hash.includes('type=recovery') ? 'nova-senha' : 'entrar');
   const [email, setEmail] = useState(() => busca.get('email') ?? '');
   const [senha, setSenha] = useState('');
   const [verSenha, setVerSenha] = useState(false);
@@ -43,6 +41,8 @@ export default function Login() {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // Conta nova só depois de assinar: o antigo /login?criar vai para "Criar meu acesso"
+  if (busca.get('criar') !== null) return <Navigate to="/ativar" replace />;
   if (s.carregando) return <Carregando />;
   if (s.usuario && modo !== 'nova-senha') {
     const de = (local.state as { de?: string } | null)?.de;
@@ -68,7 +68,6 @@ export default function Login() {
         setModo('entrar'); // logado: redireciona para o painel
         return;
       }
-      if (modo === 'criar') await gestao('cadastrar', { nome, restaurante, email, senha });
       lembrarSessao(manter);
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
       if (error) throw error;
@@ -80,11 +79,9 @@ export default function Login() {
   }
 
   const trocar = (m: Modo) => { setModo(m); setErro(''); };
-  const criando = modo === 'criar';
-  const titulo = { entrar: 'Acesse sua conta', criar: 'Crie sua conta', esqueci: 'Esqueceu a senha?', enviado: 'Confira o seu e-mail', 'nova-senha': 'Crie uma nova senha' }[modo];
+  const titulo = { entrar: 'Acesse sua conta', esqueci: 'Esqueceu a senha?', enviado: 'Confira o seu e-mail', 'nova-senha': 'Crie uma nova senha' }[modo];
   const subtitulo = {
     entrar: 'Entre para gerenciar pedidos, cardápio e vendas.',
-    criar: 'Cadastre seu restaurante e comece a montar o cardápio agora mesmo.',
     esqueci: 'Digite o e-mail da sua conta. Mandamos um link para você criar uma senha nova.',
     enviado: `Se existir uma conta com ${email || 'esse e-mail'}, o link chega em instantes. Olhe também a caixa de spam.`,
     'nova-senha': 'Escolha uma senha com pelo menos 6 caracteres.',
@@ -121,19 +118,9 @@ export default function Login() {
 
         {modo !== 'enviado' && (
           <div className="lg-campos">
-            {criando && (
-              <>
-                <Campo rotulo="Seu nome" icone={<UserRound size={18} />}>
-                  <input required autoComplete="name" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como você se chama" autoFocus />
-                </Campo>
-                <Campo rotulo="Nome do restaurante" icone={<Store size={18} />}>
-                  <input autoComplete="organization" value={restaurante} onChange={(e) => setRestaurante(e.target.value)} placeholder="Ex.: Pizzaria do Bairro" />
-                </Campo>
-              </>
-            )}
             {modo !== 'nova-senha' && (
               <Campo rotulo="E-mail" icone={<Mail size={18} />}>
-                <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@restaurante.com.br" autoFocus={!criando} />
+                <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@restaurante.com.br" autoFocus />
               </Campo>
             )}
             {modo !== 'esqueci' && (
@@ -169,18 +156,28 @@ export default function Login() {
           <button className="lg-botao" disabled={ocupado}>
             {ocupado
               ? 'Aguarde…'
-              : { entrar: 'Entrar no sistema', criar: 'Criar conta e entrar', esqueci: 'Enviar link', 'nova-senha': 'Salvar nova senha' }[modo]}
+              : { entrar: 'Entrar no sistema', esqueci: 'Enviar link', 'nova-senha': 'Salvar nova senha' }[modo]}
             {!ocupado && <ArrowRight size={19} />}
           </button>
         )}
 
-        {(modo === 'esqueci' || modo === 'criar') && (
-          <button type="button" className="lg-voltar" onClick={() => trocar('entrar')}>{criando ? 'Já tenho conta · Entrar' : 'Voltar para entrar'}</button>
+        {modo === 'esqueci' && (
+          <button type="button" className="lg-voltar" onClick={() => trocar('entrar')}>Voltar para entrar</button>
         )}
 
         <div className="lg-ou"><span>ou</span></div>
+        {modo === 'entrar' && (
+          <div className="lg-assinar">
+            <span className="lg-assinar__icone"><Sparkles size={20} /></span>
+            <div>
+              <strong>Ainda não é assinante?</strong>
+              <small>Assine e crie seu acesso na hora, sem falar com ninguém.</small>
+            </div>
+            <BotaoAssinar />
+          </div>
+        )}
         <div className="lg-ajuda">
-          {modo === 'entrar' && <p>Não tem conta? <button type="button" className="lg-link" onClick={() => trocar('criar')}>Criar conta</button></p>}
+          {modo === 'entrar' && <p><BadgeCheck size={17} /> Já pagou a assinatura? <Link className="lg-link" to="/ativar">Criar meu acesso</Link></p>}
           <p>
             <Headset size={17} /> Problemas para acessar?{' '}
             {SUPORTE ? <a className="lg-link" href={SUPORTE} target="_blank" rel="noopener">Falar com suporte</a> : <span>Fale com o suporte</span>}
@@ -193,7 +190,15 @@ export default function Login() {
   );
 }
 
-function Marca({ pequena }: { pequena?: boolean }) {
+/** "Assinar agora": abre o checkout (no programa do Windows, abre no navegador) */
+export function BotaoAssinar({ classe = 'lg-assinar__botao' }: { classe?: string }) {
+  const destino = linkAssinar();
+  return destino.startsWith('http')
+    ? <a className={classe} href={destino} target="_blank" rel="noopener">Assinar agora <ArrowRight size={17} /></a>
+    : <a className={classe} href={destino}>Assinar agora <ArrowRight size={17} /></a>;
+}
+
+export function Marca({ pequena }: { pequena?: boolean }) {
   return (
     <div className={pequena ? 'lg-marca lg-marca--pequena' : 'lg-marca'}>
       <img src="/icone-512.png" alt="" />
@@ -202,11 +207,11 @@ function Marca({ pequena }: { pequena?: boolean }) {
   );
 }
 
-function Recurso({ icone, titulo, texto }: { icone: ReactNode; titulo: string; texto: string }) {
+export function Recurso({ icone, titulo, texto }: { icone: ReactNode; titulo: string; texto: string }) {
   return <li><span>{icone}</span><b>{titulo}</b><small>{texto}</small></li>;
 }
 
-function Campo({ rotulo, icone, fim, children }: { rotulo: string; icone: ReactNode; fim?: ReactNode; children: ReactNode }) {
+export function Campo({ rotulo, icone, fim, children }: { rotulo: string; icone: ReactNode; fim?: ReactNode; children: ReactNode }) {
   return (
     <label className="lg-campo">
       <span className="lg-campo__rotulo">{rotulo}</span>

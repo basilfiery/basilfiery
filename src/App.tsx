@@ -14,6 +14,7 @@ function tela(carregar: () => Promise<{ default: ComponentType }>) {
 
 const Site = tela(() => import('./paginas/site/Site'));
 const Login = tela(() => import('./paginas/Login'));
+const Ativar = tela(() => import('./paginas/Ativar'));
 const Termos = tela(() => import('./paginas/site/Legal'));
 const Privacidade = tela(() => import('./paginas/site/Legal').then((m) => ({ default: m.Privacidade })));
 const TermosPoliticas = tela(() => import('./paginas/painel/TermosPoliticas'));
@@ -67,6 +68,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Site />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/ativar" element={<Ativar />} />
         <Route path="/termos" element={<Termos />} />
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/mesa/:token" element={<Mesa />} />

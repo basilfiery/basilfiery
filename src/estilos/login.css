@@ -136,3 +136,42 @@
   mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, .35) 18%, #000 52%), linear-gradient(to bottom, #000 82%, transparent 100%);
   -webkit-mask-composite: source-in; mask-composite: intersect;
 }
+
+/* "Ainda não é assinante?" */
+.lg-assinar {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 14px 14px 16px;
+  border: 1px solid rgba(240, 28, 34, .28); border-radius: 16px;
+  background: linear-gradient(135deg, rgba(240, 28, 34, .12), rgba(240, 28, 34, .03));
+}
+.lg-assinar__icone { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: rgba(240, 28, 34, .16); color: #ff5a5f; }
+.lg-assinar strong { display: block; font-size: 1rem; font-weight: 700; color: #fff; }
+.lg-assinar small { display: block; margin-top: 2px; color: var(--lg-suave); font-size: .84rem; line-height: 1.35; }
+.lg-assinar__botao {
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: 12px; white-space: nowrap;
+  border: 1.5px solid var(--lg-vermelho); color: #fff; font-size: .95rem; font-weight: 700; text-decoration: none;
+  background: rgba(240, 28, 34, .1); transition: background .15s, transform .12s;
+}
+.lg-assinar__botao:hover { background: var(--lg-vermelho); }
+.lg-assinar__botao:active { transform: scale(.98); }
+@media (max-width: 520px) {
+  .lg-assinar { grid-template-columns: auto minmax(0, 1fr); }
+  .lg-assinar__botao { grid-column: 1 / -1; justify-content: center; }
+}
+
+/* Criar meu acesso (/ativar) */
+.at-passos { display: grid; gap: 14px; margin: 8px 0 0; padding: 0; list-style: none; }
+.at-passos li { display: flex; align-items: center; gap: 14px; opacity: .6; transition: opacity .2s; }
+.at-passos li.ativo, .at-passos li.feito { opacity: 1; }
+.at-passos li > span {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px;
+  background: linear-gradient(160deg, #3d1012, #200809); color: var(--lg-vermelho); font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 20px rgba(0, 0, 0, .35);
+}
+.at-passos li.ativo > span { background: var(--lg-vermelho); color: #fff; }
+.at-passos li.feito > span { background: #1f5a33; color: #b8f5c9; }
+.at-passos b { display: block; font-size: 1rem; font-weight: 700; color: #fff; }
+.at-passos small { display: block; margin-top: 2px; color: var(--lg-suave); font-size: .86rem; }
+.at-confirmado {
+  justify-self: center; display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+  background: rgba(46, 160, 90, .14); border: 1px solid rgba(46, 160, 90, .35); color: #9ff0bb; font-size: .88rem; font-weight: 700;
+}

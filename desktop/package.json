@@ -1,7 +1,7 @@
 {
   "name": "basilfiery-desktop",
   "productName": "BasilFiery",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "BasilFiery para Windows: painel de pedidos com impressão direta na térmica.",
   "main": "main.js",
   "private": true,

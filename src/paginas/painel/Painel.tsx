@@ -10,6 +10,8 @@ import { Avatar, ModalPerfil, iniciais } from '../../componentes/Perfil';
 import { AcessosPendentes } from '../../componentes/AcessosMesa';
 import { ModalCardapioDigital } from '../../componentes/CardapioDigital';
 import { Suspenso } from '../../componentes/Suspenso';
+import { MarcaLateral, tituloMarca } from '../../componentes/MarcaSistema';
+import { linkAssinar } from '../../config/site';
 import { useToast } from '../../componentes/Toast';
 import {
   EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirConta, imprimirPedido, imprimirTeste,
@@ -108,6 +110,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
           { para: '/painel/config/estabelecimento', rotulo: 'Estabelecimento', papeis: GESTORES },
           { para: '/painel/config/nota-fiscal', rotulo: 'Nota fiscal', papeis: GESTORES, novo: true },
           { para: '/painel/config/anuncios', rotulo: 'Integração de anúncios', papeis: GESTORES },
+          { para: '/painel/config/logo-sistema', rotulo: 'Logo do sistema', papeis: GESTORES, novo: true },
           { para: '/painel/config/avisos', rotulo: 'Avisos e sons' },
         ],
       },
@@ -171,6 +174,14 @@ export default function Painel() {
   const [buscaMenu, setBuscaMenu] = useState('');
   const trilho = useMedia('(max-width: 1360px)');
   useEffect(() => { setGaveta(false); setBuscaMenu(''); }, [local.pathname]);
+
+  // Nome da janela (programa do Windows) e da aba: segue a marca escolhida em Configurações › Logo do sistema
+  const nomeJanela = r ? tituloMarca(r) : 'BasilFiery';
+  useEffect(() => {
+    const antes = document.title;
+    document.title = `${nomeJanela} — Gestão de pedidos`;
+    return () => { document.title = antes; };
+  }, [nomeJanela]);
   useEffect(() => {
     if (!gaveta) return;
     const fechar = (e: KeyboardEvent) => { if (e.key === 'Escape') setGaveta(false); };
@@ -364,6 +375,23 @@ export default function Painel() {
     );
   }
 
+  // Assinatura suspensa (cancelada, vencida ou reembolsada): o painel fica bloqueado até renovar
+  if (!r.ativo && !s.ehAdmin) {
+    const destino = linkAssinar();
+    return (
+      <div className="tela-login">
+        <div className="login card">
+          <Logo tamanho="lg" />
+          <h1 className="titulo">Assinatura suspensa</h1>
+          <p className="muted">O acesso de <b>{r.nome}</b> está pausado porque a assinatura não está em dia. Renove para voltar a usar. Seus dados continuam guardados.</p>
+          <a className="btn btn--primario" href={destino} target={destino.startsWith('http') ? '_blank' : undefined} rel="noopener">Renovar assinatura</a>
+          {s.restaurantes.length > 1 && <p className="muted">Você tem outras lojas: troque no menu da conta.</p>}
+          <button className="btn btn--contorno" onClick={() => void s.sair()}>Sair</button>
+        </div>
+      </div>
+    );
+  }
+
   const papel = r.papel;
   const secoes = SECOES
     .map((sec) => ({
@@ -434,12 +462,8 @@ export default function Painel() {
       {gaveta && <div className="lateral-fundo" onClick={() => setGaveta(false)} aria-hidden="true" />}
       <aside className={cx('lateral', gaveta && 'lateral--gaveta')}>
         <div className="lateral__topo">
-          <Link to="/painel" className="lateral__marca" aria-label="BasilFiery">
-            <img src="/favicon.png" alt="" />
-            <div>
-              <strong>Basil<span>Fiery</span></strong>
-              <small>Gestão de pedidos</small>
-            </div>
+          <Link to="/painel" className="lateral__marca" aria-label={tituloMarca(r)}>
+            <MarcaLateral r={r} />
           </Link>
           <button className="lateral__fechar" onClick={() => setGaveta(false)} aria-label="Fechar menu"><X size={20} /></button>
         </div>

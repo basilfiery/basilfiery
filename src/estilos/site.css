@@ -182,3 +182,24 @@ html:has(.site) { scroll-behavior: smooth; }
 .site-rodape nav a { color: var(--muted); text-decoration: none; }
 .site-rodape nav a:hover { color: var(--text); }
 .site-rodape small { margin-left: auto; }
+
+/* Baixar o sistema (Windows) */
+.site-baixar { gap: 6px; }
+.planos__ja { margin: 22px 0 0; text-align: center; color: var(--muted); font-size: .95rem; }
+.planos__ja a { color: var(--fire-2); font-weight: 700; }
+.baixar {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 28px;
+  padding: 34px clamp(22px, 4vw, 44px); border-radius: 28px; border: 1px solid var(--line);
+  background:
+    radial-gradient(70% 140% at 100% 0%, rgba(255, 90, 31, .16), transparent 60%),
+    var(--surface);
+}
+.baixar__icone { width: 76px; height: 76px; display: grid; place-items: center; border-radius: 22px; background: rgba(255, 90, 31, .12); color: var(--fire-2); }
+.baixar__texto .titulo { margin: 10px 0 8px; font-size: clamp(1.4rem, 3vw, 1.9rem); }
+.baixar__texto p { margin: 0; max-width: 560px; color: var(--muted); }
+.baixar__texto .hero__checks { margin-top: 14px; }
+.baixar__botao { gap: 8px; white-space: nowrap; }
+@media (max-width: 860px) {
+  .baixar { grid-template-columns: minmax(0, 1fr); gap: 18px; text-align: left; }
+  .baixar__botao { justify-self: stretch; justify-content: center; }
+}

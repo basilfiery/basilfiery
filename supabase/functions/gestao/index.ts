@@ -61,6 +61,21 @@ async function obterOuCriarUsuario(email: string, senha: unknown, nome: string) 
 // deno-lint-ignore no-explicit-any
 type Corpo = Record<string, any>;
 
+/** Assinatura paga e ainda sem acesso criado, conferida pelo e-mail + CPF/CNPJ da compra */
+async function assinaturaDaCompra(c: Corpo) {
+  if (!emailValido(c.email)) throw new Falha('Digite o e-mail usado no pagamento.');
+  const email = c.email.trim().toLowerCase();
+  const doc = String(c.documento ?? '').replace(/\D/g, '');
+  const { data: a } = await admin.from('assinaturas').select('*').eq('email', email).maybeSingle();
+  // Mesma resposta para "não existe" e "documento errado": não revela quem comprou
+  if (!a || (a.documento && a.documento !== doc)) {
+    throw new Falha('Não encontramos um pagamento com esse e-mail e CPF/CNPJ. Confira os dados usados na compra ou aguarde alguns minutos se acabou de pagar.', 404);
+  }
+  if (a.restaurante_id) throw new Falha('O acesso desta assinatura já foi criado. Entre com seu e-mail e senha (ou use "Esqueci minha senha").', 409);
+  if (a.status !== 'ativa' && a.status !== 'atrasada') throw new Falha('Esta assinatura não está ativa. Fale com o suporte.', 403);
+  return a as { id: string; email: string; nome: string | null; telefone: string | null; plano: string | null; valor: number | null; forma: string | null; vence_em: string | null };
+}
+
 const acoes: Record<string, (req: Request, c: Corpo) => Promise<unknown>> = {
   // Cadastro aberto pela tela de login. A primeira conta da plataforma vira
   // administradora e dona do restaurante de demonstração; as demais ganham
@@ -76,7 +91,9 @@ const acoes: Record<string, (req: Request, c: Corpo) => Promise<unknown>> = {
 
     const { count } = await admin.from('plataforma_admins').select('*', { count: 'exact', head: true });
     const primeiraConta = (count ?? 0) === 0;
-    if (!primeiraConta && !nomeRestaurante) throw new Falha('Informe o nome do restaurante.');
+    // Conta nova só depois de assinar (Kirvano → /ativar)
+    if (!primeiraConta) throw new Falha('Para criar sua conta, assine um plano. Já pagou? Use "Criar meu acesso".', 403);
+    if (!nomeRestaurante) throw new Falha('Informe o nome do restaurante.');
 
     const u = await obterOuCriarUsuario(email, c.senha, nome);
 
@@ -98,6 +115,45 @@ const acoes: Record<string, (req: Request, c: Corpo) => Promise<unknown>> = {
       Array.from({ length: 5 }, (_, i) => ({ restaurante_id: rest.id, nome: `Mesa ${i + 1}`, ordem: i + 1 })),
     );
     return { ok: true, admin: primeiraConta };
+  },
+
+  // Depois de pagar na Kirvano: confere a compra pelo e-mail + CPF/CNPJ usados no pagamento
+  async assinatura_verificar(_req, c) {
+    const a = await assinaturaDaCompra(c);
+    const { data: existente } = await admin.rpc('usuario_por_email', { p_email: a.email });
+    return { ok: true, nome: a.nome ?? '', plano: a.plano ?? '', telefone: a.telefone ?? '', contaExiste: !!existente };
+  },
+
+  // Cria o login e a loja do assinante (ele mesmo, sem suporte)
+  async assinatura_ativar(req, c) {
+    const a = await assinaturaDaCompra(c);
+    const nome = String(c.nome ?? '').trim().slice(0, 80);
+    const nomeLoja = String(c.restaurante ?? '').trim().slice(0, 80);
+    const whatsapp = String(c.whatsapp ?? '').replace(/\D/g, '').slice(0, 13) || null;
+    if (nome.length < 2) throw new Falha('Informe seu nome.');
+    if (nomeLoja.length < 2) throw new Falha('Informe o nome do seu estabelecimento.');
+
+    // E-mail que já tem login (ex.: conta de cliente do cardápio): só com a senha dele
+    const { data: existente } = await admin.rpc('usuario_por_email', { p_email: a.email });
+    let uid: string;
+    if (existente) {
+      const eu = await usuarioAtual(req).catch(() => null);
+      if (!eu || eu.id !== existente) throw new Falha('conta_existente', 409);
+      uid = eu.id;
+    } else {
+      uid = (await obterOuCriarUsuario(a.email, c.senha, nome)).id;
+    }
+
+    const vence = a.vence_em ? String(a.vence_em).slice(0, 10) : null;
+    const { data: rest, error } = await admin.from('restaurantes').insert({
+      nome: nomeLoja, plano: a.plano ?? 'assinatura', plano_valor: a.valor, plano_vence_em: vence, plano_forma: a.forma, whatsapp, ativo: true,
+    }).select('id').single();
+    if (error) throw error;
+    const { error: e2 } = await admin.from('membros').insert({ restaurante_id: rest.id, user_id: uid, papel: 'dono', nome, email: a.email });
+    if (e2) throw e2;
+    await admin.from('mesas').insert(Array.from({ length: 5 }, (_, i) => ({ restaurante_id: rest.id, nome: `Mesa ${i + 1}`, ordem: i + 1 })));
+    await admin.from('assinaturas').update({ restaurante_id: rest.id, user_id: uid, atualizado_em: new Date().toISOString() }).eq('id', a.id);
+    return { ok: true, email: a.email };
   },
 
   // Cria o primeiro administrador da plataforma (só funciona uma vez)

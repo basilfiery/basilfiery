@@ -1,6 +1,15 @@
 export type Papel = 'dono' | 'gerente' | 'caixa' | 'garcom';
 export type StatusPedido = 'novo' | 'preparando' | 'pronto' | 'entregue' | 'cancelado';
 
+/** Marca no topo do menu do sistema: BasilFiery, logo + nome próprios, ou só uma imagem larga (16:9) */
+export interface MarcaSistema {
+  modo: 'padrao' | 'logo_nome' | 'imagem';
+  nome?: string;
+  sub?: string;
+  logo_url?: string | null;
+  imagem_url?: string | null;
+}
+
 export interface Restaurante {
   id: string;
   nome: string;
@@ -16,6 +25,8 @@ export interface Restaurante {
   codigo: string;
   /** Endereço do cardápio: basilfiery.com.br/<slug> (mesas: /<slug>/mesa1) */
   slug: string;
+  /** Logo do menu lateral do sistema (vazio = BasilFiery) */
+  marca_sistema?: MarcaSistema | null;
   /** Delivery: aceitando pedidos de casa agora */
   delivery_ativo: boolean;
   delivery_taxa: number;

@@ -14,3 +14,7 @@ verify_jwt = false
 
 [functions.fiscal]
 verify_jwt = false
+
+# Webhook da Kirvano: a chave (?chave=) é conferida dentro da função
+[functions.kirvano]
+verify_jwt = false

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
-  ArrowRight, BadgeCheck, BarChart3, CheckCircle2, Eye, EyeOff, Headset, KeyRound, Lock, Mail, ShieldCheck, ShoppingBag, Sparkles, TrendingUp, Wallet,
+  ArrowRight, BadgeCheck, BarChart3, CheckCircle2, Eye, EyeOff, Headset, KeyRound, Lock, Mail, ShieldCheck, ShoppingBag, Store, TrendingUp, Wallet,
 } from 'lucide-react';
 import { Carregando } from '../componentes/Carregando';
 import { destinoInicial, useSessao } from '../lib/sessao';
@@ -168,7 +168,7 @@ export default function Login() {
         <div className="lg-ou"><span>ou</span></div>
         {modo === 'entrar' && (
           <div className="lg-assinar">
-            <span className="lg-assinar__icone"><Sparkles size={20} /></span>
+            <span className="lg-assinar__icone"><Store size={20} /></span>
             <div>
               <strong>Ainda não é assinante?</strong>
               <small>Assine e crie seu acesso na hora, sem falar com ninguém.</small>
@@ -194,8 +194,8 @@ export default function Login() {
 export function BotaoAssinar({ classe = 'lg-assinar__botao' }: { classe?: string }) {
   const destino = linkAssinar();
   return destino.startsWith('http')
-    ? <a className={classe} href={destino} target="_blank" rel="noopener">Assinar agora <ArrowRight size={17} /></a>
-    : <a className={classe} href={destino}>Assinar agora <ArrowRight size={17} /></a>;
+    ? <a className={classe} href={destino} target="_blank" rel="noopener"><span>Assinar agora</span> <ArrowRight size={17} /></a>
+    : <a className={classe} href={destino}><span>Assinar agora</span> <ArrowRight size={17} /></a>;
 }
 
 export function Marca({ pequena }: { pequena?: boolean }) {

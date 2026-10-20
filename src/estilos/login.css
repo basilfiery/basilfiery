@@ -147,12 +147,35 @@
 .lg-assinar strong { display: block; font-size: 1rem; font-weight: 700; color: #fff; }
 .lg-assinar small { display: block; margin-top: 2px; color: var(--lg-suave); font-size: .84rem; line-height: 1.35; }
 .lg-assinar__botao {
+  position: relative; isolation: isolate; overflow: hidden;
   display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: 12px; white-space: nowrap;
   border: 1.5px solid var(--lg-vermelho); color: #fff; font-size: .95rem; font-weight: 700; text-decoration: none;
-  background: rgba(240, 28, 34, .1); transition: background .15s, transform .12s;
+  background: rgba(240, 28, 34, .1);
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s, border-color .25s;
 }
-.lg-assinar__botao:hover { background: var(--lg-vermelho); }
-.lg-assinar__botao:active { transform: scale(.98); }
+/* Ao passar o mouse: o vermelho enche da esquerda, um brilho atravessa e a seta anda */
+.lg-assinar__botao::before {
+  content: ''; position: absolute; inset: 0; z-index: -2;
+  background: linear-gradient(180deg, #f5272d, var(--lg-vermelho-2));
+  transform: scaleX(0); transform-origin: left center; transition: transform .38s cubic-bezier(.2, .8, .2, 1);
+}
+.lg-assinar__botao::after {
+  content: ''; position: absolute; top: -20%; bottom: -20%; left: -70%; width: 45%; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .38), transparent); transform: skewX(-20deg);
+}
+.lg-assinar__botao svg { transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+.lg-assinar__botao:hover, .lg-assinar__botao:focus-visible {
+  transform: translateY(-2px); border-color: #ff4b50; box-shadow: 0 12px 28px rgba(240, 28, 34, .38);
+}
+.lg-assinar__botao:hover::before, .lg-assinar__botao:focus-visible::before { transform: scaleX(1); }
+.lg-assinar__botao:hover::after, .lg-assinar__botao:focus-visible::after { animation: lg-brilho .9s .15s ease-out; }
+.lg-assinar__botao:hover svg, .lg-assinar__botao:focus-visible svg { transform: translateX(4px); }
+.lg-assinar__botao:active { transform: translateY(0) scale(.98); }
+@keyframes lg-brilho { from { left: -70%; } to { left: 130%; } }
+@media (prefers-reduced-motion: reduce) {
+  .lg-assinar__botao, .lg-assinar__botao::before, .lg-assinar__botao svg { transition: none; }
+  .lg-assinar__botao:hover::after { animation: none; }
+}
 @media (max-width: 520px) {
   .lg-assinar { grid-template-columns: auto minmax(0, 1fr); }
   .lg-assinar__botao { grid-column: 1 / -1; justify-content: center; }

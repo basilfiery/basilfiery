@@ -13,3 +13,7 @@ desktop/dist
 referencias/
 *.mov
 *.mp4
+
+# App Android do garçom (o APK final vai para public/apps/)
+android/node_modules
+android/projeto

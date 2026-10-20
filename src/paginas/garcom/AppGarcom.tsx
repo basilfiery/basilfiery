@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
-import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { ConciergeBell, Download, Eye, EyeOff, Lock, LogOut, Mail } from 'lucide-react';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ConciergeBell, Download, Eye, EyeOff, Lock, LogOut, Mail, Store } from 'lucide-react';
 import { Carregando } from '../../componentes/Carregando';
 import { useSessao } from '../../lib/sessao';
 import { msgErro, supabase } from '../../lib/supabase';
@@ -36,12 +36,46 @@ export function AppGarcomInicio() {
   if (codigo) return <Navigate to={`/g/${codigo}`} replace />;
   if (s.carregando) return <Carregando />;
   if (s.usuario) return <Navigate to="/garcom" replace />;
+  return <EscolherRestaurante />;
+}
+
+/** No app instalado não dá para tocar no link: cola o link (ou digita o código) do restaurante */
+function EscolherRestaurante() {
+  const navegar = useNavigate();
+  const [texto, setTexto] = useState('');
+  const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+
+  async function abrir(e: FormEvent) {
+    e.preventDefault();
+    setErro('');
+    // Aceita o link inteiro (basilfiery.com.br/g/abc123) ou só o código
+    const codigo = (texto.trim().match(/\/g\/([a-z0-9]+)/i)?.[1] ?? texto.trim()).toLowerCase();
+    if (!/^[a-z0-9]{4,20}$/.test(codigo)) return setErro('Cole o link que o gerente mandou ou digite o código do restaurante.');
+    setOcupado(true);
+    const { data } = await supabase.rpc('app_garcom_info', { p_codigo: codigo });
+    setOcupado(false);
+    if (!data) return setErro('Restaurante não encontrado. Confira o link ou o código.');
+    navegar(`/g/${codigo}`);
+  }
+
   return (
     <div className="app-g">
       <main className="app-g__cartao">
         <span className="app-g__selo"><ConciergeBell size={15} /> App do garçom</span>
-        <h1>Abra o link do seu restaurante</h1>
-        <p className="app-g__sub">Peça ao gerente o link de acesso dos garçons. Ele chega pelo WhatsApp.</p>
+        <h1>Qual é o seu restaurante?</h1>
+        <p className="app-g__sub">Cole o link de acesso dos garçons que o gerente mandou no WhatsApp, ou digite só o código (o final do link).</p>
+        <form className="app-g__form" onSubmit={abrir}>
+          <label className="app-g__campo">
+            <span>Link ou código do restaurante</span>
+            <div className="app-g__entrada">
+              <Store size={18} aria-hidden="true" />
+              <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Ex.: basilfiery.com.br/g/abc123" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
+            </div>
+          </label>
+          {erro && <p className="app-g__erro" role="alert">{erro}</p>}
+          <button className="app-g__botao" disabled={ocupado || !texto.trim()}>{ocupado ? 'Procurando…' : 'Continuar'}</button>
+        </form>
       </main>
     </div>
   );

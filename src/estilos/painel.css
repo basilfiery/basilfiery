@@ -2610,3 +2610,20 @@
 .dom-slug > *, .dom-links > div > * { min-width: 0; }
 .dom-slug .cfg-endereco { min-width: 0; }
 @media (max-width: 520px) { .dom-slug .cfg-endereco__campo { flex: none; width: 100%; } }
+
+/* Apps no celular: app Android do garçom */
+.app-android {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 4px; padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, #3ddc84 35%, var(--line)); border-radius: 14px; background: color-mix(in srgb, #3ddc84 7%, var(--surface));
+}
+.app-android__icone { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, #3ddc84 18%, transparent); color: #1f9d55; }
+.app-android strong { display: block; font-size: .95rem; }
+.app-android small { display: block; margin-top: 2px; color: var(--muted); font-size: .82rem; }
+.app-android__acoes { display: flex; gap: 6px; }
+.app-android__acoes .btn { gap: 6px; white-space: nowrap; }
+@media (max-width: 640px) {
+  .app-android { grid-template-columns: auto minmax(0, 1fr); }
+  .app-android__acoes { grid-column: 1 / -1; }
+  .app-android__acoes .btn { flex: 1; justify-content: center; }
+}
+.custo-campo--preco input { color: var(--text); }

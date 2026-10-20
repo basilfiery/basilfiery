@@ -67,7 +67,7 @@ export default function Estoque() {
       )}
 
       {aba === 'custos' && gestor ? (
-        <CustosProdutos produtos={produtos} aoMudar={(id, custo) => setProdutos((l) => l.map((x) => (x.id === id ? { ...x, custo } : x)))} />
+        <CustosProdutos produtos={produtos} aoMudar={(id, campos) => setProdutos((l) => l.map((x) => (x.id === id ? { ...x, ...campos } : x)))} />
       ) : (
       <>
 
@@ -214,7 +214,9 @@ function ModalAjuste({ produto, tipoInicial, aoFechar, aoSalvar }: {
 }
 
 /* ---------------- Custos: quanto cada produto custa e quanto sobra ---------------- */
-function CustosProdutos({ produtos, aoMudar }: { produtos: Produto[]; aoMudar: (id: string, custo: number | null) => void }) {
+type MudarProduto = (id: string, campos: Partial<Pick<Produto, 'custo' | 'preco'>>) => void;
+
+function CustosProdutos({ produtos, aoMudar }: { produtos: Produto[]; aoMudar: MudarProduto }) {
   const comCusto = produtos.filter((p) => p.custo != null);
   const margens = comCusto.filter((p) => Number(p.preco) > 0).map((p) => (Number(p.preco) - Number(p.custo)) / Number(p.preco));
   const margemMedia = margens.length ? margens.reduce((s, m) => s + m, 0) / margens.length : null;
@@ -225,7 +227,7 @@ function CustosProdutos({ produtos, aoMudar }: { produtos: Produto[]; aoMudar: (
         <div className={cx('kpi', produtos.length - comCusto.length > 0 && 'kpi--alerta')}><span>Sem custo</span><strong>{produtos.length - comCusto.length}</strong></div>
         <div className="kpi"><span>Margem média</span><strong>{margemMedia == null ? '—' : `${Math.round(margemMedia * 100)}%`}</strong></div>
       </div>
-      <p className="custos-dica"><TrendingUp size={16} /> Coloque quanto cada produto custa para você (ingredientes, embalagem, compra). O lucro aparece nos Relatórios e no app do dono. Vendas antigas usam o custo de quando foram feitas.</p>
+      <p className="custos-dica"><TrendingUp size={16} /> Ajuste o preço de venda e coloque quanto cada produto custa para você (ingredientes, embalagem, compra). O preço novo já vale no cardápio. O lucro aparece nos Relatórios e no app do dono. Vendas antigas usam o custo de quando foram feitas.</p>
       <div className="tabela-wrap">
         <table className="tabela custos-tabela">
           <thead><tr><th>Produto</th><th className="num">Preço de venda</th><th className="num">Custo</th><th className="num">Lucro por unidade</th><th className="num">Margem</th></tr></thead>
@@ -236,11 +238,14 @@ function CustosProdutos({ produtos, aoMudar }: { produtos: Produto[]; aoMudar: (
   );
 }
 
-function LinhaCusto({ p, aoMudar }: { p: Produto; aoMudar: (id: string, custo: number | null) => void }) {
+function LinhaCusto({ p, aoMudar }: { p: Produto; aoMudar: MudarProduto }) {
   const toast = useToast();
   const [texto, setTexto] = useState(p.custo != null ? precoParaTexto(Number(p.custo)) : '');
+  const [textoPreco, setTextoPreco] = useState(precoParaTexto(Number(p.preco)));
   const [estado, setEstado] = useState<'' | 'salvando' | 'salvo'>('');
-  const preco = Number(p.preco);
+  const [estadoPreco, setEstadoPreco] = useState<'' | 'salvando' | 'salvo'>('');
+  const precoDigitado = lerPreco(textoPreco);
+  const preco = Number.isFinite(precoDigitado) ? precoDigitado : Number(p.preco);
   const custo = texto.trim() ? lerPreco(texto) : null;
   const lucro = custo != null && Number.isFinite(custo) ? preco - custo : null;
   const margem = lucro != null && preco > 0 ? lucro / preco : null;
@@ -251,15 +256,40 @@ function LinhaCusto({ p, aoMudar }: { p: Produto; aoMudar: (id: string, custo: n
     setEstado('salvando');
     const { error } = await supabase.from('produtos').update({ custo: novo }).eq('id', p.id);
     if (error) { setEstado(''); return toast(msgErro(error), 'erro'); }
-    aoMudar(p.id, novo);
+    aoMudar(p.id, { custo: novo });
     setEstado('salvo');
     setTimeout(() => setEstado(''), 1500);
+  }
+
+  /** Preço de venda: muda no cardápio na hora (mesa, delivery e PDV) */
+  async function salvarPreco() {
+    if (!textoPreco.trim() || !Number.isFinite(precoDigitado) || precoDigitado < 0) {
+      setTextoPreco(precoParaTexto(Number(p.preco)));
+      return toast('Digite um preço válido.', 'erro');
+    }
+    if (precoDigitado === Number(p.preco)) return;
+    setEstadoPreco('salvando');
+    const { error } = await supabase.from('produtos').update({ preco: precoDigitado }).eq('id', p.id);
+    if (error) { setEstadoPreco(''); setTextoPreco(precoParaTexto(Number(p.preco))); return toast(msgErro(error), 'erro'); }
+    aoMudar(p.id, { preco: precoDigitado });
+    setEstadoPreco('salvo');
+    setTimeout(() => setEstadoPreco(''), 1500);
   }
 
   return (
     <tr>
       <td><strong>{p.emoji} {p.nome}</strong></td>
-      <td className="num">{brl(preco)}</td>
+      <td className="num">
+        <span className={cx('custo-campo custo-campo--preco', estadoPreco === 'salvo' && 'salvo')}>
+          <span>R$</span>
+          <input
+            inputMode="decimal" value={textoPreco} placeholder="0,00" aria-label={`Preço de venda de ${p.nome}`}
+            onChange={(e) => setTextoPreco(mascaraPreco(e.target.value))}
+            onBlur={() => void salvarPreco()}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          />
+        </span>
+      </td>
       <td className="num">
         <span className={cx('custo-campo', estado === 'salvo' && 'salvo')}>
           <span>R$</span>

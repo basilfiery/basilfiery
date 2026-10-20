@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.basilfiery.garcom",
+      "sha256_cert_fingerprints": ["25:6A:B1:BB:0A:3A:10:96:D9:00:E3:EC:BB:A5:66:1F:BB:E6:32:3E:CD:C5:19:F0:1E:F7:B3:E1:F1:45:3C:72"]
+    }
+  }
+]

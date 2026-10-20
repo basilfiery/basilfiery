@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, MessageCircle, Share, ShoppingCart, SquarePlus, UserRound } from 'lucide-react';
+import { BarChart3, Download, MessageCircle, Share, ShoppingCart, Smartphone, SquarePlus, UserRound } from 'lucide-react';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { usePainel } from './Painel';
 import { origemSistema } from '../../lib/linkCurto';
@@ -12,6 +12,7 @@ import { linkColaboradores } from './Compras';
 export default function AppsCelular() {
   const { restaurante: r } = usePainel();
   const origem = origemSistema();
+  const APK_GARCOM = `${origem}/apps/basilfiery-garcom.apk`;
   const apps = [
     {
       id: 'dono', icone: BarChart3, titulo: 'App do dono', link: `${origem}/dono`,
@@ -23,6 +24,7 @@ export default function AppsCelular() {
       texto: 'Mesas, pedidos e chamados no celular de cada garçom. Os acessos são criados em Equipe › Garçons.',
       whats: `Olá! Este é o app dos garçons da ${r.nome}: ${origem}/g/${r.codigo}`,
       extra: <Link className="btn btn--fantasma btn--sm" to="/painel/garcons">Criar acesso de garçom</Link>,
+      android: true,
     },
     {
       id: 'colab', icone: ShoppingCart, titulo: 'App dos colaboradores', link: linkColaboradores(r.codigo),
@@ -52,6 +54,19 @@ export default function AppsCelular() {
                 <a className="btn btn--contorno btn--sm" href={`https://wa.me/?text=${encodeURIComponent(a.whats)}`} target="_blank" rel="noopener"><MessageCircle size={15} /> Enviar pelo WhatsApp</a>
                 {a.extra}
               </div>
+              {a.android && (
+                <div className="app-android">
+                  <span className="app-android__icone"><Smartphone size={20} /></span>
+                  <div>
+                    <strong>App para Android</strong>
+                    <small>Instala como um aplicativo de verdade, com notificações. Android 7 ou mais novo.</small>
+                  </div>
+                  <div className="app-android__acoes">
+                    <a className="btn btn--primario btn--sm" href={APK_GARCOM} download><Download size={15} /> Baixar app</a>
+                    <a className="btn btn--fantasma btn--sm" href={`https://wa.me/?text=${encodeURIComponent(`App dos garçons da ${r.nome} para Android: ${APK_GARCOM}\nDepois de instalar, abra e cole este link: ${origem}/g/${r.codigo}`)}`} target="_blank" rel="noopener"><MessageCircle size={15} /> Enviar</a>
+                  </div>
+                </div>
+              )}
             </div>
             <QrCartao link={a.link} legenda="Aponte a câmera do celular" arquivo={`qr-${a.id}-${r.codigo}`} />
           </section>
@@ -63,6 +78,7 @@ export default function AppsCelular() {
         <div className="apps__passos">
           <div><b>iPhone (Safari)</b><span>Abra o link › toque em <Share size={14} /> Compartilhar › <SquarePlus size={14} /> “Adicionar à Tela de Início”.</span></div>
           <div><b>Android (Chrome)</b><span>Abra o link › toque nos três pontinhos › “Instalar app” ou “Adicionar à tela inicial”.</span></div>
+          <div><b>App Android do garçom</b><span>Toque em “Baixar app” no celular › abra o arquivo › se o Android pedir, permita “instalar apps desta fonte” › Instalar. Na primeira vez, cole o link do garçom.</span></div>
         </div>
       </section>
     </div>

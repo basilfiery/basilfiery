@@ -1,0 +1,12 @@
+{
+  "name": "basilfiery-garcom-android",
+  "private": true,
+  "description": "App Android do garçom (TWA): abre basilfiery.com.br/g em tela cheia, com notificações.",
+  "type": "module",
+  "scripts": {
+    "gerar": "node gerar.mjs"
+  },
+  "devDependencies": {
+    "@bubblewrap/core": "1.27.0"
+  }
+}

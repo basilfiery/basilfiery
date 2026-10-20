@@ -36,11 +36,41 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!assets/|versao\\.json|sw\\.js).*)",
+      "source": "/((?!assets/|apps/|\\.well-known/|versao\\.json|sw\\.js).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    },
+    {
+      "source": "/apps/(.*)\\.apk",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"BasilFiery-Garcom.apk\""
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
     {
       "source": "/((?!assets/).*)",
       "headers": [

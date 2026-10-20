@@ -1,0 +1,55 @@
+# Gera o instalador do programa para Windows e publica nas Releases do GitHub.
+# O botão "Baixar para Windows" do site aponta para releases/latest: sempre a versão mais nova.
+# Roda sozinho quando algo da pasta desktop/ muda (basta aumentar a "version" em desktop/package.json).
+name: Programa Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/programa-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: programa-windows
+  cancel-in-progress: true
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - run: npm ci
+
+      - name: Gerar instalador
+        run: npx electron-builder --win nsis --x64 --publish never
+
+      - name: Publicar versão
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSAO=$(node -p "require('./package.json').version")
+          TAG="programa-v$VERSAO"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/BasilFiery-Instalador.exe --clobber
+          else
+            gh release create "$TAG" dist/BasilFiery-Instalador.exe \
+              --title "BasilFiery para Windows $VERSAO" \
+              --notes "Instalador do programa BasilFiery para Windows (versão $VERSAO)." \
+              --latest
+          fi

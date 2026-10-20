@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Star } from 'lucide-react';
 import { FotoProduto, Stepper, Switch } from '../../../componentes/Basicos';
-import { linkLoja, slugLoja } from '../../../lib/linkCurto';
+import { caminhoMesa, linkLoja, slugLoja } from '../../../lib/linkCurto';
 import { LinkCopiavel, QrCartao } from '../../../componentes/Link';
 import { useToast } from '../../../componentes/Toast';
 import { useSessao } from '../../../lib/sessao';
@@ -130,7 +130,7 @@ function EnderecoCardapio() {
   }
 
   return (
-    <CampoAjuda rotulo="Endereço do cardápio" ajuda={`As mesas usam o mesmo endereço: ${window.location.host}/${limpo || 'sua-loja'}/mesa1. Ao trocar, QR codes já impressos param de funcionar.`}>
+    <CampoAjuda rotulo="Endereço do cardápio" ajuda={`As mesas usam o mesmo endereço: ${window.location.host}${caminhoMesa(limpo || 'sua-loja', 'mesa1')}. Ao trocar, QR codes já impressos param de funcionar.`}>
       <div className="cfg-endereco">
         <label className="cfg-endereco__campo">
           <span>{window.location.host}/</span>

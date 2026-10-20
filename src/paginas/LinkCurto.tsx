@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { Carregando } from '../componentes/Carregando';
-import { LinkCurtoCtx } from '../lib/linkCurto';
+import { LinkCurtoCtx, caminhoMesa } from '../lib/linkCurto';
 import { supabase } from '../lib/supabase';
 import Mesa from './mesa/Mesa';
 import Loja, { LojaPedido } from './loja/Loja';
 
-type Alvo = { slug: string; codigo?: string; token?: string };
+type Alvo = { slug: string; codigo?: string; token?: string; mesa?: string };
 
-/** basilfiery.com.br/<loja>, /<loja>/<mesa> e /<loja>/pedido/<acompanhar> */
+/** basilfiery.com.br/<loja>, /<loja>/<mesa>, /<loja>/pedido/<acompanhar> e, na loja principal, /<mesa> */
 export default function LinkCurto() {
   const { loja = '', mesa = '', acompanhar } = useParams();
   const [alvo, setAlvo] = useState<Alvo | null | undefined>(undefined);
@@ -26,10 +26,10 @@ export default function LinkCurto() {
     return () => { vivo = false; };
   }, [loja, mesa]);
 
-  // Deixa o endereço no formato oficial (/BasilFiery/Mesa-1 → /basilfiery/mesa-1)
+  // Deixa o endereço no formato oficial (/Cardapio → /cardapio, /Mesa-1 → /mesa1)
   useEffect(() => {
     if (!alvo) return;
-    const certo = `/${alvo.slug}${mesa ? `/${mesa.toLowerCase()}` : ''}${acompanhar ? `/pedido/${acompanhar}` : ''}`;
+    const certo = alvo.token && alvo.mesa ? caminhoMesa(alvo.slug, alvo.mesa) : `/${alvo.slug}${acompanhar ? `/pedido/${acompanhar}` : ''}`;
     if (window.location.pathname !== certo) window.history.replaceState(window.history.state, '', certo + window.location.search + window.location.hash);
   }, [alvo, mesa, acompanhar]);
 
@@ -47,7 +47,7 @@ export default function LinkCurto() {
 
   if (alvo.token) {
     return (
-      <LinkCurtoCtx.Provider value={{ token: alvo.token, base: `/${alvo.slug}/${mesa.toLowerCase()}` }}>
+      <LinkCurtoCtx.Provider value={{ token: alvo.token, base: caminhoMesa(alvo.slug, alvo.mesa ?? mesa.toLowerCase()) }}>
         <Mesa key={alvo.token} />
       </LinkCurtoCtx.Provider>
     );

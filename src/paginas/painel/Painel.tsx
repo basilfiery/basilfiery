@@ -11,6 +11,7 @@ import { AcessosPendentes } from '../../componentes/AcessosMesa';
 import { ModalCardapioDigital } from '../../componentes/CardapioDigital';
 import { Suspenso } from '../../componentes/Suspenso';
 import { MarcaLateral, tituloMarca } from '../../componentes/MarcaSistema';
+import { ErroTela } from '../../componentes/ErroGeral';
 import { linkAssinar } from '../../config/site';
 import { dataBR, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { useToast } from '../../componentes/Toast';
@@ -807,8 +808,8 @@ export default function Painel() {
           />
         )}
 
-        {ehGestor(papel) && !s.ehAdmin && <AvisoFatura r={r} />}
-        <AcessosPendentes acessos={vivo.acessos} agora={agora} variante="painel" aoResponder={vivo.removerAcesso} />
+        {ehGestor(papel) && !s.ehAdmin && <ErroTela silencioso><AvisoFatura r={r} /></ErroTela>}
+        <ErroTela silencioso><AcessosPendentes acessos={vivo.acessos} agora={agora} variante="painel" aoResponder={vivo.removerAcesso} /></ErroTela>
         {!desktop && permissaoNotif === 'default' && (
           <div className="aviso-notif">
             <BellRing size={18} />
@@ -830,7 +831,9 @@ export default function Painel() {
         )}
 
         <main className={cx('painel__conteudo', (naTelaDePedidos || local.pathname === '/painel/pdv') && permitido && 'painel__conteudo--cheio')}>
-          {permitido ? <Suspense fallback={<div className="carregando"><div className="spinner" /></div>}><Outlet context={ctx} /></Suspense> : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}
+          {permitido
+            ? <ErroTela chave={local.pathname}><Suspense fallback={<div className="carregando"><div className="spinner" /></div>}><Outlet context={ctx} /></Suspense></ErroTela>
+            : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}
         </main>
       </div>
 

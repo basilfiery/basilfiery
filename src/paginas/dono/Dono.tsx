@@ -127,7 +127,9 @@ function aplicarCores(cores: Cores) {
 export default function Dono() {
   const s = useSessao();
   useFonte();
-  useAppInstalavel({ nome: `${MARCA} · Minhas vendas`, curto: 'Minhas vendas', inicio: '/dono', escopo: '/dono' });
+  // O app instalado leva o nome da empresa (é o nome que o celular mostra nas notificações)
+  const nomeEmpresa = s.restaurante?.nome?.trim() || MARCA;
+  useAppInstalavel({ nome: nomeEmpresa, curto: nomeEmpresa.slice(0, 15), inicio: '/dono', escopo: '/dono' });
   const [abertura, setAbertura] = useState(() => sessao.ler('bf:dono:abertura') !== '1');
   // Última cor escolhida já vale na abertura e no login
   useEffect(() => {

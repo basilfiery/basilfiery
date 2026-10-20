@@ -9,6 +9,7 @@ import { ProvedorConfirmar } from './componentes/Confirmar';
 import { ProvedorCancelar } from './componentes/CancelarPedido';
 import { destravarSom } from './lib/som';
 import { limparParametroDeRecarga, recarregarUmaVez } from './lib/carregamento';
+import { vigiarErrosGlobais } from './lib/erros';
 import './estilos/base.css';
 
 // O navegador só libera som depois do primeiro toque/clique
@@ -20,6 +21,8 @@ window.addEventListener('vite:preloadError', (e) => {
 });
 
 limparParametroDeRecarga();
+// Qualquer erro solto vai para o registro (sem atrapalhar quem está usando)
+vigiarErrosGlobais();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

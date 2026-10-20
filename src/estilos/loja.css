@@ -49,7 +49,7 @@
 }
 .loja-formas button.ativo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 12%, var(--bg-2)); }
 .loja-formas__ok { position: absolute; top: 6px; right: 6px; color: var(--acento); }
-.loja-pix { font-size: 1.05rem; color: #32bcad; line-height: 1; }
+.loja-pix { color: #32bcad; flex: none; }
 .loja-retirada { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--bg-2); color: var(--muted); }
 .loja-retirada b { color: var(--text); }
 .loja-resumo { display: grid; gap: 8px; padding: 14px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); }
@@ -429,3 +429,14 @@ img.loja-conta-btn__inicial { object-fit: cover; }
 .conta__perfil > div { flex: 1; }
 .conta__foto-acoes { flex-wrap: wrap; white-space: nowrap; }
 .conta__avatar img { background: var(--bg-2); }
+
+/* Número do endereço com opção "S/N" (casa sem número) */
+.loja-numero { min-width: 0; }
+.loja-numero__caixa { display: flex; gap: 6px; }
+.loja-numero__caixa .input { flex: 1; min-width: 0; }
+.loja-numero__caixa .input:disabled { opacity: .55; }
+.loja-numero__sn {
+  flex: none; min-width: 52px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--muted); font: inherit; font-size: .85rem; font-weight: 800; cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.loja-numero__sn.ativo { background: var(--acento); border-color: var(--acento); color: #fff; }

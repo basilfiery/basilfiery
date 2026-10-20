@@ -55,6 +55,8 @@ const TELAS_PAINEL = [
   () => import('./paginas/painel/Cardapio'), () => import('./paginas/painel/Estoque'), () => import('./paginas/painel/Relatorios'),
   () => import('./paginas/painel/Garcons'), () => import('./paginas/painel/Equipe'), () => import('./paginas/painel/Configuracoes'),
   () => import('./paginas/painel/Conta'), () => import('./paginas/painel/Compras'), () => import('./paginas/painel/Aparencia'),
+  () => import('./paginas/painel/AppsCelular'), () => import('./paginas/painel/NotasFiscais'), () => import('./paginas/painel/Dominios'),
+  () => import('./paginas/painel/TermosPoliticas'), () => import('./paginas/mesa/Mesa'),
 ];
 
 function usePrecarregarPainel() {

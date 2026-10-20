@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, Bell, BellOff, Check, ExternalLink, LayoutDashboard, LogOut, Printer, Receipt, RefreshCw, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Check, ExternalLink, LayoutDashboard, Menu, Printer, Receipt, RefreshCw, Search, Volume2, VolumeX } from 'lucide-react';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -19,6 +19,7 @@ import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, tempoDesde
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import '../../estilos/painel.css';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
+import { ConfigGarcom, DesafiosGarcom, MenuGarcom, type TelaGarcom } from './MenuGarcom';
 
 type Aba = 'levar' | 'cozinha' | 'mesas';
 
@@ -51,6 +52,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
 
   useEffect(() => { void estadoPush().then(setPush); }, []);
   const [perfilAberto, setPerfilAberto] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [tela, setTela] = useState<TelaGarcom>('principal');
 
   if (s.carregando) return <Carregando />;
   if (!r) {
@@ -101,6 +104,9 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   return (
     <div className="garcom" style={{ '--acento': r.cor } as CSSProperties}>
       <header className="garcom__topo">
+        <button className="icone-btn garcom__menu" onClick={() => setMenu(true)} aria-label="Abrir menu">
+          <Menu size={21} />{haChamados && <i className="garcom__menu-ponto" />}
+        </button>
         <button className="garcom__perfil" onClick={() => setPerfilAberto(true)} aria-label="Meu perfil" title="Meu perfil">
           <Avatar nome={s.nome || 'Garçom'} foto={s.foto} tamanho={40} />
         </button>
@@ -113,10 +119,25 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
           {som ? <Volume2 size={20} /> : <VolumeX size={20} />}
         </button>
         {!modoApp && r.papel !== 'garcom' && <Link to="/painel" className="icone-btn" aria-label="Abrir painel"><LayoutDashboard size={20} /></Link>}
-        <button className="icone-btn" onClick={() => void s.sair()} aria-label="Sair"><LogOut size={20} /></button>
       </header>
+      <MenuGarcom
+        aberto={menu}
+        tela={tela}
+        nomeRest={r.nome}
+        logo={r.logo_url}
+        aoIr={setTela}
+        aoPerfil={() => setPerfilAberto(true)}
+        aoSair={() => void s.sair()}
+        aoFechar={() => setMenu(false)}
+      />
       {perfilAberto && <ModalPerfil aoFechar={() => setPerfilAberto(false)} />}
-      {!s.foto && (
+      {tela !== 'principal' && (
+        <div className="garcom__subtopo">
+          <button className="btn btn--fantasma btn--sm" onClick={() => setTela('principal')}>← Mesas e pedidos</button>
+          <strong>{tela === 'desafios' ? 'Desafios do garçom' : 'Configurações'}</strong>
+        </div>
+      )}
+      {tela === 'principal' && !s.foto && (
         <button className="garcom__dica-foto" onClick={() => setPerfilAberto(true)}>
           Coloque sua foto e confira seu nome em <b>Meu perfil</b>
         </button>
@@ -129,7 +150,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
         </div>
       )}
 
-      {push && push !== 'ativo' && (
+      {tela === 'principal' && push && push !== 'ativo' && (
         <div className="garcom__aviso">
           <p><BellOff size={16} style={{ verticalAlign: '-3px' }} /> <b>Ative as notificações</b> para receber os pedidos mesmo com a tela bloqueada.</p>
           {push === 'precisa-instalar' ? (
@@ -163,6 +184,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
         </section>
       )}
 
+      {tela === 'desafios' ? <DesafiosGarcom restauranteId={r.id} /> : tela === 'config' ? <ConfigGarcom restauranteId={r.id} /> : (<>
       <nav className="garcom__abas">
         {abas.map((a) => (
           <button key={a.id} className={cx('garcom__aba', aba === a.id && 'ativo')} onClick={() => setAba(a.id)}>
@@ -184,6 +206,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
           )}
         </div>
       )}
+      </>)}
     </div>
   );
 }
@@ -199,6 +222,7 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
   const [mesas, setMesas] = useState<Mesa[] | null>(null);
   const [abertos, setAbertos] = useState<Pedido[]>([]);
   const [sel, setSel] = useState<Mesa | null>(null);
+  const [busca, setBusca] = useState('');
 
   const carregar = useCallback(async () => {
     const [m, p] = await Promise.all([
@@ -221,9 +245,22 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
   const pedidosDa = (id: string) => abertos.filter((p) => p.mesa_id === id);
   const totalDa = (id: string) => pedidosDa(id).reduce((s, p) => s + Number(p.total), 0);
 
+  const t = busca.trim().toLowerCase();
+  const visiveis = t ? mesas.filter((m) => m.nome.toLowerCase().includes(t)) : mesas;
+
   return (
+    <>
+    <div className="garcom__mesas-barra">
+      <label className="garcom__busca"><Search size={17} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome da mesa" aria-label="Buscar mesa" /></label>
+      <div className="garcom__legenda">
+        <span><i className="livre" /> Livres</span>
+        <span><i className="ocupada" /> Ocupadas</span>
+        <span><i className="chamando" /> Chamando</span>
+      </div>
+    </div>
     <div className="garcom__mesas">
-      {mesas.map((m) => {
+      {visiveis.length === 0 && <p className="muted garcom__mesas-vazio">Nenhuma mesa com esse nome.</p>}
+      {visiveis.map((m) => {
         const ps = pedidosDa(m.id);
         const total = ps.reduce((s, p) => s + Number(p.total), 0);
         const chamando = chamados.some((c) => c.mesa_id === m.id);
@@ -233,10 +270,10 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
             {ps.length > 0 ? (
               <>
                 <span className="garcom__mesa-total">{brl(total)}</span>
-                <small>{ps.length} pedido(s) · desde {hora(ps[0].criado_em)}</small>
+                <small>{ps.length} {ps.length === 1 ? 'pedido' : 'pedidos'} · {hora(ps[0].criado_em)}</small>
               </>
             ) : <small>Livre</small>}
-            {chamando && <span className="garcom__mesa-chamando"><Bell size={13} /> chamando</span>}
+            {chamando && <span className="garcom__mesa-chamando"><Bell size={12} /> chamando</span>}
           </button>
         );
       })}
@@ -253,6 +290,7 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
         />
       )}
     </div>
+    </>
   );
 }
 

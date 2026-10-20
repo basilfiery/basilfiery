@@ -197,6 +197,10 @@ export default function LojaCardapio() {
   useAlturaTela();
   const [verSobre, setVerSobre] = useState(false);
   const conta = useContaCliente();
+  // Cliente logado entra na lista "Meus clientes" desta loja
+  useEffect(() => {
+    if (conta.usuario && codigo) void supabaseCliente.rpc('cliente_registrar_visita', { p_codigo: codigo });
+  }, [conta.usuario?.id, codigo]); // eslint-disable-line react-hooks/exhaustive-deps
   // Login obrigatório: quem abre o cardápio já entra (ou cria a conta) antes de pedir
   const precisaLogin = !conta.carregando && !conta.usuario;
   const [verConta, setVerConta] = useState(false);

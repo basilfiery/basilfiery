@@ -1,10 +1,10 @@
 {
-  "id": "/g",
+  "id": "/appgarcom",
   "name": "Garçom · BasilFiery",
   "short_name": "Garçom",
   "description": "Pedidos e chamados das mesas direto no seu celular.",
-  "start_url": "/g",
-  "scope": "/g",
+  "start_url": "/appgarcom",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#121010",

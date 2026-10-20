@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Camera, Check, CircleCheck, Clock, CreditCard, ExternalLink, FileText, KeyRound, MessageCircle, Receipt, Store, UserRound } from 'lucide-react';
+import { Camera, Check, CircleCheck, Clock, CreditCard, ExternalLink, FileText, KeyRound, MessageCircle, Receipt, Store, UserRound, Wallet } from 'lucide-react';
 import { Campo } from '../../componentes/Basicos';
 import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { useToast } from '../../componentes/Toast';
@@ -8,6 +8,7 @@ import { SITE } from '../../config/site';
 import { useSessao } from '../../lib/sessao';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Fatura } from '../../lib/tipos';
+import { DIAS_TOLERANCIA, dataBR, ehCartao, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { brl, cx } from '../../lib/util';
 import { usePainel } from './Painel';
 
@@ -191,7 +192,7 @@ function Pagamento() {
   );
 }
 
-/* ---------- Fatura ---------- */
+/* ---------- Fatura: plano atual + histórico ---------- */
 function Faturas() {
   const toast = useToast();
   const { restaurante: r } = usePainel();
@@ -204,46 +205,91 @@ function Faturas() {
       });
   }, [r.id, toast]);
 
+  const sit = situacaoPlano(r);
+  const pagar = linkPagarPlano(r.plano);
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const status = (f: Fatura) => (f.pago_em ? 'paga' : new Date(`${f.vencimento}T23:59:59`) < hoje ? 'vencida' : 'aberta');
+  const nomePlano = PLANO_ROTULO[r.plano] ?? r.plano;
+  const cartao = ehCartao(r.plano_forma);
 
   return (
-    <section className="card conta-bloco">
-      <h2 className="card__titulo"><FileText size={18} /> Faturas</h2>
-      {!lista ? null : lista.length === 0 ? (
-        <div className="conta-vazio">
-          <Receipt size={30} />
-          <strong>Nenhuma fatura por aqui ainda</strong>
-          <p>Quando a mensalidade for gerada, ela aparece aqui com o link para pagar.</p>
+    <>
+      <section className="card fat-plano">
+        <span className="fat-plano__ilustra" aria-hidden="true"><Wallet size={34} /><CreditCard size={20} /></span>
+        <div className="fat-plano__corpo">
+          <header>
+            <h2>Plano atual</h2>
+            {sit.estado === 'em_dia' && <span className="badge badge--verde"><CircleCheck size={13} /> Em dia</span>}
+            {sit.estado === 'perto' && <span className="badge badge--amarelo"><Clock size={13} /> Vence {sit.dias === 0 ? 'hoje' : sit.dias === 1 ? 'amanhã' : `em ${sit.dias} dias`}</span>}
+            {sit.estado === 'vencida' && <span className="badge badge--vermelho">Vencida · pague até {dataBR(sit.limite)}</span>}
+            {sit.estado === 'suspensa' && <span className="badge badge--vermelho">Suspensa</span>}
+            {sit.estado === 'sem_cobranca' && <span className="badge">Sem cobrança</span>}
+          </header>
+          <dl className="fat-plano__dados">
+            <div><dt>Vencimento do plano</dt><dd>{dataBR(sit.vence)}</dd></div>
+            <div><dt>Valor</dt><dd>{r.plano_valor != null ? brl(Number(r.plano_valor)) : '—'}</dd></div>
+            <div><dt>Forma de pagamento</dt><dd>{r.plano_forma || '—'}</dd></div>
+            <div><dt>Plano</dt><dd>{SITE.marca} {nomePlano}</dd></div>
+            <div><dt>Período</dt><dd>Mensal</dd></div>
+          </dl>
+          {(sit.estado === 'perto' || sit.estado === 'vencida' || sit.estado === 'suspensa') && (
+            <div className={cx('fat-plano__pagar', sit.estado === 'perto' && 'fat-plano__pagar--perto')}>
+              <p>
+                {sit.estado === 'suspensa' ? 'Pague a mensalidade para liberar o sistema de novo.'
+                  : sit.estado === 'vencida' ? <>A fatura venceu em <b>{dataBR(sit.vence)}</b>. Pague até <b>{dataBR(sit.limite)}</b> para evitar o bloqueio.</>
+                    : <>Pague até <b>{dataBR(sit.vence)}</b>. Você ainda tem {DIAS_TOLERANCIA} dias de tolerância depois do vencimento.</>}
+              </p>
+              <a className="btn btn--primario" href={pagar} target={pagar.startsWith('http') ? '_blank' : undefined} rel="noopener">Pagar fatura <ExternalLink size={15} /></a>
+            </div>
+          )}
+          {cartao && sit.estado === 'em_dia' && <p className="fat-plano__nota">A cobrança é automática no cartão, todo mês no dia do vencimento.</p>}
         </div>
-      ) : (
-        <div className="tabela-wrap">
-          <table className="tabela">
-            <thead><tr><th>Referência</th><th>Vencimento</th><th className="num">Valor</th><th>Situação</th><th /></tr></thead>
-            <tbody>
-              {lista.map((f) => {
-                const st = status(f);
-                return (
-                  <tr key={f.id}>
-                    <td><strong>{f.referencia}</strong></td>
-                    <td>{data(f.vencimento)}</td>
-                    <td className="num">{brl(Number(f.valor))}</td>
-                    <td>
-                      {st === 'paga' && <span className="badge badge--verde"><Check size={13} /> Paga em {data(f.pago_em)}</span>}
-                      {st === 'aberta' && <span className="badge badge--amarelo"><Clock size={13} /> Em aberto</span>}
-                      {st === 'vencida' && <span className="badge badge--vermelho">Vencida</span>}
-                    </td>
-                    <td className="num">
-                      {f.link && <a className="btn btn--contorno btn--sm" href={f.link} target="_blank" rel="noopener">{st === 'paga' ? 'Ver' : 'Pagar'} <ExternalLink size={14} /></a>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      </section>
+
+      <section className="card conta-bloco">
+        <div className="fat-hist__cab">
+          <h2 className="card__titulo"><FileText size={18} /> Histórico de faturas</h2>
+          {lista && <small className="muted">Total de {lista.length} {lista.length === 1 ? 'registro' : 'registros'}</small>}
         </div>
-      )}
-    </section>
+        {!lista ? <div className="spinner" style={{ margin: '24px auto' }} /> : lista.length === 0 ? (
+          <div className="conta-vazio">
+            <Receipt size={30} />
+            <strong>Nenhuma fatura por aqui</strong>
+            <p>{sit.estado === 'sem_cobranca' ? 'Esta conta não tem mensalidade.' : 'Cada pagamento da mensalidade aparece aqui.'}</p>
+          </div>
+        ) : (
+          <div className="tabela-wrap">
+            <table className="tabela fat-tabela">
+              <thead><tr><th>Data de vencimento</th><th>Forma de pagamento</th><th>Referência</th><th className="num">Valor</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {lista.map((f) => {
+                  const st = status(f);
+                  const forma = f.forma || r.plano_forma || '—';
+                  return (
+                    <tr key={f.id}>
+                      <td><strong>{data(f.vencimento)}</strong></td>
+                      <td><span className="fat-forma">{ehCartao(forma) ? <CreditCard size={16} /> : <Receipt size={16} />} {forma}</span></td>
+                      <td className="muted">{f.referencia}</td>
+                      <td className="num">{brl(Number(f.valor))}</td>
+                      <td>
+                        {st === 'paga' && <span className="badge badge--verde"><Check size={13} /> Pago</span>}
+                        {st === 'aberta' && <span className="badge badge--amarelo"><Clock size={13} /> Em aberto</span>}
+                        {st === 'vencida' && <span className="badge badge--vermelho">Vencida</span>}
+                      </td>
+                      <td className="num">
+                        {st !== 'paga'
+                          ? <a className="btn btn--primario btn--sm" href={f.link || pagar} target="_blank" rel="noopener">Pagar <ExternalLink size={14} /></a>
+                          : f.link ? <a className="btn btn--contorno btn--sm" href={f.link} target="_blank" rel="noopener">Ver <ExternalLink size={14} /></a> : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }

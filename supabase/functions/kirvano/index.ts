@@ -81,6 +81,30 @@ Deno.serve(async (req) => {
     if (loja && atual?.restaurante_id) await admin.from('restaurantes').update(loja).eq('id', atual.restaurante_id);
   }
 
+  const mesRef = (d = new Date()) => `Mensalidade ${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  const hoje = () => new Date().toISOString().slice(0, 10);
+
+  async function faturaPaga(rest: string, f: { valor: number | null; forma: string | null; plano: string; vendaId: string | null }) {
+    if (f.vendaId) {
+      const { data: ja } = await admin.from('faturas').select('id').eq('venda_id', f.vendaId).maybeSingle();
+      if (ja) return;
+    }
+    const { data: aberta } = await admin.from('faturas').select('id').eq('restaurante_id', rest).is('pago_em', null)
+      .order('vencimento', { ascending: false }).limit(1).maybeSingle();
+    const pago = { pago_em: new Date().toISOString(), forma: f.forma, venda_id: f.vendaId, plano: f.plano };
+    if (aberta) await admin.from('faturas').update(pago).eq('id', aberta.id);
+    else await admin.from('faturas').insert({ restaurante_id: rest, referencia: mesRef(), valor: f.valor ?? 0, vencimento: hoje(), ...pago });
+  }
+
+  async function faturaEmAberto(rest: string, a: Record<string, any>) {
+    const venc = a.vence_em ? String(a.vence_em).slice(0, 10) : hoje();
+    const { data: ja } = await admin.from('faturas').select('id').eq('restaurante_id', rest).eq('vencimento', venc).maybeSingle();
+    if (ja) return;
+    await admin.from('faturas').insert({
+      restaurante_id: rest, referencia: mesRef(new Date(`${venc}T12:00:00`)), valor: a.valor ?? 0, vencimento: venc, forma: a.forma, plano: a.plano,
+    });
+  }
+
   try {
     switch (evento) {
       case 'SALE_APPROVED':
@@ -102,10 +126,14 @@ Deno.serve(async (req) => {
           telefone: String(cliente.phone_number ?? cliente.phone ?? atual?.telefone ?? '').replace(/\D/g, '') || null,
           documento: String(cliente.document ?? atual?.documento ?? '').replace(/\D/g, '') || null,
         }, { ativo: true, plano, plano_valor: valor, plano_vence_em: vence.slice(0, 10), plano_forma: forma });
+        // Histórico de faturas: a fatura em aberto vira paga, ou entra uma nova já paga
+        if (atual?.restaurante_id) await faturaPaga(atual.restaurante_id, { valor, forma, plano, vendaId });
         break;
       }
       case 'SUBSCRIPTION_OVERDUE':
-        if (atual) await aplicar({ status: 'atrasada' });
+        if (!atual) break;
+        await aplicar({ status: 'atrasada' });
+        if (atual.restaurante_id) await faturaEmAberto(atual.restaurante_id, atual);
         break;
       case 'SUBSCRIPTION_CANCELED':
       case 'SUBSCRIPTION_EXPIRED': {

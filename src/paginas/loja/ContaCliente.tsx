@@ -8,7 +8,7 @@ import { AjustarFoto } from '../../componentes/AjustarFoto';
 import { supabaseCliente, type ContaCliente } from '../../lib/contaCliente';
 import { cx } from '../../lib/util';
 
-const telefoneFormatado = (t: string) => {
+export const telefoneFormatado = (t: string) => {
   const d = t.replace(/\D/g, '').slice(0, 11);
   if (d.length <= 2) return d;
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;

@@ -2627,3 +2627,102 @@
   .app-android__acoes .btn { flex: 1; justify-content: center; }
 }
 .custo-campo--preco input { color: var(--text); }
+
+/* Meus clientes: abas por origem */
+.cfg-kpis--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 760px) { .cfg-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cli-abas { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.cli-abas button {
+  display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--muted); font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s, background .15s;
+}
+.cli-abas button:hover { color: var(--text); border-color: var(--line-2); }
+.cli-abas button b { min-width: 22px; height: 22px; display: inline-grid; place-items: center; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: .75rem; }
+.cli-abas button.ativo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 10%, var(--surface)); color: var(--acento); }
+.cli-abas button.ativo b { background: var(--acento); color: #fff; }
+.cli-dica { margin: 0 0 12px; color: var(--muted); font-size: .86rem; }
+.cli-nome { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.cli-nome .cfg-selo { margin-left: 0; }
+.cli-conta { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); font-size: .68rem; font-weight: 700; }
+.cli-email { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--muted); font-size: .78rem; word-break: break-all; }
+.cli-origens { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.cli-origem { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+.cli-origem--delivery { background: color-mix(in srgb, var(--acento) 12%, transparent); color: var(--acento); }
+.cli-origem--mesa { background: color-mix(in srgb, #3b82f6 14%, transparent); color: #3b82f6; }
+.cli-origem--balcao { background: color-mix(in srgb, #8b5cf6 14%, transparent); color: #8b5cf6; }
+.cli-visitas { display: block; color: var(--muted); font-size: .72rem; white-space: nowrap; }
+
+/* Relatório de itens */
+.ri__cab { flex-wrap: wrap; gap: 12px; }
+.ri__controles { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ri__controles .btn { gap: 6px; }
+.ri__dias { display: flex; gap: 2px; overflow-x: auto; margin: 4px 0 14px; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.ri__dias button {
+  flex: none; height: 38px; padding: 0 16px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  background: none; color: var(--muted); font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer;
+}
+.ri__dias button:hover:not(:disabled) { color: var(--text); }
+.ri__dias button.ativo { color: var(--acento); border-bottom-color: var(--acento); }
+.ri__dias button:disabled { opacity: .35; cursor: default; }
+.ri__resumo { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; margin-bottom: 12px; }
+.ri__resumo > div { display: grid; gap: 1px; }
+.ri__resumo small { color: var(--muted); font-size: .76rem; }
+.ri__resumo strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.ri__busca {
+  margin-left: auto; display: flex; align-items: center; gap: 8px; height: 38px; min-width: 220px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-2); color: var(--muted);
+}
+.ri__busca input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--text); font: inherit; font-size: .9rem; }
+.ri__tabela td { vertical-align: middle; }
+.ri__nome { font-weight: 600; }
+.ri__vendas { min-width: 180px; }
+.ri__vendas { white-space: nowrap; }
+.ri__vendas b { display: inline-block; min-width: 66px; margin-left: 10px; font-variant-numeric: tabular-nums; }
+.ri__barra { display: inline-block; vertical-align: middle; width: 110px; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.ri__barra i { display: block; height: 100%; border-radius: 999px; background: var(--acento); }
+.ri__varia { display: flex; align-items: center; justify-content: flex-end; gap: 3px; color: var(--muted); font-size: .72rem; white-space: nowrap; }
+@media (max-width: 640px) {
+  .ri__busca { margin-left: 0; min-width: 0; width: 100%; }
+  .ri__barra { width: 60px; }
+}
+
+/* Minha conta › Fatura */
+.fat-plano { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 22px; padding: 24px; }
+.fat-plano__ilustra {
+  position: relative; width: 84px; height: 84px; display: grid; place-items: center; border-radius: 22px;
+  background: linear-gradient(145deg, #ffd27a, #ff9f43); color: #7a3e00; box-shadow: 0 12px 26px rgba(255, 159, 67, .3);
+}
+.fat-plano__ilustra svg:last-child { position: absolute; right: -8px; bottom: -6px; padding: 5px; border-radius: 9px; background: var(--surface); color: var(--acento); box-shadow: 0 4px 12px rgba(0, 0, 0, .15); width: 30px; height: 30px; }
+.fat-plano__corpo { display: grid; gap: 14px; min-width: 0; }
+.fat-plano__corpo header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.fat-plano__corpo h2 { margin: 0; font-size: 1.2rem; }
+.fat-plano__corpo .badge { display: inline-flex; align-items: center; gap: 5px; }
+.fat-plano__dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 24px; margin: 0; }
+.fat-plano__dados div { display: grid; gap: 3px; }
+.fat-plano__dados dt { color: var(--muted); font-size: .8rem; font-weight: 700; }
+.fat-plano__dados dd { margin: 0; font-size: 1rem; font-weight: 600; }
+.fat-plano__pagar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding: 12px 14px;
+  border-radius: 12px; background: color-mix(in srgb, var(--danger) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+}
+.fat-plano__pagar p { margin: 0; font-size: .9rem; }
+.fat-plano__pagar .btn { gap: 6px; }
+.fat-plano__nota { margin: 0; color: var(--muted); font-size: .86rem; }
+.fat-hist__cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.fat-forma { display: inline-flex; align-items: center; gap: 7px; }
+.fat-forma svg { color: var(--muted); }
+.fat-tabela .btn { gap: 5px; }
+@media (max-width: 560px) { .fat-plano { grid-template-columns: minmax(0, 1fr); } }
+
+/* Aviso de fatura no topo do painel */
+.aviso-fatura {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 28px 10px; padding: 10px 14px; border-radius: 14px;
+  background: color-mix(in srgb, #f59e0b 12%, var(--surface)); border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+}
+.aviso-fatura > span:nth-child(2) { flex: 1; min-width: 200px; font-size: .92rem; }
+.aviso-fatura__icone { width: 34px; height: 34px; display: grid; place-items: center; flex: none; border-radius: 10px; background: color-mix(in srgb, #f59e0b 22%, transparent); color: #b45309; }
+.aviso-fatura__ver { color: var(--muted); font-size: .85rem; font-weight: 600; }
+.aviso-fatura--vencida { background: color-mix(in srgb, var(--danger) 10%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+.aviso-fatura--vencida .aviso-fatura__icone { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+@media (max-width: 900px) { .aviso-fatura { margin: 0 12px 10px; } }
+.fat-plano__pagar--perto { background: color-mix(in srgb, #f59e0b 10%, var(--surface)); border-color: color-mix(in srgb, #f59e0b 35%, transparent); }

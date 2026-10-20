@@ -34,7 +34,8 @@ const senhaNova = () => String(Math.floor(100000 + Math.random() * 900000));
 const usuarioDe = (nome: string) => nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/).slice(0, 2).join('.').replace(/[^a-z0-9.]/g, '').slice(0, 30);
 
 type Aba = 'comprar' | 'comprados' | 'equipe';
-export const linkColaboradores = (codigo: string) => `${origemSistema()}/colaboradores/${codigo}`;
+/** App dos colaboradores: o mesmo link para todas as lojas (o usuário acha a loja) */
+export const linkColaboradores = (_codigo?: string) => `${origemSistema()}/colaboradores`;
 export const linkListaCompras = linkColaboradores;
 
 export default function Compras() {

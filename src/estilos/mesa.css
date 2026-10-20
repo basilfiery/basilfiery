@@ -659,3 +659,8 @@ html:has(.mesa), body:has(.mesa) { height: 100%; overflow: hidden; overscroll-be
   .funil-passos:has(li:nth-child(3)) li:not(.atual) .funil-passos__nome { display: none; }
   .funil-passos:has(li:nth-child(3)) li:not(.atual) button { padding-right: 5px; }
 }
+
+/* Pedir acesso: nome e WhatsApp opcionais */
+.abrir-mesa__quem { display: grid; gap: 10px; width: 100%; margin: 4px 0 2px; text-align: left; }
+.abrir-mesa__quem .campo > span small { color: var(--muted); font-weight: 400; }
+.abrir-mesa__aviso { color: var(--danger); font-size: .82rem; }

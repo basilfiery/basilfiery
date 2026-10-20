@@ -48,7 +48,7 @@ export function AcessosPendentes({ acessos, agora, variante, aoResponder }: {
         <div key={a.id} className="acesso">
           <span className="acesso__icone" aria-hidden="true">{iconeAparelho(a.aparelho, variante === 'garcom' ? 20 : 18)}</span>
           <div className="acesso__texto">
-            <strong>{a.mesa_nome} quer fazer pedidos</strong>
+            <strong>{a.cliente_nome ? `${a.cliente_nome.split(' ')[0]} quer fazer pedidos na ${a.mesa_nome}` : `${a.mesa_nome} quer fazer pedidos`}</strong>
             <small>{a.aparelho ?? 'Aparelho do cliente'} · {tempoDesde(a.criado_em, agora)} · confira se há alguém na mesa</small>
           </div>
           <div className="acesso__acoes">

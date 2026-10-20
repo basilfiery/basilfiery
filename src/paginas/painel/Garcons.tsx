@@ -14,8 +14,8 @@ import { confirmar } from '../../componentes/Confirmar';
 interface Acesso { nome: string; email: string; senha?: string; telefone?: string; jaTinhaConta?: boolean }
 
 /** Link do app do garçom: separado do sistema (não passa pela tela de login do caixa). */
-const linkApp = (codigo: string, email?: string) =>
-  `${origemSistema()}/g/${codigo}${email ? `?email=${encodeURIComponent(email)}` : ''}`;
+const linkApp = (_codigo: string, email?: string) =>
+  `${origemSistema()}/appgarcom${email ? `?email=${encodeURIComponent(email)}` : ''}`;
 
 /** Senha fácil de ditar/digitar no celular (sem letras confusas como l/1, O/0). */
 function gerarSenha() {

@@ -26,6 +26,7 @@ const AppGarcom = tela(() => import('./paginas/garcom/AppGarcom'));
 const Dono = tela(() => import('./paginas/dono/Dono'));
 const Loja = tela(() => import('./paginas/loja/Loja'));
 const LojaPedido = tela(() => import('./paginas/loja/Loja').then((m) => ({ default: m.LojaPedido })));
+const AppGarcomGeral = tela(() => import('./paginas/garcom/AppGarcom').then((m) => ({ default: m.AppGarcomGeral })));
 const AppGarcomInicio = tela(() => import('./paginas/garcom/AppGarcom').then((m) => ({ default: m.AppGarcomInicio })));
 const Plataforma = tela(() => import('./paginas/plataforma/Plataforma'));
 const Painel = tela(() => import('./paginas/painel/Painel'));
@@ -102,6 +103,8 @@ export default function App() {
         <Route path="/loja/:codigo/pedido/:acompanhar" element={<LojaPedido />} />
         <Route path="/lista/:codigo" element={<ListaCompras />} />
         <Route path="/colaboradores/:codigo" element={<ListaCompras />} />
+        <Route path="/appgarcom" element={<AppGarcomGeral />} />
+        <Route path="/colaboradores" element={<ListaCompras />} />
         <Route path="/g" element={<AppGarcomInicio />} />
         <Route path="/g/:codigo" element={<AppGarcom />} />
         <Route path="/garcom" element={<ExigeLogin><Garcom /></ExigeLogin>} />

@@ -20,9 +20,9 @@ export default function AppsCelular() {
       whats: `Meu app de vendas da ${r.nome}: ${origem}/dono`,
     },
     {
-      id: 'garcom', icone: UserRound, titulo: 'App do garçom', link: `${origem}/g/${r.codigo}`,
-      texto: 'Mesas, pedidos e chamados no celular de cada garçom. Os acessos são criados em Equipe › Garçons.',
-      whats: `Olá! Este é o app dos garçons da ${r.nome}: ${origem}/g/${r.codigo}`,
+      id: 'garcom', icone: UserRound, titulo: 'App do garçom', link: `${origem}/appgarcom`,
+      texto: 'Mesas, pedidos e chamados no celular de cada garçom. Cada um entra com o e-mail e a senha criados em Equipe › Garçons.',
+      whats: `Olá! Este é o app dos garçons da ${r.nome}: ${origem}/appgarcom (entre com o seu e-mail e senha)`,
       extra: <Link className="btn btn--fantasma btn--sm" to="/painel/garcons">Criar acesso de garçom</Link>,
       android: true,
     },

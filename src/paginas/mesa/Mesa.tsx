@@ -21,6 +21,7 @@ import { fraseCancelamento } from '../../lib/cancelamento';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import { JogoMemoria } from './JogoMemoria';
+import { telefoneFormatado } from '../loja/ContaCliente';
 import '../../estilos/mesa.css';
 
 /** Jogo da memória no topo do cardápio da mesa (para tirar: false). */
@@ -224,10 +225,14 @@ export default function Mesa() {
     };
   }, [consultarAcesso, acesso]);
 
-  async function pedirAbertura() {
+  async function pedirAbertura(cliente?: { nome: string; telefone: string }) {
     setPedindoAcesso(true);
+    const salvo = ls.ler<{ nome: string; telefone: string }>('bf:cliente-mesa', { nome: '', telefone: '' });
+    const quem = cliente ?? salvo;
+    if (cliente) ls.gravar('bf:cliente-mesa', cliente);
     const { data, error } = await supabase.rpc('mesa_acesso_pedir', {
       p_token: token, p_dispositivo: dispositivo, p_aparelho: descreverAparelho(),
+      p_nome: quem.nome.trim() || null, p_telefone: quem.telefone.replace(/\D/g, '') || null,
     });
     setPedindoAcesso(false);
     if (error) return toast(msgErro(error), 'erro');
@@ -744,7 +749,7 @@ export default function Mesa() {
           mesa={mesa.nome}
           restaurante={restaurante.nome}
           enviando={pedindoAcesso}
-          aoPedir={() => void pedirAbertura()}
+          aoPedir={(cliente) => void pedirAbertura(cliente)}
           aoFechar={() => { setVerAbrir(false); if (acesso !== 'pendente') acaoDepois.current = null; }}
         />
       )}
@@ -865,9 +870,28 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
   mesa: string;
   restaurante: string;
   enviando: boolean;
-  aoPedir: () => void;
+  aoPedir: (cliente?: { nome: string; telefone: string }) => void;
   aoFechar: () => void;
 }) {
+  // Nome e WhatsApp são opcionais: o garçom vê quem está pedindo e a loja ganha o contato
+  const [cliente, setCliente] = useState(() => ls.ler('bf:cliente-mesa', { nome: '', telefone: '' }));
+  const telDigitos = cliente.telefone.replace(/\D/g, '');
+  const telInvalido = telDigitos.length > 0 && (telDigitos.length < 10 || telDigitos.length > 11);
+  const camposCliente = (
+    <div className="abrir-mesa__quem">
+      <label className="campo">
+        <span>Seu nome <small>(opcional)</small></span>
+        <input className="input" value={cliente.nome} maxLength={60} autoComplete="given-name" placeholder="Como podemos te chamar"
+          onChange={(e) => setCliente({ ...cliente, nome: e.target.value })} />
+      </label>
+      <label className="campo">
+        <span>WhatsApp <small>(opcional)</small></span>
+        <input className="input" value={telefoneFormatado(cliente.telefone)} inputMode="tel" autoComplete="tel" placeholder="(00) 00000-0000"
+          onChange={(e) => setCliente({ ...cliente, telefone: e.target.value.replace(/\D/g, '').slice(0, 11) })} />
+      </label>
+      {telInvalido && <small className="abrir-mesa__aviso">Confira o WhatsApp com DDD, ou deixe em branco.</small>}
+    </div>
+  );
   return (
     <Modal aberto aoFechar={aoFechar} classe="mesa-modal abrir-mesa" largura={460}>
       {acesso === 'pendente' ? (
@@ -883,7 +907,7 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
           <span className="abrir-mesa__icone abrir-mesa__icone--recusado"><XCircle size={36} /></span>
           <h2 className="titulo">O acesso não foi liberado</h2>
           <p>Se você está no restaurante, chame um atendente para liberar a <b>{mesa}</b>.</p>
-          <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
+          <button className="btn btn--primario btn--lg btn--bloco" onClick={() => aoPedir()} disabled={enviando}>
             {enviando ? 'Enviando…' : 'Solicitar de novo'}
           </button>
           <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>
@@ -894,7 +918,8 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
           <p className="abrir-mesa__sobre">{restaurante}</p>
           <h2 className="titulo">A {mesa} já está em uso</h2>
           <p>Se você está junto com quem abriu a mesa, solicite o acesso: o garçom libera este celular também.</p>
-          <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
+          {camposCliente}
+          <button className="btn btn--primario btn--lg btn--bloco" onClick={() => aoPedir(cliente)} disabled={enviando || telInvalido}>
             {enviando ? 'Enviando…' : 'Solicitar acesso à mesa'}
           </button>
           <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>
@@ -905,7 +930,8 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
           <p className="abrir-mesa__sobre">{restaurante}</p>
           <h2 className="titulo">Bem-vindo à {mesa}!</h2>
           <p>Para começar a fazer pedidos, solicite o acesso à mesa. O garçom confirma em instantes que você está aqui no restaurante.</p>
-          <button className="btn btn--primario btn--lg btn--bloco" onClick={aoPedir} disabled={enviando}>
+          {camposCliente}
+          <button className="btn btn--primario btn--lg btn--bloco" onClick={() => aoPedir(cliente)} disabled={enviando || telInvalido}>
             {enviando ? 'Enviando…' : 'Solicitar acesso à mesa'}
           </button>
           <button className="btn btn--fantasma btn--bloco" onClick={aoFechar}>Só olhar o cardápio</button>

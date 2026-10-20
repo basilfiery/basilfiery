@@ -99,6 +99,8 @@ export interface Fatura {
   vencimento: string;
   pago_em: string | null;
   link: string | null;
+  forma?: string | null;
+  plano?: string | null;
   criado_em: string;
 }
 
@@ -312,6 +314,9 @@ export interface MesaAcesso {
   mesa_nome: string;
   dispositivo: string;
   aparelho: string | null;
+  /** Nome e WhatsApp que o cliente informou (opcionais) */
+  cliente_nome?: string | null;
+  cliente_telefone?: string | null;
   status: StatusAcesso;
   fixo: boolean;
   criado_em: string;

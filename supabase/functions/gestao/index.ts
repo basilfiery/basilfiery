@@ -73,7 +73,7 @@ async function assinaturaDaCompra(c: Corpo) {
   }
   if (a.restaurante_id) throw new Falha('O acesso desta assinatura já foi criado. Entre com seu e-mail e senha (ou use "Esqueci minha senha").', 409);
   if (a.status !== 'ativa' && a.status !== 'atrasada') throw new Falha('Esta assinatura não está ativa. Fale com o suporte.', 403);
-  return a as { id: string; email: string; nome: string | null; telefone: string | null; plano: string | null; valor: number | null; forma: string | null; vence_em: string | null };
+  return a as { id: string; email: string; nome: string | null; telefone: string | null; plano: string | null; valor: number | null; forma: string | null; vence_em: string | null; venda_id: string | null };
 }
 
 const acoes: Record<string, (req: Request, c: Corpo) => Promise<unknown>> = {
@@ -153,6 +153,12 @@ const acoes: Record<string, (req: Request, c: Corpo) => Promise<unknown>> = {
     if (e2) throw e2;
     await admin.from('mesas').insert(Array.from({ length: 5 }, (_, i) => ({ restaurante_id: rest.id, nome: `Mesa ${i + 1}`, ordem: i + 1 })));
     await admin.from('assinaturas').update({ restaurante_id: rest.id, user_id: uid, atualizado_em: new Date().toISOString() }).eq('id', a.id);
+    // Primeira fatura (a compra que liberou o acesso) já entra no histórico como paga
+    const agora = new Date();
+    await admin.from('faturas').insert({
+      restaurante_id: rest.id, referencia: `Mensalidade ${String(agora.getMonth() + 1).padStart(2, '0')}/${agora.getFullYear()}`,
+      valor: a.valor ?? 0, vencimento: agora.toISOString().slice(0, 10), pago_em: agora.toISOString(), forma: a.forma, plano: a.plano, venda_id: a.venda_id,
+    });
     return { ok: true, email: a.email };
   },
 

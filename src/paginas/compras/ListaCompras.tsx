@@ -9,7 +9,8 @@ import { cx, ls, tempoDesde, useAgora } from '../../lib/util';
 import '../../estilos/lista.css';
 
 /* =====================================================================
-   Lista de compras da equipe: /lista/<codigo>
+   App dos colaboradores: basilfiery.com.br/colaboradores (o login acha a loja).
+   Os links antigos /colaboradores/<codigo> e /lista/<codigo> continuam valendo.
    Cada funcionário se cadastra (nome + senha de 4 números), o dono libera,
    e ele manda o que precisa repor para o dia seguinte.
    ===================================================================== */
@@ -29,13 +30,15 @@ const SUGESTOES: Record<string, string[]> = {
   Caixa: ['Bobina de impressora', 'Troco (moedas)', 'Sacola', 'Caneta'],
   Entregas: ['Embalagem de pizza', 'Marmitex', 'Sacola térmica', 'Lacre'],
 };
+const GENERICA: Loja = { nome: 'BasilFiery', logo_url: '/icone-512.png', cor: '#ff5a1f' };
 const QTDS = ['1 un', '2 un', '1 kg', '2 kg', '5 kg', '1 cx', '1 pct', '1 fardo'];
 const sessaoInvalida = (e: unknown) => /SESSAO_INVALIDA/.test(msgErro(e));
 
 export default function ListaCompras() {
   const { codigo = '' } = useParams();
-  const chave = `bf:lista:${codigo}`;
+  const chave = codigo ? `bf:lista:${codigo}` : 'bf:lista';
   const base = window.location.pathname.startsWith('/lista') ? '/lista' : '/colaboradores';
+  const inicio = codigo ? `${base}/${codigo}` : '/colaboradores';
   const [token, setToken] = useState<string>(() => ls.ler(chave, ''));
   const [loja, setLoja] = useState<Loja | null | undefined>(undefined);
   const [eu, setEu] = useState<Eu | null>(null);
@@ -45,8 +48,13 @@ export default function ListaCompras() {
     document.documentElement.dataset.tema = 'claro';
     return () => { delete document.documentElement.dataset.tema; };
   }, []);
-  useEffect(() => { void supabase.rpc('compras_loja', { p_codigo: codigo }).then(({ data }) => setLoja((data as Loja | null) ?? null)); }, [codigo]);
-  useAppInstalavel(loja ? { nome: `Colaboradores · ${loja.nome}`, curto: 'Colaboradores', inicio: `${base}/${codigo}`, escopo: `${base}/${codigo}` } : null);
+  useEffect(() => {
+    // Sem código no link: a marca da loja aparece depois do login
+    if (!codigo) { setLoja(GENERICA); return; }
+    void supabase.rpc('compras_loja', { p_codigo: codigo }).then(({ data }) => setLoja((data as Loja | null) ?? null));
+  }, [codigo]);
+  const lojaAtual = eu?.loja ?? loja;
+  useAppInstalavel(lojaAtual ? { nome: codigo || eu ? `Colaboradores · ${lojaAtual.nome}` : 'Colaboradores', curto: 'Colaboradores', inicio, escopo: inicio } : null);
 
   const sair = useCallback(() => { ls.gravar(chave, ''); setToken(''); setEu(null); }, [chave]);
   const atualizar = useCallback(async () => {
@@ -64,10 +72,10 @@ export default function ListaCompras() {
   }, [atualizar]);
 
   const entrar = (t: string) => { ls.gravar(chave, t); setToken(t); };
-  const cor = eu?.loja.cor ?? loja?.cor ?? '#ff5a1f';
+  const cor = lojaAtual?.cor ?? '#ff5a1f';
 
   if (loja === undefined || (token && !eu)) return <Carregando texto="Abrindo a lista…" />;
-  if (loja === null) {
+  if (loja === null || !lojaAtual) {
     return (
       <div className="lista lista--centro">
         <span className="lista__icone-grande"><Store size={36} /></span>
@@ -80,9 +88,9 @@ export default function ListaCompras() {
   return (
     <div className="lista" style={{ '--acento': cor } as CSSProperties}>
       <header className="lista__topo">
-        {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="lista__letra">{loja.nome.charAt(0)}</span>}
+        {lojaAtual.logo_url ? <img src={lojaAtual.logo_url} alt="" /> : <span className="lista__letra">{lojaAtual.nome.charAt(0)}</span>}
         <div>
-          <strong>{loja.nome}</strong>
+          <strong>{lojaAtual.nome}</strong>
           <small>App dos colaboradores</small>
         </div>
         {eu && <button className="lista__sair" onClick={sair} aria-label="Sair"><LogOut size={18} /></button>}
@@ -113,10 +121,12 @@ function Entrada({ codigo, aoEntrar }: { codigo: string; aoEntrar: (token: strin
   async function enviar(e: FormEvent) {
     e.preventDefault();
     setEnviando(true);
-    const { data, error } = await supabase.rpc('compras_entrar', { p_codigo: codigo, p_nome: usuario, p_pin: senha });
+    const { data, error } = codigo
+      ? await supabase.rpc('compras_entrar', { p_codigo: codigo, p_nome: usuario, p_pin: senha })
+      : await supabase.rpc('compras_entrar_usuario', { p_usuario: usuario, p_pin: senha });
     setEnviando(false);
     if (error) return toast(msgErro(error), 'erro');
-    aoEntrar(data as string);
+    aoEntrar(codigo ? (data as string) : (data as { token: string }).token);
   }
 
   return (

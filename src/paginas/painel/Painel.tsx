@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, Receipt, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -12,6 +12,7 @@ import { ModalCardapioDigital } from '../../componentes/CardapioDigital';
 import { Suspenso } from '../../componentes/Suspenso';
 import { MarcaLateral, tituloMarca } from '../../componentes/MarcaSistema';
 import { linkAssinar } from '../../config/site';
+import { dataBR, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { useToast } from '../../componentes/Toast';
 import {
   EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirConta, imprimirPedido, imprimirTeste,
@@ -806,6 +807,7 @@ export default function Painel() {
           />
         )}
 
+        {ehGestor(papel) && !s.ehAdmin && <AvisoFatura r={r} />}
         <AcessosPendentes acessos={vivo.acessos} agora={agora} variante="painel" aoResponder={vivo.removerAcesso} />
         {!desktop && permissaoNotif === 'default' && (
           <div className="aviso-notif">
@@ -851,6 +853,26 @@ export default function Painel() {
           atualizarAoConcluir={!!novaVersao}
         />
       )}
+    </div>
+  );
+}
+
+/** Igual ao Anota AI: lembra de pagar antes de bloquear (Pix/boleto perto do vencimento, ou fatura vencida) */
+function AvisoFatura({ r }: { r: RestauranteComPapel }) {
+  const sit = situacaoPlano(r);
+  if (sit.estado !== 'perto' && sit.estado !== 'vencida') return null;
+  const pagar = linkPagarPlano(r.plano);
+  const vencida = sit.estado === 'vencida';
+  return (
+    <div className={cx('aviso-fatura', vencida && 'aviso-fatura--vencida')} role="status">
+      <span className="aviso-fatura__icone"><Receipt size={18} /></span>
+      <span>
+        {vencida
+          ? <><b>Sua fatura venceu em {dataBR(sit.vence)}.</b> Pague até {dataBR(sit.limite)} para evitar o bloqueio da conta.</>
+          : <><b>Evite o bloqueio da sua conta.</b> Pague sua fatura até {dataBR(sit.vence)}.</>}
+      </span>
+      <a className="btn btn--sm btn--primario" href={pagar} target={pagar.startsWith('http') ? '_blank' : undefined} rel="noopener">Pagar fatura</a>
+      <Link className="aviso-fatura__ver" to="/painel/conta/faturas">Ver faturas</Link>
     </div>
   );
 }

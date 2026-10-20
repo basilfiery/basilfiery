@@ -7,8 +7,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-const VERSAO = '1.0.0';
-const CODIGO_VERSAO = 1; // aumente a cada APK novo
+const VERSAO = '1.0.1';
+const CODIGO_VERSAO = 2; // aumente a cada APK novo
 
 const HOME = os.homedir();
 const CHAVES = path.join(HOME, 'Documents', 'BasilFiery-chaves');
@@ -33,7 +33,7 @@ const manifesto = new TwaManifest({
   navigationColorDark: '#121010',
   backgroundColor: '#121010',
   enableNotifications: true,
-  startUrl: '/g',
+  startUrl: '/appgarcom',
   iconUrl: 'https://basilfiery.com.br/icone-512.png',
   maskableIconUrl: 'https://basilfiery.com.br/icone-512.png',
   appVersion: VERSAO,

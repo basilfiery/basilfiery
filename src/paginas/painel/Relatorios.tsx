@@ -11,6 +11,7 @@ import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, ehGestor, hora, inicioDoDia, tempoDesde, useAgora } from '../../lib/util';
 import { Link } from 'react-router-dom';
 import { usePainel } from './Painel';
+import { RelatorioItens } from './RelatorioItens';
 
 /* ---------------- Tipos vindos do banco ---------------- */
 interface Relatorio {
@@ -248,6 +249,8 @@ export default function Relatorios() {
               <Ranking linhas={rel.por_categoria.map((c) => ({ nome: c.categoria, qtd: c.qtd, valor: Number(c.faturamento) }))} coluna="Categoria" unidade="itens" />
             </section>
           </div>
+
+          <RelatorioItens restauranteId={restaurante.id} inicio={periodo.inicio} fim={periodo.fim} tz={TZ} versao={atualizadoEm ?? 0} rotuloPeriodo={rotuloPeriodo} aoErro={(m) => toast(m, 'erro')} />
 
           <ListaPedidos restauranteId={restaurante.id} restauranteNome={restaurante.nome} periodo={periodo} versao={atualizadoEm ?? 0} aoErro={(m) => toast(m, 'erro')} />
         </div>

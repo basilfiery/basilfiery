@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Carregando } from './componentes/Carregando';
 import { ExigeLogin } from './lib/sessao';
 import { recarregarUmaVez } from './lib/carregamento';
+import { ehHostSistema } from './lib/linkCurto';
 
 /** Carrega uma tela; se o arquivo dela não existir mais (sistema atualizado), recarrega sozinho. */
 function tela(carregar: () => Promise<{ default: ComponentType }>) {
@@ -42,6 +43,9 @@ const Compras = tela(() => import('./paginas/painel/Compras'));
 const Aparencia = tela(() => import('./paginas/painel/Aparencia'));
 const AppsCelular = tela(() => import('./paginas/painel/AppsCelular'));
 const LinkCurto = tela(() => import('./paginas/LinkCurto'));
+const LinkAssinante = tela(() => import('./paginas/LinkCurto').then((m) => ({ default: m.LinkAssinante })));
+const LinkDominio = tela(() => import('./paginas/LinkCurto').then((m) => ({ default: m.LinkDominio })));
+const Dominios = tela(() => import('./paginas/painel/Dominios'));
 const ListaCompras = tela(() => import('./paginas/compras/ListaCompras'));
 
 /** Telas do painel: baixadas em segundo plano para trocar de aba sem esperar. */
@@ -61,8 +65,29 @@ function usePrecarregarPainel() {
   }, [noPainel]);
 }
 
+// Aberto pelo domínio próprio de uma loja (plano Premium): só o cardápio e as mesas dela
+const DOMINIO_PROPRIO = !ehHostSistema();
+
+function RotasDominio() {
+  return (
+    <Suspense fallback={<Carregando />}>
+      <Routes>
+        <Route path="/" element={<LinkDominio />} />
+        <Route path="/cardapio" element={<LinkDominio />} />
+        <Route path="/pedido/:acompanhar" element={<LinkDominio />} />
+        <Route path="/termos" element={<Termos />} />
+        <Route path="/privacidade" element={<Privacidade />} />
+        <Route path="/mesa/:token" element={<Mesa />} />
+        <Route path="/:mesa" element={<LinkDominio />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
 export default function App() {
   usePrecarregarPainel();
+  if (DOMINIO_PROPRIO) return <RotasDominio />;
   return (
     <Suspense fallback={<Carregando />}>
       <Routes>
@@ -90,6 +115,7 @@ export default function App() {
           <Route path="apps" element={<AppsCelular />} />
           <Route path="termos" element={<TermosPoliticas />} />
           <Route path="notas" element={<NotasFiscais />} />
+          <Route path="dominios" element={<Dominios />} />
           <Route path="estoque" element={<Estoque />} />
           <Route path="garcons" element={<Garcons />} />
           <Route path="equipe" element={<Equipe />} />
@@ -100,7 +126,12 @@ export default function App() {
           <Route path="conta" element={<Conta />} />
           <Route path="conta/:aba" element={<Conta />} />
         </Route>
-        {/* Links curtos: /<loja>, /<loja>/<mesa>, /<loja>/pedido/<acompanhar> */}
+        {/* Plano Start: /assinante/<loja>/cardapio, /assinante/<loja>/mesa1, /assinante/<loja>/pedido/<x> */}
+        <Route path="/assinante/:loja" element={<LinkAssinante />} />
+        <Route path="/assinante/:loja/cardapio" element={<LinkAssinante />} />
+        <Route path="/assinante/:loja/pedido/:acompanhar" element={<LinkAssinante />} />
+        <Route path="/assinante/:loja/:mesa" element={<LinkAssinante />} />
+        {/* Loja principal (/cardapio, /mesa1) e links antigos /<loja> */}
         <Route path="/:loja" element={<LinkCurto />} />
         <Route path="/:loja/:mesa" element={<LinkCurto />} />
         <Route path="/:loja/pedido/:acompanhar" element={<LinkCurto />} />

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { BarChart3, MessageCircle, Share, ShoppingCart, SquarePlus, UserRound } from 'lucide-react';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { usePainel } from './Painel';
+import { origemSistema } from '../../lib/linkCurto';
 import { linkColaboradores } from './Compras';
 
 /* =====================================================================
@@ -10,7 +11,7 @@ import { linkColaboradores } from './Compras';
 
 export default function AppsCelular() {
   const { restaurante: r } = usePainel();
-  const origem = window.location.origin;
+  const origem = origemSistema();
   const apps = [
     {
       id: 'dono', icone: BarChart3, titulo: 'App do dono', link: `${origem}/dono`,

@@ -8,13 +8,14 @@ import { useToast } from '../../componentes/Toast';
 import { gestao, msgErro, supabase } from '../../lib/supabase';
 import type { Membro } from '../../lib/tipos';
 import { usePainel } from './Painel';
+import { origemSistema } from '../../lib/linkCurto';
 import { confirmar } from '../../componentes/Confirmar';
 
 interface Acesso { nome: string; email: string; senha?: string; telefone?: string; jaTinhaConta?: boolean }
 
 /** Link do app do garçom: separado do sistema (não passa pela tela de login do caixa). */
 const linkApp = (codigo: string, email?: string) =>
-  `${window.location.origin}/g/${codigo}${email ? `?email=${encodeURIComponent(email)}` : ''}`;
+  `${origemSistema()}/g/${codigo}${email ? `?email=${encodeURIComponent(email)}` : ''}`;
 
 /** Senha fácil de ditar/digitar no celular (sem letras confusas como l/1, O/0). */
 function gerarSenha() {

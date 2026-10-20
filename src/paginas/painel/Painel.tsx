@@ -111,6 +111,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
           { para: '/painel/config/nota-fiscal', rotulo: 'Nota fiscal', papeis: GESTORES, novo: true },
           { para: '/painel/config/anuncios', rotulo: 'Integração de anúncios', papeis: GESTORES },
           { para: '/painel/config/logo-sistema', rotulo: 'Logo do sistema', papeis: GESTORES, novo: true },
+          { para: '/painel/dominios', rotulo: 'Domínios', papeis: GESTORES, novo: true },
           { para: '/painel/config/avisos', rotulo: 'Avisos e sons' },
         ],
       },
@@ -133,8 +134,10 @@ const semAcento = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, 
 
 const PLANO_ROTULO: Record<string, string> = {
   teste: 'Teste gratuito',
-  essencial: 'Plano Essencial',
-  profissional: 'Plano Profissional',
+  start: 'Plano Start',
+  premium: 'Plano Premium',
+  essencial: 'Plano Start',
+  profissional: 'Plano Premium',
   rede: 'Plano Rede',
 };
 

@@ -141,7 +141,7 @@ export default function Mesas() {
                     </div>
                   </div>
                   <div className="menu-sep" />
-                  <button className="menu-item" onClick={() => { fechar(); void navigator.clipboard?.writeText(linkMesa(restaurante.slug, m, mesas)).then(() => toast('Link do tablet copiado.', 'ok')); }}><Tablet size={17} /> Copiar link do tablet</button>
+                  <button className="menu-item" onClick={() => { fechar(); void navigator.clipboard?.writeText(linkMesa(restaurante, m, mesas)).then(() => toast('Link do tablet copiado.', 'ok')); }}><Tablet size={17} /> Copiar link do tablet</button>
                 </>
               )}
             </Suspenso>
@@ -329,7 +329,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const [trocando, setTrocando] = useState(false);
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
   const { restaurante } = usePainel();
-  const link = linkMesa(restaurante.slug, { ...mesa, token }, mesas);
+  const link = linkMesa(restaurante, { ...mesa, token }, mesas);
 
   async function fecharConta(forma: FormaPagamento) {
     setOcupado(true);
@@ -496,7 +496,7 @@ function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }
         {mesas.map((m) => (
           <li key={m.id}>
             <strong>{m.nome}</strong>
-            <LinkCopiavel link={linkMesa(restaurante.slug, m, mesas)} compacto />
+            <LinkCopiavel link={linkMesa(restaurante, m, mesas)} compacto />
           </li>
         ))}
       </ul>

@@ -11,7 +11,10 @@ export function idDispositivo(): string {
   const salvo = ls.ler<string | null>(CHAVE, null);
   if (salvo && salvo.length >= 16) return salvo;
   if (emMemoria) return emMemoria;
-  const novo = crypto.randomUUID().replace(/-/g, '');
+  // randomUUID só existe em HTTPS; getRandomValues funciona em qualquer navegador
+  const novo = typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID().replace(/-/g, '')
+    : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
   ls.gravar(CHAVE, novo);
   emMemoria = novo;
   return novo;

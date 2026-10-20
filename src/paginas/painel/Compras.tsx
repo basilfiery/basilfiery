@@ -10,6 +10,7 @@ import { imprimirLista } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
 import { msgErro, supabase } from '../../lib/supabase';
 import { cx, ehGestor, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
+import { origemSistema } from '../../lib/linkCurto';
 import { usePainel } from './Painel';
 
 /* =====================================================================
@@ -33,7 +34,7 @@ const senhaNova = () => String(Math.floor(100000 + Math.random() * 900000));
 const usuarioDe = (nome: string) => nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/).slice(0, 2).join('.').replace(/[^a-z0-9.]/g, '').slice(0, 30);
 
 type Aba = 'comprar' | 'comprados' | 'equipe';
-export const linkColaboradores = (codigo: string) => `${window.location.origin}/colaboradores/${codigo}`;
+export const linkColaboradores = (codigo: string) => `${origemSistema()}/colaboradores/${codigo}`;
 export const linkListaCompras = linkColaboradores;
 
 export default function Compras() {

@@ -24,20 +24,20 @@ export const SITE = {
   // Valores de exemplo — ajuste para os seus preços reais
   planos: [
     {
-      nome: 'Essencial',
+      nome: 'Start',
       preco: 'R$ 149',
       periodo: '/mês',
       descricao: 'Para começar a vender pelo tablet.',
-      itens: ['Até 10 mesas', 'Cardápio no tablet', 'Painel de pedidos ao vivo', 'Impressão automática no caixa', 'Aviso no celular do garçom'],
+      itens: ['Até 10 mesas', 'Cardápio no tablet', 'Painel de pedidos ao vivo', 'Impressão automática no caixa', 'Aviso no celular do garçom', 'Cardápio em basilfiery.com.br/assinante/sua-loja'],
       destaque: false,
       checkout: '',
     },
     {
-      nome: 'Profissional',
+      nome: 'Premium',
       preco: 'R$ 249',
       periodo: '/mês',
       descricao: 'Para a casa cheia todos os dias.',
-      itens: ['Até 30 mesas', 'Tudo do Essencial', 'Controle de estoque', 'Equipe com cargos e permissões', 'Fotos nos pratos'],
+      itens: ['Até 30 mesas', 'Tudo do Start', 'Domínio próprio (suapizzaria.com.br)', 'Controle de estoque', 'Equipe com cargos e permissões', 'Fotos nos pratos'],
       destaque: true,
       checkout: '',
     },
@@ -46,7 +46,7 @@ export const SITE = {
       preco: 'Sob consulta',
       periodo: '',
       descricao: 'Para quem tem mais de uma unidade.',
-      itens: ['Mesas ilimitadas', 'Várias unidades na mesma conta', 'Implantação acompanhada', 'Suporte prioritário'],
+      itens: ['Mesas ilimitadas', 'Tudo do Premium', 'Várias unidades na mesma conta', 'Implantação acompanhada', 'Suporte prioritário'],
       destaque: false,
       checkout: '',
     },

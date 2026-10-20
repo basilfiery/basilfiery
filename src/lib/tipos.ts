@@ -25,6 +25,10 @@ export interface Restaurante {
   codigo: string;
   /** Endereço do cardápio: basilfiery.com.br/<slug> (mesas: /<slug>/mesa1) */
   slug: string;
+  /** Domínio próprio (planos Premium e Rede): cardápio em https://<dominio> e mesas em /mesa1 */
+  dominio?: string | null;
+  dominio_status?: 'pendente' | 'ativo' | null;
+  dominio_verificado_em?: string | null;
   /** Logo do menu lateral do sistema (vazio = BasilFiery) */
   marca_sistema?: MarcaSistema | null;
   /** Delivery: aceitando pedidos de casa agora */

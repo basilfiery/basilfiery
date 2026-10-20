@@ -7,9 +7,9 @@ export const SUPABASE_URL: string =
 export const SUPABASE_CHAVE: string =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_cv9v7PW8nIJHuX2Jb9tKRA_xyS0sFw5';
 
-// No cardápio digital (/loja) quem lê o link de login (Google, nova senha) é a sessão do cliente, não a da equipe
+// A sessão da equipe só lê retorno de login na tela /login (nova senha). Nos cardápios quem lê é a sessão do cliente.
 export const supabase = createClient(SUPABASE_URL, SUPABASE_CHAVE, {
-  auth: { detectSessionInUrl: typeof window === 'undefined' || !window.location.pathname.startsWith('/loja') },
+  auth: { detectSessionInUrl: typeof window === 'undefined' || window.location.pathname.startsWith('/login') },
 });
 
 const TRADUCOES: [RegExp, string][] = [
@@ -40,7 +40,12 @@ export function msgErro(e: unknown): string {
 
 /** Chama a edge function "gestao" e transforma a resposta de erro em exceção legível. */
 export async function gestao<T = unknown>(acao: string, dados: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('gestao', { body: { acao, ...dados } });
+  return funcao<T>('gestao', acao, dados);
+}
+
+/** Chama uma função do servidor ({ acao, ...dados }) e devolve a mensagem de erro amigável */
+export async function funcao<T = unknown>(nome: string, acao: string, dados: Record<string, unknown> = {}): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(nome, { body: { acao, ...dados } });
   if (error) {
     let mensagem = error.message;
     const ctx = (error as { context?: Response }).context;

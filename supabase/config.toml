@@ -18,3 +18,7 @@ verify_jwt = false
 # Webhook da Kirvano: a chave (?chave=) é conferida dentro da função
 [functions.kirvano]
 verify_jwt = false
+
+# Domínio próprio da loja: a sessão é conferida dentro da função
+[functions.dominios]
+verify_jwt = false

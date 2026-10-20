@@ -11,7 +11,7 @@ import type { Fatura } from '../../lib/tipos';
 import { brl, cx } from '../../lib/util';
 import { usePainel } from './Painel';
 
-const PLANO_ROTULO: Record<string, string> = { teste: 'Teste gratuito', essencial: 'Essencial', profissional: 'Profissional', rede: 'Rede' };
+const PLANO_ROTULO: Record<string, string> = { teste: 'Teste gratuito', start: 'Start', premium: 'Premium', rede: 'Rede', essencial: 'Start', profissional: 'Premium' };
 const data = (iso: string | null) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR') : '—');
 const whatsSuporte = (texto: string) => (SITE.whatsappVendas ? `https://wa.me/${SITE.whatsappVendas}?text=${encodeURIComponent(texto)}` : '');
 

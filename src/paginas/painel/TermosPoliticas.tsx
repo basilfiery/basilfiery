@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Check, Copy, ExternalLink, FileText, Megaphone, ShieldCheck } from 'lucide-react';
+import { origemSistema } from '../../lib/linkCurto';
 import { useToast } from '../../componentes/Toast';
 
-// Mesmo endereço em que o sistema está aberto (vercel.app hoje, basilfiery.com.br depois)
-const BASE = typeof window !== 'undefined' ? window.location.origin : 'https://basilfiery.com.br';
+// Sempre o domínio oficial (basilfiery.com.br)
+const BASE = origemSistema();
 const LINKS = [
   { icone: ShieldCheck, titulo: 'Política de privacidade', texto: 'O que o sistema e o seu cardápio fazem com os dados dos clientes (LGPD, Pixel da Meta, Google).', url: `${BASE}/privacidade` },
   { icone: FileText, titulo: 'Termos de uso', texto: 'As regras de uso do sistema e dos cardápios digitais.', url: `${BASE}/termos` },

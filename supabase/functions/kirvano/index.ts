@@ -87,8 +87,12 @@ Deno.serve(async (req) => {
       case 'SUBSCRIPTION_RENEWED': {
         const vence = proximoVencimento(p);
         const nomePlano = String(produto?.offer_name || p.plan?.name || produto?.name || 'Plano');
-        // Mesmo nome dos planos do site (Essencial, Profissional, Rede); senão guarda o nome da oferta
-        const plano = (['essencial', 'profissional', 'rede'].find((x) => nomePlano.toLowerCase().includes(x)) ?? nomePlano).slice(0, 60);
+        // Mesmo nome dos planos do site (Start, Premium, Rede; os antigos Essencial/Profissional viram Start/Premium)
+        const n = nomePlano.toLowerCase();
+        const plano = (n.includes('premium') || n.includes('profissional') ? 'premium'
+          : n.includes('rede') ? 'rede'
+          : n.includes('start') || n.includes('essencial') ? 'start'
+          : nomePlano).slice(0, 60);
         const valor = valorEmReais(p.total_price ?? produto?.price);
         const forma = FORMAS[String(p.payment_method ?? '').toUpperCase()] ?? p.payment_method ?? null;
         await aplicar({

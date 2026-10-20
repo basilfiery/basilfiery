@@ -15,6 +15,7 @@ import { enviarImagem, msgErro, supabase } from '../../../lib/supabase';
 import { cx, ehGestor } from '../../../lib/util';
 import { usePainel } from '../Painel';
 import { mascaraTelefone } from './Estabelecimento';
+import { origemSistema } from '../../../lib/linkCurto';
 import { OpcaoChave, PaginaConfig, usePasso, type Passo } from './Layout';
 
 const PASSOS: Passo[] = [
@@ -367,7 +368,7 @@ function ImprimirDireto() {
         <li>No Windows, defina a impressora térmica como <b>impressora padrão</b>.</li>
         <li>Crie um atalho do Google Chrome na área de trabalho.</li>
         <li>Clique com o botão direito → Propriedades → no campo <b>Destino</b>, adicione no final:<br />
-          <code>--kiosk-printing {window.location.origin}/painel</code></li>
+          <code>--kiosk-printing {origemSistema()}/painel</code></li>
         <li>Feche todas as janelas do Chrome e abra pelo atalho. Os pedidos saem direto na impressora.</li>
         <li>Nas preferências da impressora, ajuste margens para “nenhuma” se o cupom sair cortado.</li>
       </ol>

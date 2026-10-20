@@ -181,16 +181,17 @@ function useAlturaTela() {
   }, []);
 }
 
-/** Código da loja e o endereço base (/basilfiery ou o antigo /loja/<codigo>) */
+/** Código da loja, o caminho do cardápio (inicio) e o prefixo dos pedidos (base) */
 function useLoja() {
   const curto = useLinkCurto();
   const params = useParams();
   const codigo = curto?.codigo ?? params.codigo ?? '';
-  return { codigo, base: curto?.base ?? `/loja/${codigo}` };
+  const base = curto?.base ?? `/loja/${codigo}`;
+  return { codigo, base, inicio: curto?.inicio ?? (base || '/') };
 }
 
 export default function LojaCardapio() {
-  const { codigo, base } = useLoja();
+  const { codigo, base, inicio } = useLoja();
   const navegar = useNavigate();
   const toast = useToast();
   useAlturaTela();
@@ -227,7 +228,7 @@ export default function LojaCardapio() {
   useEffect(() => ls.gravar(`bf:loja:carrinho:${codigo}`, carrinho), [carrinho, codigo]);
   const ads = dados?.restaurante.ads;
   useEffect(() => { if (ads) iniciarAnuncios(ads); }, [ads]);
-  useAppInstalavel(dados ? { nome: dados.restaurante.nome, curto: dados.restaurante.nome.slice(0, 12), inicio: base, escopo: base } : null);
+  useAppInstalavel(dados ? { nome: dados.restaurante.nome, curto: dados.restaurante.nome.slice(0, 12), inicio, escopo: base || '/' } : null);
 
   // Sabores de grupo e preço de subcategoria: igual ao cardápio da mesa
   const { produtosLoja, saboresPorCategoria } = useMemo(() => {
@@ -939,7 +940,7 @@ interface StatusPedido {
 
 export function LojaPedido() {
   const { acompanhar = '' } = useParams();
-  const { base } = useLoja();
+  const { inicio } = useLoja();
   const [p, setP] = useState<StatusPedido | null | undefined>(undefined);
   useAlturaTela();
 
@@ -960,7 +961,7 @@ export function LojaPedido() {
       <div className="mesa-erro">
         <span className="mesa-erro__icone"><Receipt size={40} strokeWidth={1.5} /></span>
         <h1 className="titulo">Pedido não encontrado</h1>
-        <Link className="btn btn--primario btn--lg" to={base}>Ver o cardápio</Link>
+        <Link className="btn btn--primario btn--lg" to={inicio}>Ver o cardápio</Link>
       </div>
     );
   }
@@ -1024,7 +1025,7 @@ export function LojaPedido() {
 
       <div className="loja-pedido__acoes">
         {whats && <a className="btn btn--contorno btn--lg" href={whats} target="_blank" rel="noopener"><MessageCircle size={18} /> Falar com a loja</a>}
-        <Link className="btn btn--primario btn--lg" to={base}><UtensilsCrossed size={18} /> Fazer outro pedido</Link>
+        <Link className="btn btn--primario btn--lg" to={inicio}><UtensilsCrossed size={18} /> Fazer outro pedido</Link>
       </div>
       <p className="loja-pedido__nota">Esta página se atualiza sozinha.</p>
     </div>

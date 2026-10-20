@@ -20,6 +20,7 @@ import Clientes from './config/Clientes';
 import HistoricoPedidos from './config/HistoricoPedidos';
 import PaginaImpressora from './config/Impressora';
 import NotaFiscal from './config/NotaFiscal';
+import { origemSistema } from '../../lib/linkCurto';
 import LogoSistema from './config/LogoSistema';
 
 interface Secao { id: string; titulo: string; descricao: string; icone: LucideIcon; pode: (p: Papel) => boolean; tela: () => ReactElement }
@@ -201,7 +202,7 @@ function CartaoNotificacoes() {
           <button className="btn btn--primario" onClick={() => void ativar()} disabled={ocupado || estado === 'indisponivel'}>Ativar notificações</button>
         )}
         <p className="muted" style={{ margin: 0, fontSize: '.88rem' }}>
-          Para os garçons: abram <b>{window.location.origin}/garcom</b> no celular, entrem com o login deles e toquem em “Ativar notificações”.
+          Para os garçons: abram <b>{origemSistema()}/garcom</b> no celular, entrem com o login deles e toquem em “Ativar notificações”.
         </p>
       </div>
     </section>

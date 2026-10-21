@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  Check, ChevronRight, Copy, ListChecks, Eye, EyeOff, Film, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
+  Check, ChevronRight, Copy, ListChecks, Eye, EyeOff, Film, FolderInput, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
 import { Campo, FotoProduto, ImagemComida, Switch, Vazio } from '../../componentes/Basicos';
@@ -86,6 +86,7 @@ export default function Cardapio() {
   const [editCat, setEditCat] = useState<Categoria | 'nova' | null>(null);
   const [novaPai, setNovaPai] = useState<string | null>(null);
   const [editProd, setEditProd] = useState<Produto | 'novo' | null>(null);
+  const [mover, setMover] = useState<Produto | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [editGrupo, setEditGrupo] = useState<Grupo | 'novo' | null>(null);
   const [adic, setAdic] = useState<{ grupos: GrupoAdicional[]; vinculos: VinculoAdicional[] }>({ grupos: [], vinculos: [] });
@@ -128,6 +129,16 @@ export default function Cardapio() {
       toast(msgErro(error), 'erro');
       void carregar();
     } else toast(esgotado ? `${p.nome} esgotado.${p.grupo_id ? ' Vale para todos os tamanhos.' : ''}` : `${p.nome} voltou ao cardápio.`, esgotado ? 'info' : 'ok');
+  }
+
+  /** Muda o item de categoria/subcategoria sem refazer nada (foto, preço, adicionais e estoque vão junto) */
+  async function moverParaCategoria(p: Produto, destino: Categoria) {
+    const ordem = Math.max(0, ...produtos.filter((x) => x.categoria_id === destino.id).map((x) => x.ordem ?? 0)) + 1;
+    setProdutos((l) => l.map((x) => (x.id === p.id ? { ...x, categoria_id: destino.id, ordem } : x)));
+    setMover(null);
+    const { error } = await supabase.from('produtos').update({ categoria_id: destino.id, ordem }).eq('id', p.id);
+    if (error) { toast(msgErro(error), 'erro'); void carregar(); return; }
+    toast(`"${p.nome}" agora está em ${nomeCompleto(destino)}.`, 'ok');
   }
 
   async function duplicarProduto(p: Produto) {
@@ -320,6 +331,7 @@ export default function Cardapio() {
             <>
               <button className="menu-item" onClick={() => { fechar(); setEditProd(p); }}><Pencil size={17} /> Editar</button>
               <button className="menu-item" onClick={() => { fechar(); void duplicarProduto(p); }}><Copy size={17} /> Duplicar</button>
+              {p.categoria_id && <button className="menu-item" onClick={() => { fechar(); setMover(p); }}><FolderInput size={17} /> Mover para…</button>}
               <button className="menu-item" onClick={() => { fechar(); void alternarAtivo(p, !p.ativo); }}>
                 {p.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
               </button>
@@ -626,6 +638,16 @@ export default function Cardapio() {
           aoSalvar={() => { setEditProd(null); void carregar(); }}
         />
       )}
+      {mover && (
+        <ModalMover
+          produto={mover}
+          principais={principais}
+          filhasDe={filhasDe}
+          contagem={(c) => itensDe(c.id).length}
+          aoEscolher={(c) => void moverParaCategoria(mover, c)}
+          aoFechar={() => setMover(null)}
+        />
+      )}
       {editAdic && (
         <ModalGrupoAdicionais
           restauranteId={restaurante.id}
@@ -650,6 +672,51 @@ export default function Cardapio() {
         />
       )}
     </div>
+  );
+}
+
+/** Escolher para qual categoria/subcategoria o item vai */
+function ModalMover({ produto, principais, filhasDe, contagem, aoEscolher, aoFechar }: {
+  produto: Produto;
+  principais: Categoria[];
+  filhasDe: (id: string) => Categoria[];
+  contagem: (c: Categoria) => number;
+  aoEscolher: (c: Categoria) => void;
+  aoFechar: () => void;
+}) {
+  const [busca, setBusca] = useState('');
+  const t = busca.trim().toLowerCase();
+  const casa = (c: Categoria) => !t || c.nome.toLowerCase().includes(t);
+  const opcao = (c: Categoria, sub: boolean) => {
+    const atual = c.id === produto.categoria_id;
+    return (
+      <button key={c.id} type="button" className={cx('mover__opcao', sub && 'mover__opcao--sub', atual && 'atual')} disabled={atual} onClick={() => aoEscolher(c)}>
+        <span className="mover__emoji">{c.emoji || (sub ? '↳' : '📁')}</span>
+        <span className="mover__nome">{c.nome}{!c.ativo && <small> · fora do tablet</small>}</span>
+        {atual ? <span className="mover__atual"><Check size={14} /> Está aqui</span> : <small className="mover__qtd">{contagem(c)} {contagem(c) === 1 ? 'item' : 'itens'}</small>}
+      </button>
+    );
+  };
+  const grupos = principais
+    .map((c) => ({ c, subs: filhasDe(c.id).filter((f) => casa(f) || casa(c)) }))
+    .filter(({ c, subs }) => casa(c) || subs.length > 0);
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo={`Mover "${produto.nome}"`} largura={480}>
+      <p className="muted mover__dica">Escolha a categoria ou subcategoria. Foto, preço, adicionais e estoque vão junto.</p>
+      {principais.length > 6 && (
+        <label className="mover__busca"><Search size={16} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar categoria" autoFocus /></label>
+      )}
+      <div className="mover__lista">
+        {grupos.length === 0 && <p className="muted">Nenhuma categoria com esse nome.</p>}
+        {grupos.map(({ c, subs }) => (
+          <div key={c.id} className="mover__grupo">
+            {opcao(c, false)}
+            {subs.map((f) => opcao(f, true))}
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 

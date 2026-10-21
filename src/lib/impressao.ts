@@ -117,7 +117,7 @@ export function definirLojaImpressao(r: { nome: string; logo_url: string | null;
 export const modeloDe = (id: ModeloId, cfg: ConfigImpressaoLoja = loja.config): ModeloImpressao => ({ ...PADRAO[id], ...(cfg.modelos?.[id] ?? {}) });
 
 /* ---------- Logo em preto e branco (fica guardada neste computador) ---------- */
-const CHAVE_LOGO = 'bf:impressao-logo-pb';
+const CHAVE_LOGO = 'bf:impressao-logo-pb3';
 let logoPronto: { url: string; data: string } | null = ls.ler(CHAVE_LOGO, null);
 
 export async function prepararLogo(url: string): Promise<string | null> {
@@ -125,15 +125,18 @@ export async function prepararLogo(url: string): Promise<string | null> {
   try {
     const blob = await (await fetch(url)).blob();
     const bmp = await createImageBitmap(blob);
-    // 320 pontos = 40 mm a 203 dpi (8 pontos por mm): sai 1 para 1, sem borrar
-    const escala = Math.min(1, 320 / bmp.width, 180 / bmp.height);
+    // Corta a margem vazia (transparente ou branca) que vem dentro da imagem:
+    // é ela que deixava um espaço enorme em cima da logo no cupom
+    const r = recorteDaTinta(bmp);
+    // 240 pontos = 30 mm a 203 dpi (8 pontos por mm): sai 1 para 1, sem borrar
+    const escala = Math.min(1, 240 / r.w, 140 / r.h);
     const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round(bmp.width * escala));
-    c.height = Math.max(1, Math.round(bmp.height * escala));
+    c.width = Math.max(1, Math.round(r.w * escala));
+    c.height = Math.max(1, Math.round(r.h * escala));
     const g = c.getContext('2d')!;
     g.fillStyle = '#fff';
     g.fillRect(0, 0, c.width, c.height);
-    g.drawImage(bmp, 0, 0, c.width, c.height);
+    g.drawImage(bmp, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
     // Térmica só imprime preto ou nada: converte para preto e branco puro com pontilhado
     // (tons de cinza o driver transforma em pontos falhados)
     const px = g.getImageData(0, 0, c.width, c.height);
@@ -172,6 +175,29 @@ export async function prepararLogo(url: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** Retângulo onde a imagem tem desenho (ignora bordas transparentes ou quase brancas) */
+function recorteDaTinta(bmp: ImageBitmap) {
+  const t = document.createElement('canvas');
+  t.width = bmp.width;
+  t.height = bmp.height;
+  const g = t.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(bmp, 0, 0);
+  const d = g.getImageData(0, 0, t.width, t.height).data;
+  let x0 = t.width, y0 = t.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < t.height; y++) {
+    for (let x = 0; x < t.width; x++) {
+      const k = (y * t.width + x) * 4;
+      const tinta = d[k + 3] > 24 && 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2] < 238;
+      if (tinta) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+  }
+  if (x1 < 0) return { x: 0, y: 0, w: bmp.width, h: bmp.height };
+  const folga = Math.round(Math.max(x1 - x0, y1 - y0) * 0.02);
+  x0 = Math.max(0, x0 - folga); y0 = Math.max(0, y0 - folga);
+  x1 = Math.min(t.width - 1, x1 + folga); y1 = Math.min(t.height - 1, y1 + folga);
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
 const esc = (s: unknown) =>
@@ -246,15 +272,16 @@ function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
 export function documento(corpo: string, largura: 58 | 80) {
   const margem = largura === 58 ? 5.5 : 5; // mm de cada lado (área morta da cabeça + folga)
   const fonte = largura === 58 ? 11.5 : 13; // px
-  const logo = largura === 58 ? 30 : 40; // mm
+  const logo = largura === 58 ? 22 : 28; // mm (largura máxima da logo)
+  const logoAlt = largura === 58 ? 15 : 18; // mm (altura máxima da logo)
   return `<!doctype html><html><head><meta charset="utf-8"><style>
       @page { size: ${largura}mm auto; margin: 0; }
       * { box-sizing: border-box; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       html, body { margin: 0; padding: 0; background: #fff; }
-      body { width: ${largura}mm; padding: 2mm ${margem}mm 3mm; font: 700 ${fonte}px/1.38 Arial, 'Helvetica Neue', Helvetica, 'Segoe UI', sans-serif; letter-spacing: .01em; -webkit-font-smoothing: none; text-rendering: geometricPrecision; overflow-wrap: anywhere; word-break: break-word; }
+      body { width: ${largura}mm; padding: 1mm ${margem}mm 3mm; font: 700 ${fonte}px/1.38 Arial, 'Helvetica Neue', Helvetica, 'Segoe UI', sans-serif; letter-spacing: .01em; -webkit-font-smoothing: none; text-rendering: geometricPrecision; overflow-wrap: anywhere; word-break: break-word; }
       .via { width: 100%; overflow: hidden; }
       .via + .via { page-break-before: always; break-before: page; }
-      .logo { display: block; width: auto; max-width: min(${logo}mm, 100%); height: auto; margin: 0 auto 4px; image-rendering: pixelated; }
+      .logo { display: block; width: auto; max-width: min(${logo}mm, 100%); max-height: ${logoAlt}mm; height: auto; margin: 0 auto 3px; image-rendering: pixelated; }
       h1 { font-size: 1.3em; font-weight: 900; margin: 0; text-align: center; line-height: 1.2; }
       .c { text-align: center; }
       .g { font-size: 1.35em; font-weight: 900; line-height: 1.25; }
@@ -269,6 +296,15 @@ export function documento(corpo: string, largura: 58 | 80) {
       .cozinha td.q { width: 2.2em; }
       .obs { font-style: normal; font-weight: 700; }
       .adic { font-weight: 700; font-size: .95em; }
+      /* Adicionais: uma linha cada, recuados embaixo do item (sabor, borda, extra) */
+      tr.ad td { padding: 0 0 1px; font-size: .93em; line-height: 1.3; }
+      tr.ad td:nth-child(2) { padding-left: .35em; }
+      .adl { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 6px; }
+      .adl .pr { margin-left: auto; white-space: nowrap; }
+      tr.ad.extra td { font-weight: 900; }
+      /* Na cozinha o extra (ex.: borda) vem numa caixa, para não passar batido */
+      .cozinha tr.ad td { font-size: 1.12em; padding: 0 0 2px; }
+      .cozinha tr.ad.extra span { display: inline-block; margin: 2px 0; padding: 1px 6px; border: 2px solid #000; border-radius: 3px; text-transform: uppercase; letter-spacing: .02em; }
       .tot { display: flex; justify-content: space-between; gap: 6px; font-weight: 900; font-size: 1.18em; }
       .tot span:last-child { white-space: nowrap; }
       .p { font-size: .9em; font-weight: 700; }
@@ -303,8 +339,43 @@ function htmlCliente(p: Pedido) {
     ${e ? `<div>${esc(e.rua)}, ${esc(e.numero)}${e.complemento ? ` - ${esc(e.complemento)}` : ''}</div><div>${esc(e.bairro)}</div>${e.referencia ? `<div class="obs">Ref.: ${esc(e.referencia)}</div>` : ''}` : '<div>Retirada no balcão</div>'}`;
 }
 
+type Adic = { nome: string; grupo?: string | null; qtd?: number; preco?: number };
+/** Sabor é o "recheio" do item; o resto (borda, bacon extra...) é extra e ganha destaque */
+const ehSabor = (grupo?: string | null) => /sabor/i.test(grupo ?? '');
+
+/** Adicionais do item: usa a lista gravada; pedidos antigos têm só o texto "Grupo: a, b · Grupo: c" */
+function adicionaisDo(i: { adicionais?: Adic[] | null; complementos?: string | null }): Adic[] {
+  if (i.adicionais?.length) return i.adicionais;
+  if (!i.complementos) return [];
+  return i.complementos.split(/\s*[·•]\s*/).flatMap((parte) => {
+    const [g, resto] = parte.includes(':') ? [parte.slice(0, parte.indexOf(':')).trim(), parte.slice(parte.indexOf(':') + 1)] : ['', parte];
+    return resto.split(',').map((n) => n.trim()).filter(Boolean).map((nome) => ({ nome, grupo: g || null, qtd: 1 }));
+  });
+}
+
+/**
+ * Uma linha da tabela por adicional, embaixo do item (como no cupom do Anota):
+ *   1x Pizza G                 R$ 89,90
+ *      (1) Calabresa
+ *      (1) Borda de Catupiry  +R$ 15,00
+ * O preço do adicional fica na mesma coluna dos preços (já está somado no valor do item).
+ */
+function adicionaisHtml(lista: Adic[], qtdItem: number, comPreco: boolean) {
+  return lista.map((a) => {
+    const n = (a.qtd ?? 1) * qtdItem;
+    const extra = !ehSabor(a.grupo);
+    const preco = comPreco && extra && Number(a.preco) > 0 ? `<b class="pr">+${brl(Number(a.preco) * n)}</b>` : '';
+    // Nome e preço dividem a largura toda da linha (não fica preso na coluna do item)
+    return `<tr class="ad${extra ? ' extra' : ''}"><td></td><td${comPreco ? ' colspan="2"' : ''}><div class="adl"><span>(${n}) ${esc(a.nome)}</span>${preco}</div></td></tr>`;
+  }).join('');
+}
+
+const linhaObs = (obs: string | null | undefined, comPreco: boolean) =>
+  obs ? `<tr class="ad"><td></td><td class="obs"${comPreco ? ' colspan="2"' : ''}>» ${esc(obs)}</td></tr>` : '';
+
 const itemHtml = (i: Pedido['pedido_itens'][number], comPreco: boolean) =>
-  `<tr><td class="q">${i.qtd}x</td><td>${esc(i.nome)}${i.complementos ? `<div class="adic">${esc(i.complementos)}</div>` : ''}${i.obs ? `<div class="obs">» ${esc(i.obs)}</div>` : ''}</td>${comPreco ? `<td class="v">${brl(i.qtd * Number(i.preco_unit))}</td>` : ''}</tr>`;
+  `<tr><td class="q">${i.qtd}x</td><td>${esc(i.nome)}</td>${comPreco ? `<td class="v">${brl(i.qtd * Number(i.preco_unit))}</td>` : ''}</tr>`
+  + adicionaisHtml(adicionaisDo(i), i.qtd, comPreco) + linhaObs(i.obs, comPreco);
 
 function corpoPedido(p: Pedido) {
   return `<div class="c p">${new Date(p.criado_em).toLocaleString('pt-BR')}</div>
@@ -331,11 +402,11 @@ function corpoCozinha(p: Pedido) {
 
 function corpoConta(mesaNome: string, pedidos: Pedido[]) {
   // Agrupa itens iguais (mesmo nome, adicionais e preço)
-  const ls2 = new Map<string, { nome: string; complementos?: string | null; qtd: number; preco: number }>();
+  const ls2 = new Map<string, { nome: string; complementos?: string | null; adicionais?: Adic[] | null; qtd: number; preco: number }>();
   for (const p of pedidos) {
     for (const i of p.pedido_itens) {
       const k = `${i.nome}|${i.complementos ?? ''}|${i.preco_unit}`;
-      const l = ls2.get(k) ?? { nome: i.nome, complementos: i.complementos, qtd: 0, preco: Number(i.preco_unit) };
+      const l = ls2.get(k) ?? { nome: i.nome, complementos: i.complementos, adicionais: i.adicionais, qtd: 0, preco: Number(i.preco_unit) };
       l.qtd += i.qtd;
       ls2.set(k, l);
     }
@@ -344,7 +415,7 @@ function corpoConta(mesaNome: string, pedidos: Pedido[]) {
   return `<div class="c p">${agoraTxt()}</div>
     <div class="c g">CONTA · ${esc(mesaNome).toUpperCase()}</div>
     <hr>
-    <table>${[...ls2.values()].map((l) => `<tr><td class="q">${l.qtd}x</td><td>${esc(l.nome)}${l.complementos ? `<div class="adic">${esc(l.complementos)}</div>` : ''}</td><td class="v">${brl(l.qtd * l.preco)}</td></tr>`).join('')}</table>
+    <table>${[...ls2.values()].map((l) => `<tr><td class="q">${l.qtd}x</td><td>${esc(l.nome)}</td><td class="v">${brl(l.qtd * l.preco)}</td></tr>${adicionaisHtml(adicionaisDo(l), l.qtd, true)}`).join('')}</table>
     <hr>
     <div class="tot"><span>TOTAL</span><span>${brl(total)}</span></div>`;
 }
@@ -460,7 +531,8 @@ const PEDIDO_EXEMPLO = {
   total: 117.8, criado_em: new Date().toISOString(), atualizado_em: '', impresso_em: null, pago_em: null, precisa_preparo: true,
   tipo: 'mesa', cliente_nome: null, cliente_telefone: null, endereco: null, forma_pagamento: null, troco_para: null, taxa_entrega: 0, desconto: 0,
   pedido_itens: [
-    { id: '1', pedido_id: 'x', produto_id: null, nome: 'Pizza G', preco_unit: 74.9, qtd: 1, obs: 'Bem assada', complementos: 'Sabores: 1/2 Calabresa, 1/2 Frango' },
+    { id: '1', pedido_id: 'x', produto_id: null, nome: 'Pizza G', preco_unit: 89.9, qtd: 1, obs: 'Bem assada', complementos: 'Sabores: Calabresa, Frango · Borda: Borda de Catupiry',
+      adicionais: [{ nome: 'Calabresa', grupo: 'Sabores', qtd: 1 }, { nome: 'Frango', grupo: 'Sabores', qtd: 1 }, { nome: 'Borda de Catupiry', grupo: 'Borda', qtd: 1, preco: 15 }] },
     { id: '2', pedido_id: 'x', produto_id: null, nome: 'Batata frita', preco_unit: 25, qtd: 1, obs: null },
     { id: '3', pedido_id: 'x', produto_id: null, nome: 'Coca-Cola 2L', preco_unit: 17.9, qtd: 1, obs: null },
   ],

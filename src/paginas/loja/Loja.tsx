@@ -20,6 +20,7 @@ import { fraseCancelamento } from '../../lib/cancelamento';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaRaio, type Ponto } from '../../lib/mapa';
 import '../../estilos/mesa.css';
+import { useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
 import '../../estilos/loja.css';
 
 /* =====================================================================
@@ -216,12 +217,12 @@ export default function LojaCardapio() {
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState('');
   const [carrinho, setCarrinho] = useState<Linha[]>(() => ls.ler(`bf:loja:carrinho:${codigo}`, []));
-  const [catAtiva, setCatAtiva] = useState('');
-  const [subAtiva, setSubAtiva] = useState('');
   const [produtoAberto, setProdutoAberto] = useState<ProdutoMesa | null>(null);
   const [verCarrinho, setVerCarrinho] = useState(false);
   const [finalizar, setFinalizar] = useState(false);
   const listaRef = useRef<HTMLElement>(null);
+  // Lembra a subcategoria e a posição de cada categoria (voltar não recomeça do topo)
+  const { catAtiva, subAtiva, escolherCategoria: escolher, abrirSub, atual: navAtual } = useNavegacaoCardapio(listaRef);
   const [params, setParams] = useSearchParams();
   const abaLoja = (ABAS_LOJA.some((a) => a.id === params.get('aba')) ? params.get('aba') : 'inicio') as AbaLoja;
   const irAba = (id: AbaLoja) => { setParams(id === 'inicio' ? {} : { aba: id }); window.scrollTo({ top: 0 }); };
@@ -300,6 +301,7 @@ export default function LojaCardapio() {
     ...(secao.subs.length && secao.diretos.length ? [{ id: OUTRAS, nome: 'Outras opções', emoji: null, preco: 0 }] : []),
   ] : [];
   const abaAtual = abas.some((a) => a.id === subAtiva) ? subAtiva : abas[0]?.id ?? '';
+  navAtual.current = { cat: secao?.id ?? '', sub: abaAtual };
   const lista = !secao ? [] : abaAtual === OUTRAS || !secao.subs.length ? secao.diretos : produtosDe(abaAtual);
 
   const subtotal = carrinho.reduce((s, l) => s + precoLinha(l, porId.get(l.produto_id)) * l.qtd, 0);
@@ -336,7 +338,6 @@ export default function LojaCardapio() {
   }
   const mudarQtd = (chave: string, qtd: number) =>
     setCarrinho((c) => (qtd <= 0 ? c.filter((l) => l.chave !== chave) : c.map((l) => (l.chave === chave ? { ...l, qtd } : l))));
-  const escolher = (id: string, sub = '') => { setCatAtiva(id); setSubAtiva(sub); listaRef.current?.scrollTo({ top: 0 }); };
 
   const sacola = (
     <div className="carrinho">
@@ -491,7 +492,7 @@ export default function LojaCardapio() {
               {abas.length > 1 && (
                 <div className="mesa__abas" role="tablist">
                   {abas.map((a) => (
-                    <button key={a.id} role="tab" aria-selected={abaAtual === a.id} className={cx('mesa__aba', abaAtual === a.id && 'ativa')} onClick={() => setSubAtiva(a.id)}>
+                    <button key={a.id} role="tab" aria-selected={abaAtual === a.id} className={cx('mesa__aba', abaAtual === a.id && 'ativa')} onClick={() => abrirSub(a.id)}>
                       <span>{a.emoji} {a.nome}</span>
                     </button>
                   ))}

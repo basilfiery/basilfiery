@@ -22,6 +22,7 @@ import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import { JogoMemoria } from './JogoMemoria';
 import { telefoneFormatado } from '../loja/ContaCliente';
+import { useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
 import '../../estilos/mesa.css';
 
 /** Jogo da memória no topo do cardápio da mesa (para tirar: false). */
@@ -143,13 +144,13 @@ export default function Mesa() {
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState<number[] | null>(null);
-  const [catAtiva, setCatAtiva] = useState('');
-  const [subAtiva, setSubAtiva] = useState('');
   const [acesso, setAcesso] = useState<Acesso>('carregando');
   const [verAbrir, setVerAbrir] = useState(false);
   const [pedindoAcesso, setPedindoAcesso] = useState(false);
   const acaoDepois = useRef<(() => void) | null>(null);
   const listaRef = useRef<HTMLDivElement>(null);
+  // Lembra a subcategoria e a posição de cada categoria (voltar não recomeça do topo)
+  const { catAtiva, subAtiva, escolherCategoria: irCategoria, abrirSub, zerar: zerarNavegacao, atual: navAtual } = useNavegacaoCardapio(listaRef);
   const catsRef = useRef<HTMLElement>(null);
   useAlturaTela();
   const cancelados = useAvisosCancelamento(token, dispositivo, acesso === 'liberado' || acesso === 'equipe');
@@ -329,9 +330,7 @@ export default function Mesa() {
       setVerConta(false);
       setVerJogo(false);
       setConfirmar(false);
-      setCatAtiva('');
-      setSubAtiva('');
-      listaRef.current?.scrollTo({ top: 0 });
+      zerarNavegacao();
     }, 30000);
     return () => {
       window.removeEventListener('pointerdown', marcar);
@@ -416,15 +415,8 @@ export default function Mesa() {
     return true;
   }
 
-  function abrirSub(id: string) {
-    setSubAtiva(id);
-    listaRef.current?.scrollTo({ top: 0 });
-  }
-
-  function escolherCategoria(id: string, sub = '') {
-    setCatAtiva(id);
-    setSubAtiva(sub);
-    listaRef.current?.scrollTo({ top: 0 });
+  function escolherCategoria(id: string, sub = '', doInicio = false) {
+    irCategoria(id, sub, doInicio);
     // No celular, deixa a categoria escolhida visível na barra
     catsRef.current?.querySelector<HTMLElement>(`[data-cat="${id}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   }
@@ -476,6 +468,7 @@ export default function Mesa() {
   ] : [];
   // Ao abrir a categoria, a primeira subcategoria já aparece (um toque só)
   const abaAtual = abas.some((a) => a.id === subAtiva) ? subAtiva : abas[0]?.id ?? '';
+  navAtual.current = { cat: secao?.id ?? '', sub: abaAtual };
   const emojiCat = (c: { id: string; emoji: string | null }) =>
     c.id === DESTAQUES ? <Star size={18} fill="currentColor" /> : c.emoji;
 
@@ -649,14 +642,14 @@ export default function Mesa() {
                 {grade(lista)}
 
                 {proximaAba ? (
-                  <button className="mesa__proxima" onClick={() => abrirSub(proximaAba.id)}>
+                  <button className="mesa__proxima" onClick={() => abrirSub(proximaAba.id, true)}>
                     <span>Ver a seguir</span>
                     <strong>{proximaAba.emoji} {proximaAba.nome}</strong>
                     <ChevronRight size={20} />
                   </button>
                 ) : prox ? (
                   /* Próxima categoria: o cliente não fica preso no fim da lista */
-                  <button className="mesa__proxima" onClick={() => escolherCategoria(prox.id)}>
+                  <button className="mesa__proxima" onClick={() => escolherCategoria(prox.id, '', true)}>
                     <span>Ver a seguir</span>
                     <strong>{emojiCat(prox)} {prox.nome}</strong>
                     <ChevronRight size={20} />

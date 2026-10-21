@@ -205,6 +205,8 @@ export interface PedidoItem {
   obs: string | null;
   /** Adicionais escolhidos, em texto (ex.: "Sabores: 1/2 Calabresa, 1/2 Frango") */
   complementos?: string | null;
+  /** Os mesmos adicionais, um por um (sabor, borda, extra) */
+  adicionais?: { id?: string; nome: string; grupo?: string | null; qtd?: number; preco?: number }[] | null;
 }
 
 export interface Pedido {

@@ -1,0 +1,44 @@
+# Garante que todo push no main seja publicado no site.
+# Às vezes a Vercel não recebe o aviso do GitHub e não publica: este processo espera 2 minutos,
+# confere se a publicação daquele commit começou e, se não, manda publicar.
+# Precisa do segredo VERCEL_TOKEN (GitHub › Settings › Secrets and variables › Actions). Sem ele, só avisa e não faz nada.
+name: Garantir publicação
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: garantir-publicacao
+  cancel-in-progress: true
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Conferir e publicar se a Vercel não começou
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SHA: ${{ github.sha }}
+          PROJETO: prj_PhHgWWkXDMku6EpZJQrI68K07aw5
+          TIME: team_Bb7x3zeo2ITKoaMU0e9JaEki
+          REPO_ID: '1421216676'
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::Segredo VERCEL_TOKEN não configurado: não dá para conferir a publicação."
+            exit 0
+          fi
+          sleep 120
+          API="https://api.vercel.com"
+          QTD=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "$API/v6/deployments?projectId=$PROJETO&teamId=$TIME&limit=30" \
+            | jq --arg s "$SHA" '[.deployments[]? | select(.meta.githubCommitSha == $s)] | length')
+          if [ "${QTD:-0}" != "0" ]; then
+            echo "A Vercel já está publicando este commit. Tudo certo."
+            exit 0
+          fi
+          echo "A Vercel não começou a publicação do commit $SHA. Publicando agora..."
+          curl -s -X POST -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" \
+            "$API/v13/deployments?teamId=$TIME" \
+            -d "{\"name\":\"basilfiery\",\"project\":\"$PROJETO\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":\"$REPO_ID\",\"ref\":\"main\",\"sha\":\"$SHA\"}}" \
+            | jq '{id, readyState, error}'

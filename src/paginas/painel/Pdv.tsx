@@ -230,7 +230,7 @@ export default function Pdv() {
       <button key={p.id} type="button" className={cx('pdv-prod', !p.disponivel && 'esgotado', n > 0 && 'no-pedido')} disabled={!p.disponivel} onClick={() => adicionar(p)} title={nomeItem(p)}>
         <span className="pdv-prod__foto">
           <FotoProduto p={p} classe="pdv-prod__img" />
-          {!p.disponivel && <em>Esgotado</em>}
+          {!p.disponivel && <em>{p.motivo === 'sem_preco' ? 'Sem preço' : 'Esgotado'}</em>}
           {n > 0 && <b>{n}</b>}
         </span>
         <span className="pdv-prod__nome">{p.nome}</span>

@@ -2887,3 +2887,17 @@
 /* Botão "Ajustar imagem" nas miniaturas (galeria do item e foto do adicional) */
 .galeria-painel__item .galeria-painel__ajustar { top: auto; bottom: 4px; right: 4px; }
 .adic-form__foto-ajustar { position: absolute; bottom: -6px; right: -6px; width: 22px; height: 22px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--acento); color: #fff; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+
+/* Configurações › Cardápio digital › Produtos esgotados */
+.esg-modo { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.esg-modo__opcao {
+  display: grid; gap: 4px; justify-items: start; padding: 12px; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; transition: border-color .15s, box-shadow .15s;
+}
+.esg-modo__opcao.ativo { border-color: var(--acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 18%, transparent); }
+.esg-modo__opcao b { margin-top: 6px; font-size: .95rem; }
+.esg-modo__opcao small { color: var(--muted); font-size: .82rem; line-height: 1.35; }
+.esg-modo__mini { width: 100%; display: grid; gap: 5px; padding: 8px; border-radius: 10px; background: var(--bg-2); }
+.esg-modo__mini i { display: block; height: 14px; border-radius: 5px; background: color-mix(in srgb, var(--acento) 35%, var(--surface-2)); }
+.esg-modo__mini--mostrar i:nth-child(2) { background: var(--line-2); opacity: .55; }
+.esg-modo__mini--ocultar i:nth-child(2) { background: transparent; border: 1.5px dashed var(--line-2); }

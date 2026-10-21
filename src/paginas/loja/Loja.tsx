@@ -150,6 +150,8 @@ function rastrear(evento: 'AddToCart' | 'InitiateCheckout' | 'Purchase', valor: 
 interface Dados {
   restaurante: Loja; categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[];
   adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>;
+  /** A loja escolheu esconder os esgotados (Configurações › Cardápio digital) */
+  ocultar_esgotados?: boolean;
 }
 interface Cliente {
   nome: string; telefone: string;
@@ -247,14 +249,14 @@ export default function LojaCardapio() {
   // Sabores de grupo e preço de subcategoria: igual ao cardápio da mesa
   const { produtosLoja, saboresPorCategoria } = useMemo(() => {
     const cats = new Map((dados?.categorias ?? []).map((c) => [c.id, c]));
-    const produtosLoja = (dados?.produtos ?? []).map((p) => {
+    const produtosLoja = (dados?.produtos ?? []).filter((p) => !dados?.ocultar_esgotados || p.disponivel).map((p) => {
       const c = cats.get(p.categoria_id);
       return c?.preco_grupo != null ? { ...p, preco: Number(c.preco_grupo) + Number(p.preco), prefixo: c.nome } : p;
     });
     const saboresPorCategoria = new Map<string, ProdutoMesa[]>();
     for (const c of dados?.categorias ?? []) {
       if (!c.grupo_id) continue;
-      saboresPorCategoria.set(c.id, (dados?.sabores ?? []).filter((x) => x.grupo_id === c.grupo_id).map((x) => ({
+      saboresPorCategoria.set(c.id, (dados?.sabores ?? []).filter((x) => x.grupo_id === c.grupo_id && (!dados?.ocultar_esgotados || (x.disponivel && !c.esgotado))).map((x) => ({
         ...x, id: `${c.id}:${x.id}`, categoria_id: c.id, disponivel: x.disponivel && !c.esgotado,
         preco: Number(c.preco_grupo ?? 0) + Number(x.preco), real_id: x.id, tamanho_id: c.id, prefixo: c.nome,
       })));
@@ -388,7 +390,7 @@ export default function LojaCardapio() {
               {capaEmVideo(p) ? <VideoCapa p={{ ...p, video_url: p.video_url! }} classe="prod__foto" /> : <FotoProduto p={p} classe="prod__foto" />}
               {p.video_url && !capaEmVideo(p) && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
               {n > 0 && <span className="prod__no-carrinho">{n}</span>}
-              {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
+              {!p.disponivel && <span className="prod__esgotado">{p.motivo === 'sem_preco' ? 'Indisponível' : 'Esgotado'}</span>}
             </div>
             <div className="prod__info">
               <h3>{p.nome}</h3>

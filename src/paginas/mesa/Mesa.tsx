@@ -31,6 +31,8 @@ const JOGO_NA_MESA = true;
 export interface ProdutoMesa {
   id: string;
   categoria_id: string;
+  /** Por que não está disponível: sem preço (R$ 0) ou esgotado */
+  motivo?: 'sem_preco' | 'esgotado' | null;
   nome: string;
   descricao: string;
   preco: number;
@@ -78,6 +80,8 @@ interface DadosMesa {
   sabores?: SaborMesa[];
   adicionais_grupos?: GrupoAdicionalMesa[];
   produto_grupos?: Record<string, string[]>;
+  /** A loja escolheu esconder os esgotados (Configurações › Cardápio digital) */
+  ocultar_esgotados?: boolean;
 }
 
 /** Linha do carrinho. Com adicionais, guarda a escolha, o acréscimo e o texto para mostrar. */
@@ -266,7 +270,7 @@ export default function Mesa() {
     const mapa = new Map<string, ProdutoMesa[]>();
     for (const c of dados?.categorias ?? []) {
       if (!c.grupo_id) continue;
-      mapa.set(c.id, (dados?.sabores ?? []).filter((x) => x.grupo_id === c.grupo_id).map((x) => ({
+      mapa.set(c.id, (dados?.sabores ?? []).filter((x) => x.grupo_id === c.grupo_id && (!dados?.ocultar_esgotados || (x.disponivel && !c.esgotado))).map((x) => ({
         ...x,
         id: `${c.id}:${x.id}`,
         categoria_id: c.id,
@@ -282,7 +286,8 @@ export default function Mesa() {
   // Subcategoria com preço (ex.: Pizza P R$ 50): o item custa o preço dela + o acréscimo dele
   const produtosMesa = useMemo(() => {
     const cats = new Map((dados?.categorias ?? []).map((c) => [c.id, c]));
-    return (dados?.produtos ?? []).map((p) => {
+    // Esgotados escondidos quando a loja escolheu "Ocultar do cardápio"
+    return (dados?.produtos ?? []).filter((p) => !dados?.ocultar_esgotados || p.disponivel).map((p) => {
       const c = cats.get(p.categoria_id);
       return c?.preco_grupo != null ? { ...p, preco: Number(c.preco_grupo) + Number(p.preco), prefixo: c.nome } : p;
     });
@@ -489,7 +494,7 @@ export default function Mesa() {
                 : <FotoProduto p={p} classe="prod__foto" />}
               {p.video_url && !capaEmVideo(p) && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}
               {noCarrinho > 0 && <span className="prod__no-carrinho">{noCarrinho}</span>}
-              {!p.disponivel && <span className="prod__esgotado">Esgotado</span>}
+              {!p.disponivel && <span className="prod__esgotado">{p.motivo === 'sem_preco' ? 'Indisponível' : 'Esgotado'}</span>}
             </div>
             <div className="prod__info">
               <h3>{p.nome}</h3>

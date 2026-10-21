@@ -28,7 +28,7 @@ export default function CardapioDigitalConfig() {
   const toast = useToast();
   const [passo, irPasso] = usePasso(PASSOS);
   const inicial = () => ({
-    ativo: r.delivery_ativo, obs: r.loja_obs ?? true, cor: r.cor, capa: r.loja_capa_url,
+    ativo: r.delivery_ativo, obs: r.loja_obs ?? true, cor: r.cor, capa: r.loja_capa_url, esgotados: r.esgotados_modo ?? 'mostrar',
     descricao: r.loja_descricao ?? '', slogan: r.slogan ?? '', rodape: r.loja_rodape ?? '',
     fid_ativo: !!r.fidelidade?.ativo, fid_meta: Number(r.fidelidade?.meta ?? 10), fid_premio: r.fidelidade?.premio ?? '',
     fid_minimo: r.fidelidade?.minimo ? precoParaTexto(Number(r.fidelidade.minimo)) : '',
@@ -41,7 +41,7 @@ export default function CardapioDigitalConfig() {
   async function salvar() {
     setSalvando(true);
     const { error } = await supabase.from('restaurantes').update({
-      delivery_ativo: f.ativo, loja_obs: f.obs, cor: f.cor, loja_capa_url: f.capa,
+      delivery_ativo: f.ativo, loja_obs: f.obs, cor: f.cor, loja_capa_url: f.capa, esgotados_modo: f.esgotados,
       loja_descricao: f.descricao.trim() || null, slogan: f.slogan.trim() || null, loja_rodape: f.rodape.trim() || null,
       fidelidade: { ativo: f.fid_ativo, meta: f.fid_meta, premio: f.fid_premio.trim().slice(0, 120), minimo: f.fid_minimo.trim() ? lerPreco(f.fid_minimo) : 0 },
     }).eq('id', r.id);
@@ -64,6 +64,20 @@ export default function CardapioDigitalConfig() {
         <div className="form">
           <OpcaoChave titulo="Cardápio ativado" dica="Você receberá pedidos do cardápio digital." marcado={f.ativo} aoMudar={(v) => set('ativo', v)} />
           <OpcaoChave titulo="Observação do pedido" dica="O campo de observações será exibido no final do pedido e em cada item." marcado={f.obs} aoMudar={(v) => set('obs', v)} />
+          <CampoAjuda rotulo="Produtos esgotados" ajuda="Vale para o cardápio da mesa e do delivery. Itens com preço R$ 0,00 também contam como indisponíveis. No PDV a equipe continua vendo tudo.">
+            <div className="esg-modo" role="radiogroup" aria-label="Produtos esgotados">
+              {([
+                ['mostrar', 'Mostrar em cinza', 'O cliente vê o item apagado, com “Esgotado”, e não consegue pedir.'],
+                ['ocultar', 'Ocultar do cardápio', 'O item some do cardápio enquanto estiver esgotado e volta sozinho.'],
+              ] as const).map(([id, titulo, texto]) => (
+                <button key={id} type="button" role="radio" aria-checked={f.esgotados === id} className={cx('esg-modo__opcao', f.esgotados === id && 'ativo')} onClick={() => set('esgotados', id)}>
+                  <span className={cx('esg-modo__mini', `esg-modo__mini--${id}`)} aria-hidden="true"><i /><i /><i /></span>
+                  <b>{titulo}</b>
+                  <small>{texto}</small>
+                </button>
+              ))}
+            </div>
+          </CampoAjuda>
           <p className="cfg-nota">Logo, cor, capa (vídeo ou foto) e textos ficam em <Link to="/painel/cardapio/aparencia"><b>Gestor de cardápio › Aparência do cardápio</b></Link>.</p>
           {r.horarios_ativos && <p className="cfg-nota">Os horários automáticos estão ligados: mesmo ativado, o cardápio só aceita pedidos dentro do horário (Estabelecimento › Horários).</p>}
         </div>

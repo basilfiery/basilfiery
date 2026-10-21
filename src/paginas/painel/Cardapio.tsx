@@ -1345,9 +1345,11 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
         )}
 
         <Campo rotulo="Nome"><input className="input" value={f.nome} onChange={(e) => mudar('nome', e.target.value)} maxLength={60} autoFocus={!produto} /></Campo>
-        <Campo rotulo="Descrição"><textarea className="textarea" rows={2} value={f.descricao} onChange={(e) => mudar('descricao', e.target.value)} maxLength={240} /></Campo>
-        <Campo rotulo="Exemplo no campo de observação" dica={`Vazio = o sistema sugere sozinho pelo nome: “${sugerirObs(f.nome, f.descricao)}”`}>
-          <input className="input" value={f.dica_obs} maxLength={80} onChange={(e) => mudar('dica_obs', e.target.value)} placeholder={sugerirObs(f.nome, f.descricao)} />
+        <Campo rotulo="Descrição do item" dica="Aparece no cardápio, embaixo do nome. Ex.: arroz, feijão, filé de frango, batata frita e salada.">
+          <textarea className="textarea" rows={3} value={f.descricao} onChange={(e) => mudar('descricao', e.target.value)} maxLength={240} placeholder="Ingredientes ou o que vem no prato" />
+        </Campo>
+        <Campo rotulo="Dica dentro da observação do cliente (opcional)" dica={`É só o texto apagado de exemplo dentro do campo “Alguma observação?”. Não aparece no cardápio. Vazio = “${sugerirObs(f.nome, f.descricao)}”`}>
+          <input className="input input--dica" value={f.dica_obs} maxLength={80} onChange={(e) => mudar('dica_obs', e.target.value)} placeholder={sugerirObs(f.nome, f.descricao)} />
         </Campo>
         <div className="form-linha">
           <Campo rotulo={ehSabor ? 'Acréscimo (opcional)' : 'Preço (R$)'} dica={ehSabor ? 'Somado ao preço do tamanho. Ex.: 5,00 para sabor especial.' : undefined}>

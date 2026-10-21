@@ -367,6 +367,7 @@ export default function Mesa() {
   const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
 
   function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
+    if (!p.disponivel) return; // esgotado: só para ver
     setCarrinho((c) => juntarNoCarrinho(c, p, qtd, obs, a));
     toast(`${qtd}× ${nomeItem(p)} no seu pedido`, 'ok');
   }
@@ -485,7 +486,6 @@ export default function Mesa() {
           <button
             key={p.id}
             className={cx('prod', !p.disponivel && 'prod--esgotado')}
-            disabled={!p.disponivel}
             onClick={() => setProdutoAberto(p)}
           >
             <div className="prod__midia">
@@ -1058,7 +1058,13 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       largura={620}
       rodape={
         <div className="modal-produto__rodape">
-          {!ultima ? (
+          {!p.disponivel ? (
+            // Esgotado/indisponível: dá para ver tudo do item, mas não para pedir
+            <div className="modal-produto__indisponivel" role="status">
+              <Ban size={18} />
+              <span><b>{p.motivo === 'sem_preco' ? 'Indisponível no momento' : 'Esgotado no momento'}</b> Não dá para pedir este item agora.</span>
+            </div>
+          ) : !ultima ? (
             <>
               {etapa > 0 && (
                 <button type="button" className="btn btn--contorno btn--lg funil-voltar" onClick={() => irPara(etapa - 1)} aria-label="Voltar para a etapa anterior">
@@ -1088,7 +1094,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
           <h2 className="titulo modal-produto__nome">{p.nome}</h2>
           <Selos p={p} />
           <p className="modal-produto__desc">{p.descricao}</p>
-          <p className="modal-produto__preco">{brl(p.preco)}{calc.extra > 0 && <small> + {brl(calc.extra)} em adicionais</small>}</p>
+          {p.motivo !== 'sem_preco' && <p className="modal-produto__preco">{brl(p.preco)}{calc.extra > 0 && <small> + {brl(calc.extra)} em adicionais</small>}</p>}
           {p.estoque_max !== null && p.estoque_max <= 5 && <p className="modal-produto__aviso">Últimas {p.estoque_max} unidades!</p>}
         </>
       ) : (
@@ -1119,7 +1125,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       {tentou && faltaAqui && <p className="adic-falta">{gAtual!.minimo === 1 ? `Escolha 1 opção em "${gAtual!.nome}" para continuar` : `Escolha pelo menos ${gAtual!.minimo} em "${gAtual!.nome}" para continuar`}</p>}
       {tentou && ultima && !faltaAqui && calc.faltando && <p className="adic-falta">{calc.faltando}</p>}
 
-      {ultima && !semObs && (
+      {ultima && !semObs && p.disponivel && (
         <label className="campo">
           <span>Alguma observação?</span>
           <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder={p.dica_obs || sugerirObs(p.nome, p.prefixo, p.descricao)} />

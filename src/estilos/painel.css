@@ -2901,3 +2901,6 @@
 .esg-modo__mini i { display: block; height: 14px; border-radius: 5px; background: color-mix(in srgb, var(--acento) 35%, var(--surface-2)); }
 .esg-modo__mini--mostrar i:nth-child(2) { background: var(--line-2); opacity: .55; }
 .esg-modo__mini--ocultar i:nth-child(2) { background: transparent; border: 1.5px dashed var(--line-2); }
+
+/* Formulário do item: o exemplo da observação fica visivelmente secundário */
+.input--dica { font-size: .92rem; color: var(--muted); }

@@ -667,3 +667,11 @@ html:has(.mesa), body:has(.mesa) { height: 100%; overflow: hidden; overscroll-be
 
 /* Troca de subcategoria: só a lista de produtos é recriada (a barra de subcategorias fica onde está) */
 .mesa__troca { display: contents; }
+
+/* Item esgotado aberto: dá para ver, não para pedir */
+.modal-produto__indisponivel {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 10px 14px;
+  border-radius: 14px; background: var(--surface-2); color: var(--muted); font-size: .92rem; text-align: center;
+}
+.modal-produto__indisponivel b { color: var(--text); margin-right: 4px; }
+.modal-produto__indisponivel svg { flex: none; color: var(--danger); }

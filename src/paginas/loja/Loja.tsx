@@ -334,6 +334,7 @@ export default function LojaCardapio() {
   }
 
   function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
+    if (!p.disponivel) return; // esgotado: só para ver
     setCarrinho((c) => juntarNoCarrinho(c, p, qtd, obs, a));
     toast(`${qtd}× ${nomeItem(p)} na sacola`, 'ok');
     rastrear('AddToCart', (Number(p.preco) + (a?.extra ?? 0)) * qtd);
@@ -385,7 +386,7 @@ export default function LojaCardapio() {
       {itens.map((p) => {
         const n = qtdDoProduto(p.id);
         return (
-          <button key={p.id} className={cx('prod', !p.disponivel && 'prod--esgotado')} disabled={!p.disponivel} onClick={() => setProdutoAberto(p)}>
+          <button key={p.id} className={cx('prod', !p.disponivel && 'prod--esgotado')} onClick={() => setProdutoAberto(p)}>
             <div className="prod__midia">
               {capaEmVideo(p) ? <VideoCapa p={{ ...p, video_url: p.video_url! }} classe="prod__foto" /> : <FotoProduto p={p} classe="prod__foto" />}
               {p.video_url && !capaEmVideo(p) && <span className="prod__video"><Play size={12} fill="currentColor" /> Vídeo</span>}

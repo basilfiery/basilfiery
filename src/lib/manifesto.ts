@@ -9,6 +9,8 @@ interface AppInstalavel {
   inicio: string;
   /** Até onde o app vale (ex.: "/mesa/abc123") */
   escopo: string;
+  /** Manifesto fixo do app (ex.: "/manifest-dono.webmanifest"): o iPhone precisa dele desde o carregamento */
+  manifesto?: string;
 }
 
 const ehIOS = () =>
@@ -35,6 +37,22 @@ export function useAppInstalavel(app: AppInstalavel | null) {
   const curto = app?.curto;
   const inicio = app?.inicio;
   const escopo = app?.escopo;
+  const manifesto = app?.manifesto;
+
+  // iPhone: o "Adicionar à Tela de Início" usa o manifesto lido quando a página carregou.
+  // Se a página foi aberta com outro (ex.: aba antiga, de antes de uma atualização), recarrega uma vez.
+  useEffect(() => {
+    if (!manifesto || !ehIOS()) return;
+    const instalado = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const atual = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')?.getAttribute('href');
+    if (instalado || atual === manifesto) return;
+    const chave = `bf:recarga-manifesto:${manifesto}`;
+    try {
+      if (sessionStorage.getItem(chave)) return; // já tentou nesta aba: não entra em loop
+      sessionStorage.setItem(chave, '1');
+    } catch { return; }
+    window.location.replace(window.location.pathname + window.location.search);
+  }, [manifesto]);
 
   useEffect(() => {
     if (!nome || !curto || !inicio || !escopo) return;

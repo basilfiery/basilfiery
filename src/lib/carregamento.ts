@@ -18,7 +18,9 @@ export function recarregarLimpo() {
   try { sessionStorage.setItem(CHAVE, String(Date.now())); } catch { /* sem armazenamento */ }
   const desktop = (window as unknown as { basilfieryDesktop?: { recarregar?: () => Promise<void> } }).basilfieryDesktop;
   if (desktop?.recarregar) {
-    void desktop.recarregar().catch(() => irParaVersaoNova());
+    // Se o programa não recarregar em 3 s (ex.: versão antiga do programa), recarrega pelo navegador mesmo
+    const reserva = setTimeout(irParaVersaoNova, 3000);
+    void desktop.recarregar().catch(() => { clearTimeout(reserva); irParaVersaoNova(); });
     return;
   }
   irParaVersaoNova();

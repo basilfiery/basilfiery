@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, Moon, Package, Printer, QrCode, Receipt, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Printer, QrCode, Receipt, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -12,6 +12,7 @@ import { ModalCardapioDigital } from '../../componentes/CardapioDigital';
 import { Suspenso } from '../../componentes/Suspenso';
 import { MarcaLateral, tituloMarca } from '../../componentes/MarcaSistema';
 import { ErroTela } from '../../componentes/ErroGeral';
+import { BalaoSuporte, useCaixaSuporte } from '../../componentes/ChatSuporte';
 import { linkAssinar } from '../../config/site';
 import { dataBR, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { useToast } from '../../componentes/Toast';
@@ -173,6 +174,13 @@ export default function Painel() {
   const [busca, setBusca] = useState('');
   const buscaRef = useRef<HTMLInputElement>(null);
   const agora = useAgora(30000);
+  // Administrador: avisa quando uma loja escreve no suporte
+  const suporte = useCaixaSuporte(s.ehAdmin, (m) => {
+    const loja = s.restaurantes.find((x) => x.id === m.restaurante_id)?.nome ?? 'uma loja';
+    toast(`Suporte: nova mensagem de ${loja}`, 'ok');
+    if (somLigado()) tocarChamado('sino');
+    notificarLocal(`Suporte · ${loja}`, m.texto, 'suporte-admin');
+  });
   /* ---------- Menu lateral: gaveta (tela menor), grupos abertos e busca ---------- */
   const [gaveta, setGaveta] = useState(false);
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
@@ -565,6 +573,7 @@ export default function Painel() {
                 <button className="menu-item" onClick={() => { fechar(); setPerfilAberto(true); }}><UserCog size={18} /> Meu perfil</button>
                 <Link className="menu-item" to="/garcom" onClick={fechar}><Smartphone size={18} /> Tela do garçom</Link>
                 {s.ehAdmin && <Link className="menu-item" to="/plataforma" onClick={fechar}><ShieldCheck size={18} /> Plataforma</Link>}
+                {s.ehAdmin && <Link className="menu-item" to="/plataforma?aba=suporte" onClick={fechar}><MessagesSquare size={18} /> Suporte{suporte.naoLidas > 0 && <span className="menu-item__selo">{suporte.naoLidas}</span>}</Link>}
                 <div className="menu-sep" />
                 <button className="menu-item menu-item--perigo" onClick={() => void s.sair()}><LogOut size={18} /> Sair</button>
               </>
@@ -842,6 +851,13 @@ export default function Painel() {
           caixaAberto={caixaAberto}
           aoAdiar={() => { adiarAtualizacao(novaVersao); setAdiada(novaVersao); }}
         />
+      )}
+
+      <ErroTela silencioso><BalaoSuporte restauranteId={r.id} /></ErroTela>
+      {s.ehAdmin && suporte.naoLidas > 0 && (
+        <Link className="sup-admin-aviso" to="/plataforma?aba=suporte">
+          <MessagesSquare size={16} /> {suporte.naoLidas === 1 ? '1 mensagem nova no suporte' : `${suporte.naoLidas} mensagens novas no suporte`}
+        </Link>
       )}
 
       {modoCaixa && caixa !== undefined && (

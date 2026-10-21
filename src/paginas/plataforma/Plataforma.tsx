@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { LayoutDashboard, LogOut, Plus, Receipt, Store, Trash2 } from 'lucide-react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { LayoutDashboard, LogOut, MessagesSquare, Plus, Receipt, Store, Trash2 } from 'lucide-react';
+import { CaixaSuporte, useCaixaSuporte } from '../../componentes/ChatSuporte';
+import { notificarLocal, somLigado, tocarChamado } from '../../lib/som';
 import { confirmar } from '../../componentes/Confirmar';
 import { Campo, Logo, Switch, Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -83,6 +85,12 @@ function Restaurantes() {
   const [lista, setLista] = useState<Restaurante[] | null>(null);
   const [criando, setCriando] = useState(false);
   const [cobranca, setCobranca] = useState<Restaurante | null>(null);
+  const [params, setParams] = useSearchParams();
+  const aba = params.get('aba') === 'suporte' ? 'suporte' : 'lojas';
+  const suporte = useCaixaSuporte(true, (m) => {
+    if (somLigado()) tocarChamado('sino');
+    notificarLocal('Suporte · nova mensagem', m.texto, 'suporte-admin');
+  });
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.from('restaurantes').select('*').order('criado_em', { ascending: false });
@@ -113,6 +121,14 @@ function Restaurantes() {
         </div>
       </div>
 
+      <div className="plat-abas" role="tablist">
+        <button type="button" role="tab" aria-selected={aba === 'lojas'} className={aba === 'lojas' ? 'ativo' : ''} onClick={() => setParams({})}><Store size={17} /> Restaurantes</button>
+        <button type="button" role="tab" aria-selected={aba === 'suporte'} className={aba === 'suporte' ? 'ativo' : ''} onClick={() => setParams({ aba: 'suporte' })}>
+          <MessagesSquare size={17} /> Suporte {suporte.naoLidas > 0 && <span className="plat-abas__selo">{suporte.naoLidas}</span>}
+        </button>
+      </div>
+
+      {aba === 'suporte' ? <CaixaSuporte conversas={suporte.conversas} /> : <>
       <div className="pagina__cab">
         <div style={{ flex: 1 }}>
           <h1 className="titulo">Restaurantes clientes</h1>
@@ -153,6 +169,7 @@ function Restaurantes() {
           </table>
         </div>
       )}
+      </>}
 
       {criando && <ModalNovoRestaurante aoFechar={() => setCriando(false)} aoCriar={() => { setCriando(false); void carregar(); void s.recarregar(); }} />}
       {cobranca && <ModalCobranca restaurante={cobranca} aoFechar={() => setCobranca(null)} aoSalvar={() => { void carregar(); void s.recarregar(); }} />}

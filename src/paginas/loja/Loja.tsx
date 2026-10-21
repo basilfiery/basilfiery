@@ -20,7 +20,7 @@ import { fraseCancelamento } from '../../lib/cancelamento';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaRaio, type Ponto } from '../../lib/mapa';
 import '../../estilos/mesa.css';
-import { useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
+import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
 import '../../estilos/loja.css';
 
 /* =====================================================================
@@ -484,13 +484,13 @@ export default function LojaCardapio() {
             </div>
           )}
           {secao ? (
-            <section key={`${secao.id}:${abaAtual}`} className="mesa__secao">
+            <section key={secao.id} className="mesa__secao">
               <header className="mesa__secao-cab">
                 <h2 className="titulo"><span className="mesa__secao-emoji" aria-hidden="true">{secao.id === DESTAQUES ? <Star size={18} fill="currentColor" /> : secao.emoji}</span> {secao.nome}</h2>
                 <span>{lista.length} {lista.length === 1 ? 'opção' : 'opções'}</span>
               </header>
               {abas.length > 1 && (
-                <div className="mesa__abas" role="tablist">
+                <div className="mesa__abas" role="tablist" ref={(el) => manterAbaVisivel(el, abaAtual)}>
                   {abas.map((a) => (
                     <button key={a.id} role="tab" aria-selected={abaAtual === a.id} className={cx('mesa__aba', abaAtual === a.id && 'ativa')} onClick={() => abrirSub(a.id)}>
                       <span>{a.emoji} {a.nome}</span>
@@ -498,7 +498,7 @@ export default function LojaCardapio() {
                   ))}
                 </div>
               )}
-              {grade(lista)}
+              <div key={abaAtual} className="mesa__troca">{grade(lista)}</div>
             </section>
           ) : <p className="vazio">O cardápio ainda está sendo preparado.</p>}
         </main>

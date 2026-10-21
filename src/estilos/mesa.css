@@ -664,3 +664,6 @@ html:has(.mesa), body:has(.mesa) { height: 100%; overflow: hidden; overscroll-be
 .abrir-mesa__quem { display: grid; gap: 10px; width: 100%; margin: 4px 0 2px; text-align: left; }
 .abrir-mesa__quem .campo > span small { color: var(--muted); font-weight: 400; }
 .abrir-mesa__aviso { color: var(--danger); font-size: .82rem; }
+
+/* Troca de subcategoria: só a lista de produtos é recriada (a barra de subcategorias fica onde está) */
+.mesa__troca { display: contents; }

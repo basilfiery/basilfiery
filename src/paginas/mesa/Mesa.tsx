@@ -22,7 +22,7 @@ import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
 import { JogoMemoria } from './JogoMemoria';
 import { telefoneFormatado } from '../loja/ContaCliente';
-import { useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
+import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
 import '../../estilos/mesa.css';
 
 /** Jogo da memória no topo do cardápio da mesa (para tirar: false). */
@@ -620,7 +620,7 @@ export default function Mesa() {
             const i = secoes.findIndex((c) => c.id === secao.id);
             const prox = secoes[i + 1];
             return (
-              <section key={`${secao.id}:${abaAtual}`} className="mesa__secao">
+              <section key={secao.id} className="mesa__secao">
                 <header className="mesa__secao-cab">
                   <h2 className="titulo">
                     <span className="mesa__secao-emoji" aria-hidden="true">{emojiCat(secao)}</span> {secao.nome}
@@ -630,7 +630,7 @@ export default function Mesa() {
 
                 {/* Subcategorias lado a lado (ex.: Pizza P | Pizza M | Pizza G) */}
                 {abas.length > 1 && (
-                  <div className="mesa__abas" role="tablist" aria-label={`Opções de ${secao.nome}`}>
+                  <div className="mesa__abas" role="tablist" ref={(el) => manterAbaVisivel(el, abaAtual)} aria-label={`Opções de ${secao.nome}`}>
                     {abas.map((a) => (
                       <button key={a.id} role="tab" aria-selected={abaAtual === a.id} className={cx('mesa__aba', abaAtual === a.id && 'ativa')} onClick={() => abrirSub(a.id)}>
                         <span>{a.emoji} {a.nome}</span>
@@ -639,7 +639,7 @@ export default function Mesa() {
                   </div>
                 )}
 
-                {grade(lista)}
+                <div key={abaAtual} className="mesa__troca">{grade(lista)}</div>
 
                 {proximaAba ? (
                   <button className="mesa__proxima" onClick={() => abrirSub(proximaAba.id, true)}>

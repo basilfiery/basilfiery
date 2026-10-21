@@ -1,6 +1,25 @@
 import { useCallback, useRef, useState, type RefObject } from 'react';
 
 /**
+ * Barra de subcategorias: quando a subcategoria escolhida muda (ou a categoria é reaberta),
+ * rola a barra só o necessário para ela ficar visível. Não mexe se a pessoa estiver arrastando a barra.
+ * Usar como ref: ref={(el) => manterAbaVisivel(el, abaAtual)}
+ */
+export function manterAbaVisivel(barra: HTMLElement | null, abaAtual: string) {
+  if (!barra || barra.dataset.ativa === abaAtual) return;
+  barra.dataset.ativa = abaAtual;
+  requestAnimationFrame(() => {
+    const aba = barra.querySelector<HTMLElement>('.mesa__aba.ativa');
+    if (!aba) return;
+    // Posição da aba dentro da barra (contando o quanto a barra já está rolada)
+    const ini = aba.getBoundingClientRect().left - barra.getBoundingClientRect().left + barra.scrollLeft;
+    const fim = ini + aba.offsetWidth;
+    if (ini < barra.scrollLeft) barra.scrollTo({ left: Math.max(0, ini - 16), behavior: 'smooth' });
+    else if (fim > barra.scrollLeft + barra.clientWidth) barra.scrollTo({ left: fim - barra.clientWidth + 16, behavior: 'smooth' });
+  });
+}
+
+/**
  * Navegação entre categorias do cardápio (mesa e delivery) que LEMBRA onde o cliente estava:
  * ao voltar para uma categoria, ela abre na mesma subcategoria e na mesma posição da lista,
  * em vez de recomeçar do topo.

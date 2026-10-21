@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Award, Bell, BellOff, CheckCircle2, ChevronRight, ClipboardList, Crown, LogOut, Medal, Settings, Share, Smartphone, SquarePlus, Trophy, UserRound, Volume2, X,
+  Award, Bell, BellOff, CheckCircle2, ChevronRight, ClipboardList, Crown, LogOut, Medal, Moon, Settings, Share, Smartphone, SquarePlus, Sun, Trophy, UserRound, Volume2, X,
 } from 'lucide-react';
 import { Switch } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -12,6 +12,7 @@ import { definirSom, somLigado, tocarAlerta } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx } from '../../lib/util';
 import { VERSAO_CURTA } from '../../lib/versao';
+import { useAparencia, type Aparencia } from '../../lib/aparencia';
 
 export type TelaGarcom = 'principal' | 'desafios' | 'config';
 
@@ -41,6 +42,7 @@ export function MenuGarcom({ aberto, tela, nomeRest, logo, aoIr, aoPerfil, aoSai
   aoFechar: () => void;
 }) {
   const [ajudaIphone, setAjudaIphone] = useState(false);
+  const [aparencia, setAparencia] = useAparencia('garcom');
   const instalado = jaInstalado();
 
   useEffect(() => {
@@ -74,6 +76,9 @@ export function MenuGarcom({ aberto, tela, nomeRest, logo, aoIr, aoPerfil, aoSai
           <Item id="desafios" icone={<Trophy size={20} />} rotulo="Desafios do garçom" />
           <Item id="config" icone={<Settings size={20} />} rotulo="Configurações" />
           <button className="gmenu__item" onClick={() => { aoPerfil(); aoFechar(); }}><UserRound size={20} /><span>Meu perfil</span></button>
+          <button className="gmenu__item" onClick={() => setAparencia(aparencia === 'claro' ? 'escuro' : 'claro')}>
+            {aparencia === 'claro' ? <Moon size={20} /> : <Sun size={20} />}<span>{aparencia === 'claro' ? 'Usar modo escuro' : 'Usar modo claro'}</span>
+          </button>
         </nav>
 
         <div className="gmenu__rodape">
@@ -220,6 +225,7 @@ export function ConfigGarcom({ restauranteId }: { restauranteId: string }) {
   const toast = useToast();
   const [som, setSom] = useState(somLigado());
   const [push, setPush] = useState<EstadoPush | null>(null);
+  const [aparencia, setAparencia] = useAparencia('garcom');
   useEffect(() => { void estadoPush().then(setPush); }, []);
 
   async function ativar() {
@@ -232,6 +238,13 @@ export function ConfigGarcom({ restauranteId }: { restauranteId: string }) {
 
   return (
     <div className="gcfg">
+      <section className="gcfg__bloco">
+        <div className="gcfg__linha">
+          <span className="gcfg__icone">{aparencia === 'claro' ? <Sun size={20} /> : <Moon size={20} />}</span>
+          <div><b>Aparência</b><small>Escolha o app claro ou escuro neste celular</small></div>
+        </div>
+        <SeletorAparencia valor={aparencia} aoMudar={setAparencia} />
+      </section>
       <section className="gcfg__bloco">
         <div className="gcfg__linha">
           <span className="gcfg__icone"><Volume2 size={20} /></span>
@@ -256,6 +269,20 @@ export function ConfigGarcom({ restauranteId }: { restauranteId: string }) {
         </div>
       </section>
       <p className="gcfg__versao">BasilFiery · versão {VERSAO_CURTA}</p>
+    </div>
+  );
+}
+
+/** Dois botões grandes: Escuro | Claro (usado no garçom e no dono) */
+export function SeletorAparencia({ valor, aoMudar, classe }: { valor: Aparencia; aoMudar: (v: Aparencia) => void; classe?: string }) {
+  return (
+    <div className={cx('aparencia', classe)} role="radiogroup" aria-label="Aparência do app">
+      {([['escuro', 'Escuro', <Moon key="m" size={18} />], ['claro', 'Claro', <Sun key="s" size={18} />]] as const).map(([id, rotulo, icone]) => (
+        <button key={id} type="button" role="radio" aria-checked={valor === id} className={cx('aparencia__opcao', `aparencia__opcao--${id}`, valor === id && 'ativo')} onClick={() => aoMudar(id)}>
+          <span className="aparencia__mini" aria-hidden="true"><i /><i /><i /></span>
+          <span className="aparencia__rotulo">{icone} {rotulo}</span>
+        </button>
+      ))}
     </div>
   );
 }

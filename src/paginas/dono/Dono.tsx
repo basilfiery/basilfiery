@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { createPortal } from 'react-dom';
 import {
   ArrowRight, BarChart3, Bell, BellRing, Check, Maximize2, TrendingUp, Palette, ChevronDown, ChevronRight, CircleHelp, ClipboardList, DollarSign, Eye, EyeOff, Home, LayoutGrid,
-  Lock, LogOut, Radio, Receipt, Settings, ShieldCheck, Store, Target, Trophy, Wallet, XCircle, Zap,
+  Lock, LogOut, Moon, Radio, Receipt, Settings, ShieldCheck, Store, Sun, Target, Trophy, Wallet, XCircle, Zap,
 } from 'lucide-react';
+import { useAparencia } from '../../lib/aparencia';
 import { Avatar } from '../../componentes/Perfil';
 import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
@@ -379,6 +380,8 @@ function AppDono({ restaurantes }: { restaurantes: RestauranteComPapel[] }) {
   const [tema, setTemaEstado] = useState<TemaId>(() => ls.ler<TemaId>('bf:dono:tema', 'loja'));
   const setTema = (id: TemaId) => { setTemaEstado(id); ls.gravar('bf:dono:tema', id); };
   useEffect(() => { aplicarCores(coresDoTema(tema, rest.cor)); }, [tema, rest.cor]);
+  // Claro ou escuro (Ajustes › Modo claro): escolha deste celular
+  useAparencia('dono', true);
 
   const vivo = usePedidosAoVivo(rest.id, {
     aoNovoPedido: (p) => {
@@ -1123,6 +1126,7 @@ function Ajustes({ tema, setTema, rest, restaurantes, trocar, oculto, setOculto,
 }) {
   const [push, setPush] = useState<EstadoPush | null>(null);
   const [verTemas, setVerTemas] = useState(false);
+  const [aparencia, setAparencia] = useAparencia('dono');
   useEffect(() => { void estadoPush().then(setPush); }, []);
 
   async function alternarAvisos() {
@@ -1158,6 +1162,11 @@ function Ajustes({ tema, setTema, rest, restaurantes, trocar, oculto, setOculto,
           <Palette size={19} />
           <span>Cor do app<small>{tema === 'loja' ? `A mesma do ${rest.nome}` : TEMAS.find((x) => x.id === tema)?.nome}</small></span>
           <i className="dn-tema-atual" />
+        </button>
+        <button className="dn-lista__item" onClick={() => setAparencia(aparencia === 'claro' ? 'escuro' : 'claro')}>
+          {aparencia === 'claro' ? <Sun size={19} /> : <Moon size={19} />}
+          <span>Modo claro<small>{aparencia === 'claro' ? 'App branco, ótimo para usar no sol' : 'Desligado: app escuro'}</small></span>
+          <span className={cx('dn-chave', aparencia === 'claro' && 'on')} />
         </button>
         <button className="dn-lista__item" onClick={() => setOculto(!oculto)}>
           {oculto ? <EyeOff size={19} /> : <Eye size={19} />}

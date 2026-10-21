@@ -20,6 +20,7 @@ import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import '../../estilos/painel.css';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
 import { ConfigGarcom, DesafiosGarcom, MenuGarcom, type TelaGarcom } from './MenuGarcom';
+import { useAparencia } from '../../lib/aparencia';
 
 type Aba = 'levar' | 'cozinha' | 'mesas';
 
@@ -53,6 +54,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   useEffect(() => { void estadoPush().then(setPush); }, []);
   const [perfilAberto, setPerfilAberto] = useState(false);
   const [menu, setMenu] = useState(false);
+  // Claro ou escuro: escolha de cada celular (Menu › Configurações)
+  useAparencia('garcom', true);
   const [tela, setTela] = useState<TelaGarcom>('principal');
 
   if (s.carregando) return <Carregando />;

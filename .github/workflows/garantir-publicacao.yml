@@ -2,6 +2,7 @@
 # Às vezes a Vercel não recebe o aviso do GitHub e não publica: este processo espera 2 minutos,
 # confere se a publicação daquele commit começou e, se não, manda publicar.
 # Precisa do segredo VERCEL_TOKEN (GitHub › Settings › Secrets and variables › Actions). Sem ele, só avisa e não faz nada.
+# Token cadastrado em 21/10/2026.
 name: Garantir publicação
 
 on:

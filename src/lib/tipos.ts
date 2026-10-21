@@ -25,6 +25,8 @@ export interface Restaurante {
   codigo: string;
   /** Endereço do cardápio: basilfiery.com.br/<slug> (mesas: /<slug>/mesa1) */
   slug: string;
+  /** Meta de faturamento do mês (app do dono) */
+  meta_mensal?: number | null;
   /** Domínio próprio (planos Premium e Rede): cardápio em https://<dominio> e mesas em /mesa1 */
   dominio?: string | null;
   dominio_status?: 'pendente' | 'ativo' | null;

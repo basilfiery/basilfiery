@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  Check, ChevronRight, Copy, ListChecks, Eye, EyeOff, Film, FolderInput, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
+  Check, ChevronRight, Copy, Crop, ListChecks, Eye, EyeOff, Film, FolderInput, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
 import { Campo, FotoProduto, ImagemComida, Switch, Vazio } from '../../componentes/Basicos';
@@ -15,6 +15,7 @@ import { usePainel } from './Painel';
 import { AdicionaisDoProduto, ModalGrupoAdicionais, carregarAdicionais, type GrupoAdicional, type VinculoAdicional } from './Adicionais';
 import { regraGrupo } from '../../lib/adicionais';
 import { confirmar } from '../../componentes/Confirmar';
+import { AjustarFoto, PROPORCOES_PRODUTO, arquivoDaFoto } from '../../componentes/AjustarFoto';
 
 type Alvo = { id: string; depois: boolean } | null;
 
@@ -1111,6 +1112,28 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
     }
   }
 
+  // "Ajustar imagem": abre a foto que já está no item (ou na galeria) para enquadrar, só quando a pessoa quiser
+  const [ajustar, setAjustar] = useState<{ arquivo: File; destino: 'principal' | number } | null>(null);
+  const [abrindoAjuste, setAbrindoAjuste] = useState(false);
+  async function abrirAjuste(url: string, destino: 'principal' | number) {
+    setAbrindoAjuste(true);
+    try { setAjustar({ arquivo: await arquivoDaFoto(url), destino }); } catch (e) { toast(msgErro(e), 'erro'); }
+    setAbrindoAjuste(false);
+  }
+  async function enviarAjustada(foto: Blob) {
+    if (!ajustar) return;
+    const destino = ajustar.destino;
+    try {
+      const url = await enviarImagem(restauranteId, foto, 'produtos');
+      if (destino === 'principal') mudar('imagem_url', url);
+      else setF((x) => ({ ...x, galeria: x.galeria.map((g, n) => (n === destino ? { ...g, url } : g)) }));
+      setAjustar(null);
+      toast('Foto ajustada. Salve o item para valer no cardápio.', 'ok');
+    } catch (e) {
+      toast(msgErro(e), 'erro');
+    }
+  }
+
   const galeriaFotoRef = useRef<HTMLInputElement>(null);
   const galeriaVideoRef = useRef<HTMLInputElement>(null);
   const [enviandoGaleria, setEnviandoGaleria] = useState(false);
@@ -1228,8 +1251,22 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
             <button className="btn btn--contorno btn--sm" onClick={() => arquivoRef.current?.click()} disabled={enviandoFoto}>
               <ImagePlus size={16} /> {enviandoFoto ? 'Enviando…' : f.imagem_url ? 'Trocar foto' : 'Enviar foto'}
             </button>
+            {f.imagem_url && (
+              <button className="btn btn--contorno btn--sm" onClick={() => void abrirAjuste(f.imagem_url!, 'principal')} disabled={abrindoAjuste || enviandoFoto}>
+                <Crop size={16} /> {abrindoAjuste ? 'Abrindo…' : 'Ajustar imagem'}
+              </button>
+            )}
             {f.imagem_url && <button className="btn btn--fantasma btn--sm" onClick={() => mudar('imagem_url', null)}>Remover foto</button>}
             <input ref={arquivoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => void escolherFoto(e.target.files?.[0])} />
+            {ajustar && (
+              <AjustarFoto
+                arquivo={ajustar.arquivo}
+                titulo={ajustar.destino === 'principal' ? 'Ajustar foto do item' : 'Ajustar foto da galeria'}
+                proporcoes={PROPORCOES_PRODUTO}
+                aoConfirmar={enviarAjustada}
+                aoCancelar={() => setAjustar(null)}
+              />
+            )}
           </div>
         </div>
 
@@ -1289,6 +1326,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
                 <div key={g.url} className="galeria-painel__item">
                   {g.tipo === 'imagem' ? <img src={g.url} alt="" /> : <video src={g.url} muted playsInline />}
                   {g.tipo === 'video' && <span className="galeria-painel__tipo"><Film size={12} /></span>}
+                  {g.tipo === 'imagem' && (
+                    <button type="button" className="galeria-painel__ajustar" onClick={() => void abrirAjuste(g.url, i)} disabled={abrindoAjuste} aria-label="Ajustar imagem" title="Ajustar imagem"><Crop size={13} /></button>
+                  )}
                   <button type="button" onClick={() => setF((x) => ({ ...x, galeria: x.galeria.filter((_, n) => n !== i) }))} aria-label="Tirar"><Trash2 size={13} /></button>
                 </div>
               ))}

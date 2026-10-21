@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, ImagePlus, Link2, ListPlus, Pencil, Plus, Trash2, Unlink, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Crop, ImagePlus, Link2, ListPlus, Pencil, Plus, Trash2, Unlink, X } from 'lucide-react';
 import { Stepper, Switch } from '../../componentes/Basicos';
 import { confirmar } from '../../componentes/Confirmar';
 import { Modal } from '../../componentes/Modal';
+import { AjustarFoto, PROPORCOES_PRODUTO, arquivoDaFoto } from '../../componentes/AjustarFoto';
 import { useToast } from '../../componentes/Toast';
 import { regraGrupo, ROTULO_CALCULO, type CalculoGrupo } from '../../lib/adicionais';
 import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../lib/supabase';
@@ -117,6 +118,21 @@ export function ModalGrupoAdicionais({ restauranteId, grupo, usadoEm, nomeSugeri
     try { mudar(id, { imagem_url: await enviarImagem(restauranteId, arquivo, 'adicionais') }); } catch (e) { toast(msgErro(e), 'erro'); }
     setEnviandoFoto(null);
     if (fotoRef.current) fotoRef.current.value = '';
+  }
+
+  // "Ajustar imagem" da foto da opção (só quando a pessoa quiser)
+  const [ajustar, setAjustar] = useState<{ id: string; arquivo: File } | null>(null);
+  async function abrirAjuste(id: string, url: string) {
+    try { setAjustar({ id, arquivo: await arquivoDaFoto(url) }); } catch (e) { toast(msgErro(e), 'erro'); }
+  }
+  async function enviarAjustada(foto: Blob) {
+    if (!ajustar) return;
+    setEnviandoFoto(ajustar.id);
+    try {
+      mudar(ajustar.id, { imagem_url: await enviarImagem(restauranteId, foto, 'adicionais') });
+      setAjustar(null);
+    } catch (e) { toast(msgErro(e), 'erro'); }
+    setEnviandoFoto(null);
   }
 
   async function salvar() {
@@ -245,6 +261,7 @@ export function ModalGrupoAdicionais({ restauranteId, grupo, usadoEm, nomeSugeri
                   {o.imagem_url ? <img src={o.imagem_url} alt="" /> : enviandoFoto === o.id ? <span className="spinner" /> : <ImagePlus size={20} />}
                 </button>
                 {o.imagem_url && <button type="button" className="adic-form__foto-tirar" onClick={() => mudar(o.id, { imagem_url: null })} aria-label="Tirar foto"><X size={12} /></button>}
+                {o.imagem_url && <button type="button" className="adic-form__foto-ajustar" onClick={() => void abrirAjuste(o.id, o.imagem_url!)} aria-label="Ajustar imagem" title="Ajustar imagem"><Crop size={12} /></button>}
               </div>
               <div className="adic-form__campos">
                 <div className="adic-form__linha adic-form__linha--preco">
@@ -267,6 +284,10 @@ export function ModalGrupoAdicionais({ restauranteId, grupo, usadoEm, nomeSugeri
         </div>
         <button type="button" className="btn btn--contorno btn--acento adic-form__nova" onClick={novaOpcao}><Plus size={17} /> Adicionar opção</button>
         <input ref={fotoRef} className="input-arquivo" type="file" accept={ACEITA_IMAGEM} onChange={(e) => void enviarFoto(e.target.files?.[0])} />
+        {ajustar && (
+          <AjustarFoto arquivo={ajustar.arquivo} titulo="Ajustar foto da opção" proporcoes={PROPORCOES_PRODUTO}
+            aoConfirmar={enviarAjustada} aoCancelar={() => setAjustar(null)} />
+        )}
         {usadoEm.length > 0 && <p className="adic-dica">Usado em: <b>{usadoEm.join(', ')}</b>. Mudou aqui, muda em todos.</p>}
       </div>
     </Modal>

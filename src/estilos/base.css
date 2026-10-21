@@ -413,3 +413,13 @@ h1, h2, h3 { line-height: 1.2; }
 .ajustar-foto__controles { width: 100%; max-width: 340px; display: flex; align-items: center; gap: 6px; }
 .ajustar-foto__controles input[type=range] { flex: 1; accent-color: var(--acento, #ff5a1f); }
 .pedido__adic { display: block; font-style: normal; font-weight: 600; font-size: .85em; }
+
+/* Ajustar foto: escolha do formato (quadrada, 4:3, larga) */
+.ajustar-foto__formatos { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.ajustar-foto__formatos button {
+  display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--muted); font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer;
+}
+.ajustar-foto__formatos button i { display: block; height: 14px; border: 2px solid currentColor; border-radius: 3px; }
+.ajustar-foto__formatos button.ativo { border-color: var(--acento, #ff5a1f); color: var(--acento, #ff5a1f); background: color-mix(in srgb, var(--acento, #ff5a1f) 10%, var(--surface)); }
+.ajustar-foto .modal__rodape { flex-wrap: wrap; }

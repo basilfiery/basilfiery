@@ -38,7 +38,15 @@ export function useAppInstalavel(app: AppInstalavel | null) {
 
   useEffect(() => {
     if (!nome || !curto || !inicio || !escopo) return;
-    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    // Páginas sem manifesto (cardápio, mesa…): no Android cria um só desta página
+    let criado = false;
+    if (!link && !ehIOS()) {
+      link = document.createElement('link');
+      link.rel = 'manifest';
+      document.head.appendChild(link);
+      criado = true;
+    }
     const hrefOriginal = link?.getAttribute('href') ?? null;
     const pai = link?.parentNode ?? null;
     const proximo = link?.nextSibling ?? null;
@@ -50,7 +58,8 @@ export function useAppInstalavel(app: AppInstalavel | null) {
     metaTitulo.content = curto;
 
     if (ehIOS()) {
-      link?.remove();
+      // Manifesto próprio do app (dono, garçom) fica; o do sistema sai para o iPhone salvar este endereço
+      if (link && !link.hasAttribute('data-fixo')) link.remove();
     } else if (link) {
       const origem = window.location.origin;
       const manifesto = {
@@ -74,6 +83,7 @@ export function useAppInstalavel(app: AppInstalavel | null) {
     return () => {
       document.title = tituloOriginal;
       metaTitulo.content = metaTituloOriginal;
+      if (criado) { link?.remove(); return; }
       if (link && hrefOriginal) link.setAttribute('href', hrefOriginal);
       if (link && !link.isConnected && pai) pai.insertBefore(link, proximo);
     };

@@ -9,7 +9,26 @@
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
     <link rel="apple-touch-icon" href="/icone-180.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      // Manifesto certo para cada app, escolhido ANTES da página carregar: o iPhone lê o manifesto na hora
+      // e é ele que decide o que o atalho da tela de início abre.
+      //   /dono      → app do dono        /appgarcom, /g → app do garçom
+      //   painel, login e site → sistema   cardápio, mesas, listas → sem manifesto (o iPhone salva o endereço exato)
+      (function () {
+        var p = location.pathname, h = location.hostname, href = null, fixo = false, titulo = null;
+        var sistema = /(^|\.)basilfiery\.com(\.br)?$|vercel\.app$|^localhost$|^[\d.]+$/.test(h);
+        if (p === '/dono' || p.indexOf('/dono/') === 0) {
+          href = '/manifest-dono.webmanifest'; fixo = true;
+          try { titulo = JSON.parse(localStorage.getItem('bf:dono:nome-app') || 'null'); } catch (e) { titulo = null; }
+        } else if (p === '/appgarcom' || p === '/g' || p.indexOf('/g/') === 0) {
+          href = '/manifest-garcom.webmanifest'; fixo = true;
+        } else if (sistema && (p === '/' || p === '/login' || p === '/ativar' || p === '/plataforma' || p.indexOf('/painel') === 0)) {
+          href = '/manifest.webmanifest';
+        }
+        if (href) document.write('<link rel="manifest" href="' + href + '"' + (fixo ? ' data-fixo' : '') + ' />');
+        if (titulo) document.write('<meta name="apple-mobile-web-app-title" content="' + String(titulo).replace(/[<>"&]/g, '') + '" />');
+      })();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -129,8 +129,10 @@ export default function Dono() {
   const s = useSessao();
   useFonte();
   // O app instalado leva o nome da empresa (é o nome que o celular mostra nas notificações)
-  const nomeEmpresa = s.restaurante?.nome?.trim() || MARCA;
+  const nomeEmpresa = s.restaurante?.nome?.trim() || ls.ler<string | null>('bf:dono:nome-app', null) || MARCA;
   useAppInstalavel({ nome: nomeEmpresa, curto: nomeEmpresa.slice(0, 15), inicio: '/dono', escopo: '/dono' });
+  // O atalho do iPhone já nasce com o nome da empresa (lido antes da página carregar, no index.html)
+  useEffect(() => { if (s.restaurante?.nome) ls.gravar('bf:dono:nome-app', s.restaurante.nome.trim().slice(0, 30)); }, [s.restaurante?.nome]);
   const [abertura, setAbertura] = useState(() => sessao.ler('bf:dono:abertura') !== '1');
   // Última cor escolhida já vale na abertura e no login
   useEffect(() => {

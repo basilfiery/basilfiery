@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, Check, ChevronDown, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
+import { ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
 import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -102,10 +102,14 @@ export default function Mesas() {
     const cs = chamadosDa(m.id).filter((c) => c.tipo !== 'conta');
     const pedindo = acessos.filter((a) => a.mesa_id === m.id).length;
     const comConta = st === 'ocupada' || st === 'pagando';
+    // Situação dos pedidos da mesa (o que falta a equipe fazer)
+    const novos = ps.filter((p) => p.status === 'novo').length;
+    const preparo = ps.filter((p) => p.status === 'preparando').length;
+    const prontos = ps.filter((p) => p.status === 'pronto').length;
     return (
       <article
         key={m.id}
-        className={cx('mc', `mc--${st}`)}
+        className={cx('mc', `mc--${st}`, novos > 0 && 'mc--novo')}
         role="button"
         tabIndex={0}
         onClick={() => setSelecionada(m)}
@@ -157,8 +161,11 @@ export default function Mesas() {
               <strong className="mc__total">{brl(total)}</strong>
             </>
           ) : null}
-          {(cs.length > 0 || pedindo > 0) && (
+          {(cs.length > 0 || pedindo > 0 || novos + preparo + prontos > 0) && (
             <div className="mc__alertas">
+              {novos > 0 && <span className="badge badge--icone mc__novo"><ClipboardList size={13} /> {novos === 1 ? 'Pedido novo' : `${novos} pedidos novos`}</span>}
+              {prontos > 0 && <span className="badge badge--icone badge--verde"><Check size={13} /> {prontos === 1 ? 'Pronto para levar' : `${prontos} prontos para levar`}</span>}
+              {preparo > 0 && <span className="badge badge--icone badge--amarelo"><Clock size={13} /> Em preparo</span>}
               {pedindo > 0 && <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>}
               {cs.map((c) => (
                 <span key={c.id} className="badge badge--icone badge--laranja"><ConciergeBell size={13} /> {descreverChamado(c)} · {tempoDesde(c.criado_em, agora)}</span>

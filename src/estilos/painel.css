@@ -219,6 +219,8 @@
 }
 .chamado span { flex: 1; color: var(--text); }
 .chamado--conta { border-color: rgba(59, 130, 246, .35); background: rgba(59, 130, 246, .07); color: var(--info); }
+.chamado--pedido { border-color: color-mix(in srgb, var(--fire) 45%, transparent); background: color-mix(in srgb, var(--fire) 8%, var(--surface)); color: var(--fire); animation: chamado-pulsa 1.6s ease-in-out infinite; }
+@keyframes chamado-pulsa { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--fire) 18%, transparent); } }
 
 .painel__conteudo { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 28px 32px; }
 .painel__conteudo--cheio { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 20px; }
@@ -3052,3 +3054,8 @@
   display: block; padding: 4px 8px; border-radius: 8px; border: 1px dashed #4c4039; color: #8a7e74;
   font-size: .68rem; font-style: italic; text-align: center;
 }
+
+/* Mesas: pedido novo esperando a equipe */
+.mc--novo { box-shadow: 0 0 0 2px var(--fire), 0 10px 26px -10px color-mix(in srgb, var(--fire) 60%, transparent) !important; animation: mc-novo 1.6s ease-in-out infinite; }
+@keyframes mc-novo { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--fire) 35%, transparent), 0 10px 26px -10px color-mix(in srgb, var(--fire) 60%, transparent); } }
+.mc__novo { background: var(--fire) !important; color: #fff !important; border-color: transparent !important; }

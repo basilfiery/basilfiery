@@ -22,7 +22,7 @@ import {
   lerConfigImpressao, programaDesktop,
 } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
-import { REPETIR_CHAMADO_MS, definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado, tocarChamadoUmaVez } from '../../lib/som';
+import { REPETIR_CHAMADO_MS, definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado, tocarChamadoUmaVez, tocarPedidoUmaVez } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, MesaAcesso, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
 import { PAPEL_ROTULO, brl, cx, descreverChamado, duracao, ehGestor, ls, podeCaixa, quando, tempoDesde, useAgora } from '../../lib/util';
@@ -243,7 +243,7 @@ export default function Painel() {
 
   const vivo = usePedidosAoVivo(r?.id, {
     aoNovoPedido: (p) => {
-      tocarAlerta('pedido');
+      tocarPedidoUmaVez(`pedido-${p.id}`);
       const itens = (p.pedido_itens ?? []).map((i) => `${i.qtd}× ${i.nome}`);
       const resumo = itens.length > 3 ? `${itens.slice(0, 3).join(', ')} e mais ${itens.length - 3}` : itens.join(', ');
       notificarLocal(`Chegou um novo pedido! #${p.numero} · ${p.mesa_nome}`, [resumo, `Total ${brl(p.total)}`].filter(Boolean).join(' · '), `pedido-${p.id}`);
@@ -263,20 +263,34 @@ export default function Painel() {
   const somChamadoRef = useRef(r?.som_chamado);
   somChamadoRef.current = r?.som_chamado;
   const haChamados = vivo.chamados.length > 0 || vivo.acessos.length > 0;
+  // Pedido novo da mesa ou do delivery também insiste até alguém marcar "Atendido" (vira "Em preparo")
+  const pedidosNovos = vivo.pedidos.filter((p) => p.status === 'novo' && p.tipo !== 'balcao');
+  const haNovos = pedidosNovos.length > 0;
   const recarregarVivo = vivo.recarregar;
   useEffect(() => {
-    if (!haChamados || !r?.id) return;
+    if ((!haChamados && !haNovos) || !r?.id) return;
     const rest = r.id;
     const i = setInterval(async () => {
-      const [c, a] = await Promise.all([
+      const [c, a, p] = await Promise.all([
         supabase.from('chamados').select('id').eq('restaurante_id', rest).is('atendido_em', null).limit(1),
         supabase.from('mesa_acessos').select('id').eq('restaurante_id', rest).eq('status', 'pendente').limit(1),
+        supabase.from('pedidos').select('id').eq('restaurante_id', rest).eq('status', 'novo').neq('tipo', 'balcao').limit(1),
       ]);
-      if (!c.error && !a.error && !c.data?.length && !a.data?.length) { void recarregarVivo(); return; }
-      tocarChamadoUmaVez(`repete-${Math.floor(Date.now() / REPETIR_CHAMADO_MS)}`, somChamadoRef.current);
+      if (c.error || a.error || p.error) return;
+      const slot = `repete-${Math.floor(Date.now() / REPETIR_CHAMADO_MS)}`;
+      if (c.data?.length || a.data?.length) tocarChamadoUmaVez(slot, somChamadoRef.current);
+      else if (p.data?.length) tocarPedidoUmaVez(slot);
+      else void recarregarVivo();
     }, REPETIR_CHAMADO_MS);
     return () => clearInterval(i);
-  }, [haChamados, r?.id, recarregarVivo]);
+  }, [haChamados, haNovos, r?.id, recarregarVivo]);
+
+  async function atenderPedido(p: Pedido) {
+    vivo.atualizarPedido(p.id, { status: 'preparando' }); // o som para na hora
+    const { error } = await supabase.rpc('pedido_mudar_status', { p_pedido: p.id, p_status: 'preparando' });
+    if (error) { toast(msgErro(error), 'erro'); vivo.atualizarPedido(p.id, { status: 'novo' }); }
+    else toast(`Pedido #${p.numero} · ${p.mesa_nome} em preparo.`, 'ok');
+  }
 
   /* ---------- Fila de impressão: o garçom pede a conta pelo celular, este computador imprime ---------- */
   const cfgImpRef = useRef(cfgImp);
@@ -871,6 +885,19 @@ export default function Painel() {
             <span><b>Receba os pedidos no canto da tela</b>, mesmo com o navegador minimizado.</span>
             <button className="btn btn--sm btn--primario" onClick={() => void Notification.requestPermission().then(setPermissaoNotif)}>Ativar avisos</button>
             <button className="icone-btn" onClick={() => setPermissaoNotif('denied')} aria-label="Agora não"><X size={16} /></button>
+          </div>
+        )}
+        {/* Pedido novo (mesa/delivery): fica aqui até alguém marcar "Atendido" — na tela de Pedidos ele já aparece na coluna Novos */}
+        {!naTelaDePedidos && pedidosNovos.length > 0 && (
+          <div className="chamados">
+            {pedidosNovos.map((p) => (
+              <div key={p.id} className="chamado chamado--pedido">
+                <ClipboardList size={18} />
+                <span><b>Novo pedido #{p.numero}</b> · {p.mesa_nome} · {brl(p.total)} · {tempoDesde(p.criado_em, agora)}</span>
+                <Link className="btn btn--sm btn--fantasma" to="/painel">Ver</Link>
+                <button className="btn btn--sm btn--contorno" onClick={() => void atenderPedido(p)} title="Marca o pedido como em preparo">Atendido</button>
+              </div>
+            ))}
           </div>
         )}
         {vivo.chamados.length > 0 && (

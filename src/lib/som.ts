@@ -18,7 +18,7 @@ export const somLigado = () => ls.ler('bf:som', true);
 export const definirSom = (v: boolean) => ls.gravar('bf:som', v);
 
 const MELODIAS = {
-  pedido: [880, 1175, 1568],
+  pedido: [880, 1175, 1568, 0, 880, 1175, 1568],
   chamado: [988, 740, 988, 740],
   pronto: [1319, 1568],
 };
@@ -28,18 +28,21 @@ export function tocarAlerta(tipo: keyof typeof MELODIAS = 'pedido') {
   destravarSom();
   if (!ctx) return;
   const c = ctx;
+  const pedido = tipo === 'pedido';
   MELODIAS[tipo].forEach((freq, i) => {
+    if (!freq) return; // pausa
     const osc = c.createOscillator();
     const ganho = c.createGain();
-    const t = c.currentTime + i * 0.18;
-    osc.type = 'sine';
+    const t = c.currentTime + i * (pedido ? 0.2 : 0.18);
+    const dur = pedido ? 0.32 : 0.16;
+    osc.type = pedido ? 'triangle' : 'sine';
     osc.frequency.value = freq;
     ganho.gain.setValueAtTime(0.0001, t);
-    ganho.gain.exponentialRampToValueAtTime(0.45, t + 0.02);
-    ganho.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    ganho.gain.exponentialRampToValueAtTime(pedido ? 0.7 : 0.45, t + 0.02);
+    ganho.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     osc.connect(ganho).connect(c.destination);
     osc.start(t);
-    osc.stop(t + 0.17);
+    osc.stop(t + dur + 0.01);
   });
   if ('vibrate' in navigator) navigator.vibrate?.([200, 100, 200]);
 }
@@ -161,11 +164,18 @@ export function tocarChamado(som: SomChamado | string | null | undefined = 'camp
  * a primeira que pegar a "chave" toca, as outras ficam quietas (Web Locks).
  */
 export function tocarChamadoUmaVez(chave: string, som: SomChamado | string | null | undefined) {
+  tocarUmaVez(chave, () => tocarChamado(som));
+}
+/** Som de pedido novo, uma vez só mesmo com várias abas abertas. */
+export function tocarPedidoUmaVez(chave: string) {
+  tocarUmaVez(chave, () => tocarAlerta('pedido'));
+}
+function tocarUmaVez(chave: string, tocar: () => void) {
   const locks = (navigator as Navigator & { locks?: LockManager }).locks;
-  if (!locks) { tocarChamado(som); return; }
+  if (!locks) { tocar(); return; }
   void locks.request(`bf-som-${chave}`, { ifAvailable: true }, async (trava) => {
     if (!trava) return;
-    tocarChamado(som);
+    tocar();
     await new Promise((r) => setTimeout(r, 4000)); // segura a chave enquanto as outras abas recebem o mesmo aviso
   });
 }

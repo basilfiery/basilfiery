@@ -35,6 +35,8 @@ export interface Restaurante {
   dominio_verificado_em?: string | null;
   /** Logo do menu lateral do sistema (vazio = BasilFiery) */
   marca_sistema?: MarcaSistema | null;
+  /** Cor do sistema (Configurações › Aparência). Vazio = laranja tradicional com a cor da loja nos destaques */
+  tema_sistema?: 'laranja' | 'vermelho' | 'verde' | null;
   /** Delivery: aceitando pedidos de casa agora */
   delivery_ativo: boolean;
   delivery_taxa: number;

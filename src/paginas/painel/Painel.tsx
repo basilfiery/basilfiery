@@ -12,6 +12,7 @@ import { ModalCardapioDigital } from '../../componentes/CardapioDigital';
 import { Suspenso } from '../../componentes/Suspenso';
 import { MarcaLateral, tituloMarca } from '../../componentes/MarcaSistema';
 import { ErroTela } from '../../componentes/ErroGeral';
+import { TEMAS, useTemaSistema } from '../../lib/temaSistema';
 import { BalaoSuporte, useCaixaSuporte } from '../../componentes/ChatSuporte';
 import { linkAssinar } from '../../config/site';
 import { dataBR, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
@@ -126,7 +127,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
           { para: '/painel/config/estabelecimento', rotulo: 'Estabelecimento', papeis: GESTORES },
           { para: '/painel/config/nota-fiscal', rotulo: 'Nota fiscal', papeis: GESTORES, novo: true },
           { para: '/painel/config/anuncios', rotulo: 'Integração de anúncios', papeis: GESTORES },
-          { para: '/painel/config/logo-sistema', rotulo: 'Logo do sistema', papeis: GESTORES, novo: true },
+          { para: '/painel/config/aparencia', rotulo: 'Aparência', papeis: GESTORES, novo: true },
           { para: '/painel/dominios', rotulo: 'Domínios', papeis: GESTORES, novo: true },
           { para: '/painel/config/avisos', rotulo: 'Avisos e sons' },
         ],
@@ -187,6 +188,8 @@ export default function Painel() {
   const [busca, setBusca] = useState('');
   const buscaRef = useRef<HTMLInputElement>(null);
   const agora = useAgora(30000);
+  // Cor do sistema escolhida em Configurações › Aparência
+  useTemaSistema(r?.tema_sistema);
   // Administrador: avisa quando uma loja escreve no suporte
   const suporte = useCaixaSuporte(s.ehAdmin, (m) => {
     const loja = s.restaurantes.find((x) => x.id === m.restaurante_id)?.nome ?? 'uma loja';
@@ -483,7 +486,7 @@ export default function Painel() {
     : <span className="avatar" style={{ background: r.cor }}>{iniciais(r.nome)}</span>;
 
   return (
-    <div className="painel" style={{ '--acento': r.cor } as CSSProperties}>
+    <div className="painel" style={{ '--acento': r.tema_sistema ? TEMAS[r.tema_sistema].cor : r.cor } as CSSProperties}>
       {/* ================= Barra lateral (estilo Anota AI) ================= */}
       {gaveta && <div className="lateral-fundo" onClick={() => setGaveta(false)} aria-hidden="true" />}
       <aside className={cx('lateral', gaveta && 'lateral--gaveta')}>

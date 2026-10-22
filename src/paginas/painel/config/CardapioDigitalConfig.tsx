@@ -71,7 +71,16 @@ export default function CardapioDigitalConfig() {
                 ['ocultar', 'Ocultar do cardápio', 'O item some do cardápio enquanto estiver esgotado e volta sozinho.'],
               ] as const).map(([id, titulo, texto]) => (
                 <button key={id} type="button" role="radio" aria-checked={f.esgotados === id} className={cx('esg-modo__opcao', f.esgotados === id && 'ativo')} onClick={() => set('esgotados', id)}>
-                  <span className={cx('esg-modo__mini', `esg-modo__mini--${id}`)} aria-hidden="true"><i /><i /><i /></span>
+                  {/* Prévia de verdade: como o cliente vê o cardápio com a Coca-Cola esgotada */}
+                  <span className="esg-previa" aria-hidden="true">
+                    <span className="esg-previa__item"><em>🍕</em><span><b>Pizza Calabresa</b><small>R$ 45,00</small></span><i>+</i></span>
+                    {id === 'mostrar' ? (
+                      <span className="esg-previa__item esg-previa__item--esgotado"><em>🥤</em><span><b>Coca-Cola 2L</b><small>R$ 12,00</small></span><u>Esgotado</u></span>
+                    ) : (
+                      <span className="esg-previa__sumiu">Coca-Cola 2L esgotou e não aparece</span>
+                    )}
+                    <span className="esg-previa__item"><em>🍟</em><span><b>Batata frita</b><small>R$ 22,00</small></span><i>+</i></span>
+                  </span>
                   <b>{titulo}</b>
                   <small>{texto}</small>
                 </button>

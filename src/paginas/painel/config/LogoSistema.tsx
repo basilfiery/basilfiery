@@ -8,7 +8,7 @@ import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../../lib/sup
 import type { MarcaSistema } from '../../../lib/tipos';
 import { cx } from '../../../lib/util';
 import { usePainel } from '../Painel';
-import { CampoAjuda, PaginaConfig, mudou } from './Layout';
+import { CampoAjuda, PaginaConfig, mudou, type Passo } from './Layout';
 
 const PASSO = { id: 'logo', rotulo: 'Logo do sistema', dica: 'A marca que aparece no topo do menu' };
 
@@ -19,7 +19,7 @@ const MODOS: { id: MarcaSistema['modo']; titulo: string; texto: string }[] = [
 ];
 
 /** Logo do sistema: troca a marca BasilFiery do menu lateral pela da loja (só essa parte). */
-export default function LogoSistema() {
+export default function LogoSistema({ titulo = 'Logo do sistema', passos = [PASSO], atual = PASSO, aoPasso }: { titulo?: string; passos?: Passo[]; atual?: Passo; aoPasso?: (id: string) => void } = {}) {
   const { restaurante: r } = usePainel();
   const s = useSessao();
   const toast = useToast();
@@ -60,7 +60,7 @@ export default function LogoSistema() {
   const previa = { nome: r.nome, logo_url: r.logo_url, marca_sistema: f };
 
   return (
-    <PaginaConfig titulo="Logo do sistema" passos={[PASSO]} atual={PASSO} salvar={{ sujo: mudou(f, base), salvando, aoSalvar: () => void salvar() }}>
+    <PaginaConfig titulo={titulo} passos={passos} atual={atual} aoPasso={aoPasso} salvar={{ sujo: mudou(f, base), salvando, aoSalvar: () => void salvar() }}>
       <div className="form logo-sis">
         <div className="logo-sis__previa" aria-label="Prévia do menu">
           <small>Prévia</small>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { BellRing, BookOpen, Check, ChevronRight, ClipboardList, ConciergeBell, FileText, Megaphone, Palette, Play, Plug, Printer, Store, Users, type LucideIcon } from 'lucide-react';
 import { Switch } from '../../componentes/Basicos';
 import { useToast } from '../../componentes/Toast';
@@ -21,7 +21,7 @@ import HistoricoPedidos from './config/HistoricoPedidos';
 import PaginaImpressora from './config/Impressora';
 import NotaFiscal from './config/NotaFiscal';
 import { origemSistema } from '../../lib/linkCurto';
-import LogoSistema from './config/LogoSistema';
+import Aparencia from './config/Aparencia';
 
 interface Secao { id: string; titulo: string; descricao: string; icone: LucideIcon; pode: (p: Papel) => boolean; tela: () => ReactElement }
 
@@ -32,7 +32,7 @@ const SECOES: Secao[] = [
   { id: 'integracoes', titulo: 'Integrações', descricao: 'Chave (token) para conectar outros aplicativos', icone: Plug, pode: ehGestor, tela: () => <Integracoes /> },
   { id: 'cardapio-digital', titulo: 'Cardápio digital', descricao: 'Cor, capa, destaques, esgotados e link do delivery', icone: BookOpen, pode: ehGestor, tela: () => <CardapioDigitalConfig /> },
   { id: 'estabelecimento', titulo: 'Estabelecimento', descricao: 'Dados, endereço, horários, entrega e pagamento', icone: Store, pode: ehGestor, tela: () => <Estabelecimento /> },
-  { id: 'logo-sistema', titulo: 'Logo do sistema', descricao: 'Troque a marca BasilFiery do menu pela da sua loja', icone: Palette, pode: ehGestor, tela: () => <LogoSistema /> },
+  { id: 'aparencia', titulo: 'Aparência', descricao: 'Cor do sistema (laranja, vermelho ou verde) e logo do menu', icone: Palette, pode: ehGestor, tela: () => <Aparencia /> },
   { id: 'nota-fiscal', titulo: 'Nota fiscal', descricao: 'NFC-e, NF-e, certificado digital e notas recebidas', icone: FileText, pode: ehGestor, tela: () => <NotaFiscal /> },
   { id: 'anuncios', titulo: 'Integração de anúncios', descricao: 'Pixel do Facebook, Google Analytics e Google Ads', icone: Megaphone, pode: ehGestor, tela: () => <Anuncios /> },
   { id: 'avisos', titulo: 'Avisos e sons', descricao: 'Notificações neste aparelho e toque do chamado', icone: BellRing, pode: () => true, tela: () => <PaginaAvisos /> },
@@ -41,6 +41,8 @@ const SECOES: Secao[] = [
 export default function Configuracoes() {
   const { restaurante, papel } = usePainel();
   const { aba } = useParams();
+  // Endereço antigo: a logo do sistema agora fica em Aparência
+  if (aba === 'logo-sistema') return <Navigate to="/painel/config/aparencia?passo=logo" replace />;
   const secao = SECOES.find((x) => x.id === aba);
   if (secao) {
     if (!secao.pode(papel)) return <p className="vazio">Seu cargo não tem acesso a esta área.</p>;

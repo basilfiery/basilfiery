@@ -49,7 +49,8 @@
 
 /* ---------- Marca ---------- */
 .sv-marca { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; letter-spacing: -.02em; }
-.sv-marca img { width: 34px; height: 34px; }
+.sv-marca img { display: block; height: 62px; width: auto; filter: drop-shadow(0 6px 16px rgba(255, 45, 61, .18)); }
+.sv-marca--rodape img { height: 80px; }
 .sv-marca em { font-style: normal; color: var(--sv-vermelho); }
 
 /* ---------- Navegação ---------- */
@@ -69,8 +70,8 @@
 
 /* ---------- Hero ---------- */
 .sv-hero {
-  position: relative; min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); align-items: center; gap: 40px;
-  max-width: 1240px; margin: 0 auto; padding: 130px 24px 90px; isolation: isolate;
+  position: relative; min-height: min(100svh, 880px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); align-items: center; gap: 40px;
+  max-width: 1240px; margin: 0 auto; padding: 118px 24px 80px; isolation: isolate;
 }
 .sv-hero__fundo { position: absolute; inset: 0 calc(50% - 50vw); z-index: -1; overflow: hidden; pointer-events: none; }
 .sv-hero__chao {
@@ -261,7 +262,7 @@
   background: radial-gradient(circle at 30% 25%, #2a1014, #0d0507); border: 1px solid rgba(255, 45, 61, .45);
   box-shadow: 0 0 80px rgba(255, 45, 61, .45), inset 0 0 40px rgba(255, 45, 61, .25); animation: sv-pulsa 3s ease-in-out infinite;
 }
-.sv-orbita__nucleo img { width: 76px; height: 76px; }
+.sv-orbita__nucleo img { width: 104px; height: 104px; border-radius: 28px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
 @keyframes sv-pulsa { 50% { box-shadow: 0 0 120px rgba(255, 45, 61, .6), inset 0 0 50px rgba(255, 45, 61, .3); } }
 .sv-orbita__anel { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; transform: rotateX(var(--incl)) rotateZ(var(--giro, 0deg)); }
 .sv-orbita__trilha { position: absolute; left: 50%; top: 50%; width: calc(var(--r) * 2); height: calc(var(--r) * 2); margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1); border-radius: 50%; border: 1px dashed rgba(255, 45, 61, .35); transform: rotateX(var(--incl)); box-shadow: 0 0 40px rgba(255, 45, 61, .12) inset; }
@@ -502,7 +503,7 @@
   .sv-orbita__item { padding: 6px 9px; gap: 5px; border-radius: 10px; font-size: .7rem; }
   .sv-orbita__item svg { width: 13px; height: 13px; }
   .sv-orbita__nucleo { width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 26px; }
-  .sv-orbita__nucleo img { width: 46px; height: 46px; }
+  .sv-orbita__nucleo img { width: 66px; height: 66px; border-radius: 18px; }
   /* Sem mouse no celular: os cartões flutuantes ficam no plano, sem aumentar */
   .sv-linha__notif { left: 2%; right: 2%; top: -4%; width: auto; transform: none; }
   .sv-flutua { transform: none; }
@@ -534,3 +535,14 @@
 .mk-garcom__linha span { flex: 1; }
 .mk-garcom__linha em { color: #8a7e74; font-style: normal; font-size: .9em; }
 .mk-garcom__linha--ok svg { color: #22c55e; }
+
+/* Topo do hero: novidade (leva para os módulos) */
+.sv-novidade {
+  display: inline-flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; border-radius: 999px; font-size: .86rem; font-weight: 600; color: var(--sv-texto) !important;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--sv-linha-2); transition: background .2s, border-color .2s;
+}
+.sv-novidade:hover { background: rgba(255, 45, 61, .1); border-color: rgba(255, 45, 61, .45); }
+.sv-novidade b { padding: 4px 10px; border-radius: 999px; background: linear-gradient(180deg, #ff4150, var(--sv-vermelho-2)); color: #fff; font-size: .74rem; letter-spacing: .03em; text-transform: uppercase; box-shadow: 0 0 18px rgba(255, 45, 61, .5); }
+.sv-novidade svg { color: var(--sv-vermelho); transition: transform .2s; }
+.sv-novidade:hover svg { transform: translateX(3px); }
+@media (max-width: 640px) { .sv-marca img { height: 46px; } .sv-novidade { font-size: .78rem; } }

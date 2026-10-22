@@ -63,8 +63,6 @@ Deno.serve(async (req) => {
       vistos.add(chave);
       return true;
     });
-    // Quem tem o app da equipe recebe o "Novo pedido" por ele; o app do dono só avisa pedido se a pessoa não tiver o outro
-    const temEquipe = new Set(inscricoes.filter((s) => s.app !== 'dono').map((s) => s.user_id));
 
     const mensagem = JSON.stringify({ titulo: p.titulo, corpo: p.corpo, tag: p.tag, url: p.url });
     // App do dono: pedido novo e venda (conta paga); o toque abre o app do dono
@@ -77,7 +75,8 @@ Deno.serve(async (req) => {
     let enviados = 0;
     await Promise.all(inscricoes.map(async (s) => {
       const doDono = s.app === 'dono';
-      if (doDono && p.evento !== 'venda' && !(p.evento === 'pedido' && !temEquipe.has(s.user_id))) return;
+      // App do dono (celular): pedido novo e venda. O app da equipe: o resto (pedido, pronto, chamados)
+      if (doDono && p.evento !== 'venda' && p.evento !== 'pedido') return;
       // Venda (conta paga) só interessa ao dono
       if (!doDono && p.evento === 'venda') return;
       try {

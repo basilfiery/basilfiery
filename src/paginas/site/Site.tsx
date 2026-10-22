@@ -108,7 +108,7 @@ export default function Site() {
       {/* ================= Navegação ================= */}
       <header className={`sv-nav${rolou ? ' sv-nav--rolou' : ''}`}>
         <div className="sv-nav__in">
-          <Link to="/" className="sv-marca" aria-label="BasilFiery, início"><img src="/icone.svg" alt="" /><span>Basil<em>Fiery</em></span></Link>
+          <Link to="/" className="sv-marca" aria-label="BasilFiery, início"><img src="/marca/logo-basilfiery.png" alt="Basil Fiery" /></Link>
           <nav className={`sv-nav__links${menuAberto ? ' aberto' : ''}`} onClick={() => setMenuAberto(false)}>
             <a href="#sistema">Sistema</a>
             <a href="#tour">Na prática</a>
@@ -130,7 +130,7 @@ export default function Site() {
         <section className="sv-hero">
           <div className="sv-hero__fundo" aria-hidden="true"><div className="sv-hero__chao" /><div className="sv-hero__luz" /><div className="sv-hero__ruido" /></div>
           <div className="sv-hero__texto">
-            <span className="sv-etiqueta"><Flame size={14} /> Sistema completo para restaurantes</span>
+            <a href="#sistema" className="sv-novidade"><b>Novo</b> Order bump e suporte com IA <ArrowRight size={14} /></a>
             <h1>Do QR code na mesa à <em>venda</em> no seu celular.</h1>
             <p>Cardápio digital, delivery, PDV, pedidos ao vivo, impressão automática, app do garçom e app do dono. Tudo conectado, em tempo real, num só sistema.</p>
             <div className="sv-hero__ctas">
@@ -328,7 +328,7 @@ export default function Site() {
           <div className="sv-orbita" ref={orbita} aria-label="Tudo o que vem no sistema (arraste para girar)">
             <div className="sv-orbita__palco">
             <div className="sv-orbita__trilha" />
-            <div className="sv-orbita__nucleo"><img src="/icone.svg" alt="" /></div>
+            <div className="sv-orbita__nucleo"><img src="/marca/pizza-icone.png" alt="" /></div>
             <div className="sv-orbita__anel">
               {ORBITA.map((o, i) => (
                 <span key={o.t} className="sv-orbita__item" style={{ '--a': `${(360 / ORBITA.length) * i}deg` } as CSSProperties}>
@@ -383,7 +383,7 @@ export default function Site() {
       <footer className="sv-rodape">
         <div className="sv-rodape__in">
           <div>
-            <Link to="/" className="sv-marca"><img src="/icone.svg" alt="" /><span>Basil<em>Fiery</em></span></Link>
+            <Link to="/" className="sv-marca sv-marca--rodape"><img src="/marca/logo-basilfiery.png" alt="Basil Fiery" /></Link>
             <p>Sistema completo para restaurantes: cardápio digital, delivery, PDV, cozinha, equipe e números.</p>
           </div>
           <nav>

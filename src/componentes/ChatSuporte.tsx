@@ -206,14 +206,23 @@ function AudioMsg({ caminho, duracao }: { caminho: string; duracao: number | nul
   );
 }
 
+const ROTULO_NOTA = ['', 'Ruim', 'Poderia ser melhor', 'Bom', 'Muito bom', 'Excelente!'];
+
 function Estrelas({ valor, aoMudar, tamanho = 26 }: { valor: number; aoMudar?: (n: number) => void; tamanho?: number }) {
+  // Passando o mouse, as estrelas vão preenchendo até onde o mouse está
+  const [sobre, setSobre] = useState(0);
+  const mostra = sobre || valor;
   return (
-    <span className={cx('sup-estrelas', aoMudar && 'sup-estrelas--editavel')}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} type="button" disabled={!aoMudar} onClick={() => aoMudar?.(n)} aria-label={`${n} estrela${n > 1 ? 's' : ''}`}>
-          <Star size={tamanho} className={cx(n <= valor && 'cheia')} />
-        </button>
-      ))}
+    <span className="sup-estrelas-caixa">
+      <span className={cx('sup-estrelas', aoMudar && 'sup-estrelas--editavel')} onMouseLeave={() => setSobre(0)}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" disabled={!aoMudar} onClick={() => aoMudar?.(n)} aria-label={`${n} estrela${n > 1 ? 's' : ''}`}
+            onMouseEnter={() => aoMudar && setSobre(n)} onFocus={() => aoMudar && setSobre(n)} onBlur={() => setSobre(0)}>
+            <Star size={tamanho} className={cx(n <= mostra && 'cheia')} />
+          </button>
+        ))}
+      </span>
+      {aoMudar && <small className={cx('sup-estrelas__rotulo', mostra > 0 && 'ativo')}>{ROTULO_NOTA[mostra] || 'Toque nas estrelas'}</small>}
     </span>
   );
 }
@@ -240,7 +249,7 @@ function Avaliar({ m }: { m: MensagemSuporte }) {
   }
   return (
     <div className="sup-avaliacao">
-      <b>Como foi o atendimento{m.meta?.atendente_nome ? ` de ${m.meta.atendente_nome}` : ''}?</b>
+      <b>{m.meta?.atendente_nome && m.meta.atendente_nome !== 'Suporte' ? `Como foi o atendimento de ${m.meta.atendente_nome}?` : 'Como foi o atendimento do nosso time?'}</b>
       <Estrelas valor={nota} aoMudar={setNota} />
       {nota > 0 && (
         <>

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, Bell, BellOff, Check, ExternalLink, LayoutDashboard, Menu, Printer, Receipt, RefreshCw, Search, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Check, ExternalLink, LayoutDashboard, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Volume2, VolumeX, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
-import { AcessosPendentes } from '../../componentes/AcessosMesa';
+import { AcessosPendentes, iconeAparelho, responderAcesso } from '../../componentes/AcessosMesa';
+import { linkMesa } from '../../lib/linkCurto';
 import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { PedidoCard } from '../../componentes/PedidoCard';
 import { useToast } from '../../componentes/Toast';
@@ -14,7 +16,7 @@ import { ativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
 import { definirSom, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Chamado, Mesa, Pedido, StatusPedido } from '../../lib/tipos';
+import type { Chamado, Mesa, MesaAcesso, Pedido, RestauranteComPapel, StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import '../../estilos/painel.css';
@@ -197,7 +199,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
       </nav>
 
       {vivo.carregando ? <Carregando /> : aba === 'mesas' ? (
-        <MesasGarcom restauranteId={r.id} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} agora={agora} />
+        <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} aoResponderAcesso={vivo.removerAcesso} agora={agora} />
       ) : (
         <div className="garcom__lista">
           {lista.length === 0 ? (
@@ -215,12 +217,15 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
 }
 
 /* ---------------- Aba Mesas: conta de cada mesa + imprimir no caixa ---------------- */
-function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
-  restauranteId: string;
+function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, aoResponderAcesso, agora }: {
+  restaurante: RestauranteComPapel;
   pedidosAoVivo: Pedido[];
   chamados: Chamado[];
+  acessos: MesaAcesso[];
+  aoResponderAcesso: (id: string) => void;
   agora: number;
 }) {
+  const restauranteId = restaurante.id;
   const toast = useToast();
   const [mesas, setMesas] = useState<Mesa[] | null>(null);
   const [abertos, setAbertos] = useState<Pedido[]>([]);
@@ -267,8 +272,9 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
         const ps = pedidosDa(m.id);
         const total = ps.reduce((s, p) => s + Number(p.total), 0);
         const chamando = chamados.some((c) => c.mesa_id === m.id);
+        const pedindo = acessos.some((a) => a.mesa_id === m.id);
         return (
-          <button key={m.id} className={cx('garcom__mesa', ps.length > 0 && 'ocupada', chamando && 'chamando')} onClick={() => setSel(m)}>
+          <button key={m.id} className={cx('garcom__mesa', ps.length > 0 && 'ocupada', (chamando || pedindo) && 'chamando')} onClick={() => setSel(m)}>
             <strong>{m.nome}</strong>
             {ps.length > 0 ? (
               <>
@@ -277,12 +283,16 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
               </>
             ) : <small>Livre</small>}
             {chamando && <span className="garcom__mesa-chamando"><Bell size={12} /> chamando</span>}
+            {pedindo && !chamando && <span className="garcom__mesa-chamando"><Smartphone size={12} /> liberar</span>}
           </button>
         );
       })}
 
       {sel && (
         <ContaMesa
+          restaurante={restaurante}
+          acessos={acessos.filter((a) => a.mesa_id === sel.id)}
+          aoResponderAcesso={aoResponderAcesso}
           mesa={sel}
           pedidos={pedidosDa(sel.id)}
           agora={agora}
@@ -297,7 +307,10 @@ function MesasGarcom({ restauranteId, pedidosAoVivo, chamados, agora }: {
   );
 }
 
-function ContaMesa({ mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }: {
+function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }: {
+  restaurante: RestauranteComPapel;
+  acessos: MesaAcesso[];
+  aoResponderAcesso: (id: string) => void;
   mesa: Mesa;
   pedidos: Pedido[];
   agora: number;
@@ -309,6 +322,7 @@ function ContaMesa({ mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }:
   const toast = useToast();
   const [enviando, setEnviando] = useState(false);
   const [trocando, setTrocando] = useState(false);
+  const [aba, setAba] = useState<'qr' | 'conta'>('qr');
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
 
   // Agrupa itens iguais para a conferência
@@ -362,7 +376,18 @@ function ContaMesa({ mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }:
         </>
       }
     >
-      {pedidos.length === 0 ? (
+      <div className="gqr-abas" role="tablist">
+        <button type="button" role="tab" aria-selected={aba === 'qr'} className={cx(aba === 'qr' && 'ativo')} onClick={() => setAba('qr')}>
+          <QrCode size={17} /> QR code{acessos.length > 0 && <b className="gqr-abas__selo">{acessos.length}</b>}
+        </button>
+        <button type="button" role="tab" aria-selected={aba === 'conta'} className={cx(aba === 'conta' && 'ativo')} onClick={() => setAba('conta')}>
+          <Receipt size={17} /> Conta{pedidos.length > 0 && <small>{brl(total)}</small>}
+        </button>
+      </div>
+
+      {aba === 'qr' ? (
+        <QrMesa restaurante={restaurante} mesa={mesa} mesas={mesas} pendentes={acessos} aoResponder={aoResponderAcesso} />
+      ) : pedidos.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>Mesa livre: nenhum pedido em aberto.</p>
       ) : (
         <div className="form">
@@ -385,5 +410,110 @@ function ContaMesa({ mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }:
         <ModalTrocarMesa origem={mesa} mesas={mesas} totalDa={totalDa} aoFechar={() => setTrocando(false)} aoTrocar={aoTrocar} />
       )}
     </Modal>
+  );
+}
+
+/**
+ * O garçom mostra o QR code da mesa no celular dele; o cliente escaneia com o próprio celular
+ * e o pedido de acesso aparece aqui mesmo, para o garçom liberar na hora.
+ */
+function QrMesa({ restaurante, mesa, mesas, pendentes, aoResponder }: {
+  restaurante: RestauranteComPapel;
+  mesa: Mesa;
+  mesas: Mesa[];
+  pendentes: MesaAcesso[];
+  aoResponder: (id: string) => void;
+}) {
+  const toast = useToast();
+  const link = linkMesa(restaurante, mesa, mesas);
+  const [qr, setQr] = useState('');
+  const [liberados, setLiberados] = useState<MesaAcesso[] | null>(null);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    void QRCode.toDataURL(link, { width: 720, margin: 1, errorCorrectionLevel: 'M', color: { dark: '#14110f', light: '#ffffff' } }).then((u) => vivo && setQr(u));
+    return () => { vivo = false; };
+  }, [link]);
+
+  const carregar = useCallback(async () => {
+    const { data } = await supabase.from('mesa_acessos').select('*').eq('mesa_id', mesa.id).eq('status', 'liberado').order('respondido_em');
+    setLiberados((data ?? []) as MesaAcesso[]);
+  }, [mesa.id]);
+  const chavePendentes = pendentes.map((a) => a.id).join(',');
+  useEffect(() => { void carregar(); }, [carregar, chavePendentes]);
+
+  // Cliente acabou de escanear: vibra para o garçom perceber
+  const antes = useRef(pendentes.length);
+  useEffect(() => {
+    if (pendentes.length > antes.current && 'vibrate' in navigator) navigator.vibrate?.([120, 60, 120]);
+    antes.current = pendentes.length;
+  }, [pendentes.length]);
+
+  async function agir(a: MesaAcesso, acao: 'liberar' | 'recusar' | 'desconectar') {
+    setOcupado(a.id);
+    try {
+      if (acao === 'desconectar') {
+        const { error } = await supabase.rpc('mesa_acesso_encerrar', { p_acesso: a.id });
+        if (error) throw error;
+        toast('Aparelho desconectado da mesa.', 'info');
+      } else {
+        await responderAcesso(a.id, acao === 'liberar');
+        aoResponder(a.id);
+        toast(acao === 'liberar' ? `${mesa.nome} liberada. O cliente já pode pedir.` : 'Pedido de acesso recusado.', acao === 'liberar' ? 'ok' : 'info');
+      }
+      void carregar();
+    } catch (e) {
+      toast(msgErro(e), 'erro');
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  const nomeAparelho = (a: MesaAcesso) => (a.cliente_nome ? `${a.cliente_nome.split(' ')[0]} · ${a.aparelho ?? 'celular'}` : a.aparelho ?? 'Celular do cliente');
+
+  return (
+    <div className="gqr">
+      <div className="gqr__cartao">
+        <div className="gqr__qr">
+          {qr ? <img src={qr} alt={`QR code da ${mesa.nome}`} /> : <span className="gqr__qr-vazio" />}
+        </div>
+        <strong className="gqr__mesa">{mesa.nome}</strong>
+        <span className="gqr__dica"><ScanLine size={16} /> Escaneie com a câmera para pedir</span>
+      </div>
+
+      {pendentes.length > 0 ? (
+        <ul className="gqr__lista" aria-label="Pedindo para abrir a mesa">
+          {pendentes.map((a) => (
+            <li key={a.id} className="gqr__item gqr__item--pendente">
+              <span className="gqr__icone">{iconeAparelho(a.aparelho, 19)}</span>
+              <span className="gqr__txt"><b>{nomeAparelho(a)}</b><small>Quer fazer pedidos</small></span>
+              <button className="gqr__recusar" onClick={() => void agir(a, 'recusar')} disabled={ocupado === a.id} aria-label="Recusar"><X size={18} /></button>
+              <button className="gqr__liberar" onClick={() => void agir(a, 'liberar')} disabled={ocupado === a.id}><Check size={18} strokeWidth={2.6} /> Liberar</button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="gqr__aguardando"><span className="gqr__pulso" aria-hidden="true" /> Esperando o cliente escanear… o pedido para abrir a mesa aparece aqui.</p>
+      )}
+
+      {liberados && liberados.length > 0 && (
+        <div className="gqr__bloco">
+          <small className="gqr__rotulo">Já podem pedir nesta mesa</small>
+          <ul className="gqr__lista">
+            {liberados.map((a) => (
+              <li key={a.id} className="gqr__item">
+                <span className="gqr__icone gqr__icone--ok">{iconeAparelho(a.aparelho, 18)}</span>
+                <span className="gqr__txt">
+                  <b>{nomeAparelho(a)}{a.fixo && <span className="badge badge--azul">Tablet fixo</span>}</b>
+                  <small>Liberado{a.respondido_por_nome ? ` por ${a.respondido_por_nome}` : ''}{a.respondido_em ? ` às ${hora(a.respondido_em)}` : ''}</small>
+                </span>
+                <button className="btn btn--fantasma btn--sm" onClick={() => void agir(a, 'desconectar')} disabled={ocupado === a.id}>Desconectar</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

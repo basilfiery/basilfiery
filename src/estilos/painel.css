@@ -2904,3 +2904,46 @@
 
 /* Formulário do item: o exemplo da observação fica visivelmente secundário */
 .input--dica { font-size: .92rem; color: var(--muted); }
+
+/* ---------- App do garçom: QR code da mesa + liberar o celular do cliente ---------- */
+.gqr-abas { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 14px; border-radius: 14px; background: var(--surface-2); }
+.gqr-abas button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 8px 10px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--muted); font: inherit; font-weight: 700; font-size: .92rem; cursor: pointer;
+}
+.gqr-abas button.ativo { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
+.gqr-abas button small { color: var(--fire-2); font-weight: 700; font-size: .82rem; }
+.gqr-abas__selo { min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px; background: var(--danger); color: #fff; font-size: .72rem; }
+
+.gqr { display: grid; gap: 14px; }
+.gqr__cartao {
+  display: grid; justify-items: center; gap: 8px; padding: 18px 16px 16px; border-radius: 20px; text-align: center;
+  background: #fff; color: #14110f; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06);
+}
+.gqr__qr { width: min(250px, 66vw); aspect-ratio: 1; }
+.gqr__qr img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.gqr__qr-vazio { display: block; width: 100%; height: 100%; border-radius: 10px; background: #f2f2f4; }
+.gqr__mesa { margin-top: 4px; font-size: 1.15rem; letter-spacing: -.01em; }
+.gqr__dica { display: inline-flex; align-items: center; gap: 6px; color: #5b5f66; font-size: .86rem; }
+.gqr__dica svg { flex: none; color: var(--fire); }
+
+.gqr__aguardando { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--line-2); color: var(--muted); font-size: .88rem; line-height: 1.35; }
+.gqr__pulso { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); animation: gqr-pulso 1.6s ease-out infinite; }
+@keyframes gqr-pulso { to { box-shadow: 0 0 0 10px transparent; } }
+
+.gqr__bloco { display: grid; gap: 8px; }
+.gqr__rotulo { color: var(--muted); font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.gqr__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.gqr__item { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.gqr__item--pendente { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); animation: subir .25s ease-out; }
+.gqr__icone { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.gqr__icone--ok { background: var(--surface-2); color: var(--muted); }
+.gqr__txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.gqr__txt b { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gqr__txt small { color: var(--muted); font-size: .78rem; }
+.gqr__recusar { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); cursor: pointer; }
+.gqr__liberar {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 0; border-radius: 12px;
+  background: var(--ok); color: #fff; font: inherit; font-weight: 800; font-size: .9rem; cursor: pointer;
+}
+.gqr__liberar:disabled, .gqr__recusar:disabled { opacity: .6; cursor: default; }

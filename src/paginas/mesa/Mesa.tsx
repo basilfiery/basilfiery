@@ -23,7 +23,7 @@ import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Es
 import { JogoMemoria } from './JogoMemoria';
 import { telefoneFormatado } from '../loja/ContaCliente';
 import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
-import { bumpsVistos, escolherBump, juntarBump, marcarBumpVisto, soltarBumpsSozinhos, type BumpCardapio, type ExtraBump, type OfertaBump, type SugestoesBump } from '../../lib/orderBump';
+import { bumpsVistos, escolherBump, juntarBump, marcarBumpVisto, soltarBumpsSozinhos, type BumpCardapio, type EscopoBump, type ExtraBump, type OfertaBump, type SugestoesBump } from '../../lib/orderBump';
 import { CorpoOrderBump } from '../../componentes/OrderBump';
 import '../../estilos/mesa.css';
 
@@ -101,12 +101,13 @@ export const precoLinha = (l: Linha, p?: ProdutoMesa) => (p ? (l.preco_bump ?? N
 
 /** Ofertas do order bump para um item (mesa e delivery usam a mesma regra). */
 export function ofertaPara(p: ProdutoMesa, d: { bumps?: BumpCardapio[]; bump_auto?: SugestoesBump; categorias: CategoriaMesa[]; adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]> } | null,
-  produtos: ProdutoMesa[], carrinho: Linha[], canal: 'mesa' | 'delivery'): OfertaBump | null {
+  produtos: ProdutoMesa[], carrinho: Linha[], canal: 'mesa' | 'delivery', escopo: EscopoBump): OfertaBump | null {
   if (!d?.bumps?.length) return null;
-  return escolherBump({
+  const o = escolherBump({
     produto: p, bumps: d.bumps, sugestoes: d.bump_auto, produtos, categorias: d.categorias,
-    grupos: d.adicionais_grupos, produtoGrupos: d.produto_grupos, canal, carrinho, jaVistas: bumpsVistos(),
+    grupos: d.adicionais_grupos, produtoGrupos: d.produto_grupos, canal, carrinho, jaVistas: bumpsVistos(escopo),
   });
+  return o && { ...o, escopo };
 }
 
 /** Nova linha (ou soma na igual): mesma combinação de item, observação e adicionais. */
@@ -168,6 +169,7 @@ export default function Mesa() {
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState<number[] | null>(null);
   const [acesso, setAcesso] = useState<Acesso>('carregando');
+  const [visita, setVisita] = useState<string | null>(null);
   const [verAbrir, setVerAbrir] = useState(false);
   const [pedindoAcesso, setPedindoAcesso] = useState(false);
   const acaoDepois = useRef<(() => void) | null>(null);
@@ -226,6 +228,11 @@ export default function Mesa() {
     const antes = acessoRef.current;
     acessoRef.current = novo;
     setAcesso(novo);
+    // Visita desta mesa (order bump): muda quando a mesa é liberada de novo ou a conta é fechada
+    if (novo === 'liberado' || novo === 'equipe') {
+      void supabase.rpc('mesa_visita', { p_token: token, p_dispositivo: dispositivo })
+        .then(({ data: v }) => { if (typeof v === 'string') setVisita(v); });
+    }
     if (antes === 'carregando' && semAcesso(novo)) setVerAbrir(true); // boas-vindas: solicitar acesso
     if (antes === 'pendente' && novo === 'liberado') {
       toast('Mesa liberada! Já pode fazer seu pedido.', 'ok');
@@ -386,7 +393,7 @@ export default function Mesa() {
   const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
   // Order bump: escolhida quando o item abre (não muda enquanto a janela está aberta)
   const ofertaAberta = useMemo(
-    () => (produtoAberto ? ofertaPara(produtoAberto, dados, produtosMesa, carrinho, 'mesa') : null),
+    () => (produtoAberto ? ofertaPara(produtoAberto, dados, produtosMesa, carrinho, 'mesa', { grupo: `mesa:${token}`, visita: visita ?? `antes:${dispositivo}` }) : null),
     [produtoAberto?.id], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
@@ -1032,7 +1039,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
     // Order bump: antes de ir para o carrinho, mostra a oferta (uma vez por visita)
     if (oferta && !naOferta) {
       setNaOferta(true);
-      marcarBumpVisto(oferta.bump.id);
+      if (oferta.escopo) marcarBumpVisto(oferta.bump.id, oferta.escopo);
       void supabase.rpc('bump_exibido', { p_bump: oferta.bump.id }).then(() => undefined);
       subir();
       return;

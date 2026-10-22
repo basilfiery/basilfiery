@@ -387,6 +387,7 @@ function EditorBump({ inicial, restauranteId, proxima, cats, itens, obrigatorios
   const exemplo = ondeAparece[0];
   const previa = exemplo ? ofertaDe(exemplo) : null;
 
+  const [escolhidosPrevia, setEscolhidosPrevia] = useState<Record<string, number>>({});
   const [buscaGat, setBuscaGat] = useState('');
   const [buscaOf, setBuscaOf] = useState('');
   const filtrar = (t: string) => {
@@ -592,8 +593,15 @@ function EditorBump({ inicial, restauranteId, proxima, cats, itens, obrigatorios
             <div className="ab-celular__tela">
               {previa && exemplo ? (
                 <>
-                  <CorpoOrderBump oferta={previa} escolhidos={{ [previa.itens[0].p.id]: 1 }} aoMudar={() => undefined} item={{ nome: exemplo.nome, qtd: 1, total: Number(exemplo.preco), foto: exemplo }} />
-                  <div className="ab-celular__rodape"><span>Não, obrigado</span><b>Adicionar · {brl(Number(exemplo.preco) + previa.itens[0].preco)}</b></div>
+                  <CorpoOrderBump oferta={previa} escolhidos={escolhidosPrevia} aoMudar={(id, n) => setEscolhidosPrevia((e) => ({ ...e, [id]: n }))} item={{ nome: exemplo.nome, qtd: 1, total: Number(exemplo.preco), foto: exemplo }} />
+                  <div className="ab-celular__rodape">
+                    <span>Não, obrigado</span>
+                    <b>{(() => {
+                      const extra = previa.itens.reduce((s, i) => s + i.preco * (escolhidosPrevia[i.p.id] ?? 0), 0);
+                      if (extra > 0) return `Adicionar · ${brl(Number(exemplo.preco) + extra)}`;
+                      return previa.itens.length === 1 ? `Quero por ${brl(previa.itens[0].preco)}` : 'Toque em uma oferta';
+                    })()}</b>
+                  </div>
                 </>
               ) : (
                 <div className="ab-celular__vazio">

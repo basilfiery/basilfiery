@@ -140,23 +140,17 @@
 .ab-celular {
   --bg: #121010; --bg-2: #171413; --surface: #1f1b19; --surface-2: #2a2421; --line: #3a312c; --line-2: #4c4039;
   --text: #f6efe8; --muted: #b3a69b; --muted-2: #8a7e74; --ok: #5ec27a; --acento: var(--fire);
-  width: 100%; max-width: 300px; padding: 10px; border-radius: 32px; background: #0b0b0c; box-shadow: 0 20px 44px rgba(0, 0, 0, .28), inset 0 0 0 2px #2a2a2e;
+  padding: 9px; border-radius: 34px; background: #0b0b0c; box-shadow: 0 20px 44px rgba(0, 0, 0, .28), inset 0 0 0 2px #2a2a2e;
 }
-.ab-celular__tela { display: grid; gap: 12px; padding: 16px 12px 12px; border-radius: 24px; background: var(--surface); color: var(--text); font-size: 13px; }
-.ab-celular .obump { gap: 12px; }
-.ab-celular .obump__cab h2 { font-size: 1.2rem; }
-.ab-celular .obump__foto { width: 46px !important; height: 46px !important; font-size: 1.4rem; }
-.ab-celular .obump__toque { gap: 9px; padding: 8px 0 8px 8px; }
-.ab-celular .obump__oferta { padding-right: 8px; }
-.ab-celular .obump__txt strong { font-size: .86rem; }
-.ab-celular .obump__txt small { -webkit-line-clamp: 1; }
-.ab-celular .obump__qtd button { width: 24px; height: 26px; }
-.ab-celular .obump__mais { width: 30px; height: 30px; border-radius: 9px; }
-.ab-celular__rodape span, .ab-celular__rodape b { white-space: nowrap; }
-.ab-celular__rodape { display: grid; grid-template-columns: auto 1fr; gap: 6px; }
-.ab-celular__rodape span, .ab-celular__rodape b { display: grid; place-items: center; min-height: 40px; padding: 0 10px; border-radius: 12px; font-size: .78rem; }
-.ab-celular__rodape span { border: 1px solid var(--line-2); color: var(--muted); }
-.ab-celular__rodape b { background: var(--fire); color: #fff; }
+/* Tela do celular em tamanho real (375 px), só reduzida: fica igual ao que o cliente vê */
+.ab-celular__tela {
+  zoom: .76; width: 375px; display: grid; gap: 14px; padding: 18px 16px 16px; border-radius: 32px;
+  background: var(--surface); color: var(--text); font-size: 16px;
+}
+.ab-celular__rodape { display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ab-celular__rodape span, .ab-celular__rodape b { display: grid; place-items: center; min-height: 52px; border-radius: 14px; white-space: nowrap; }
+.ab-celular__rodape span { flex: none; padding: 0 14px; color: var(--muted); font-weight: 600; font-size: .95rem; }
+.ab-celular__rodape b { flex: 1; min-width: 0; padding: 0 12px; background: var(--fire); color: #fff; font-size: 1rem; }
 .ab-celular__vazio { display: grid; justify-items: center; gap: 6px; padding: 40px 10px; text-align: center; color: var(--muted); }
 .ab-celular__vazio b { color: var(--text); }
 .ab-previa__dica { max-width: 300px; color: var(--muted); font-size: .76rem; text-align: center; line-height: 1.4; }

@@ -102,6 +102,9 @@
 .obump__escassez b { color: var(--text); }
 @keyframes obump-ampulheta { 0%, 70% { transform: rotate(0); } 85%, 100% { transform: rotate(180deg); } }
 
+/* Na etapa da oferta não há foto encostada no topo: o resumo do item ganha respiro */
+.modal-produto.modal-produto--oferta .modal__corpo { padding-top: 22px; }
+
 /* Rodapé da janela na etapa da oferta */
 .modal-produto--oferta .modal-produto__rodape { flex-wrap: nowrap; align-items: center; gap: 8px; }
 .modal-produto--oferta .modal-produto__rodape .obump__nao { flex: 0 0 auto; min-width: 0; padding-inline: 14px; border-color: transparent; background: transparent; color: var(--muted); font-weight: 600; }

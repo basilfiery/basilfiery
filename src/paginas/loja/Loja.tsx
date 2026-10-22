@@ -12,7 +12,7 @@ import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco, useAgora } from '../../lib/util';
 import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, ofertaPara, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
-import { juntarBump, soltarBumpsSozinhos, type BumpCardapio, type ExtraBump, type SugestoesBump } from '../../lib/orderBump';
+import { juntarBump, soltarBumpsSozinhos, visitaLoja, type BumpCardapio, type ExtraBump, type SugestoesBump } from '../../lib/orderBump';
 import { calcularAdicionais, gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
 import { supabaseCliente, useContaCliente, type ContaCliente } from '../../lib/contaCliente';
 import { ModalConta } from './ContaCliente';
@@ -274,7 +274,7 @@ export default function LojaCardapio() {
   }, [dados]);
   // Order bump: escolhida quando o item abre (não muda enquanto a janela está aberta)
   const ofertaAberta = useMemo(
-    () => (produtoAberto ? ofertaPara(produtoAberto, dados, produtosLoja, carrinho, 'delivery') : null),
+    () => (produtoAberto ? ofertaPara(produtoAberto, dados, produtosLoja, carrinho, 'delivery', { grupo: `loja:${codigo}`, visita: visitaLoja(codigo) }) : null),
     [produtoAberto?.id], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const porId = useMemo(() => new Map([
@@ -849,6 +849,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntr
     }
     rastrear('Purchase', Number(feito.total), feito.acompanhar);
     tocarEnviado();
+    visitaLoja(codigo, true); // próximo pedido: as ofertas aparecem de novo
     aoEnviar(feito.acompanhar);
   }
 

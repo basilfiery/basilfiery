@@ -31,7 +31,7 @@ export interface BumpCardapio {
 export interface SugestoesBump { juntos?: Record<string, string[]>; mais_vendidos?: string[] }
 
 export interface ItemOferta { p: ProdutoMesa; preco: number; precoDe: number }
-export interface OfertaBump { bump: BumpCardapio; itens: ItemOferta[] }
+export interface OfertaBump { bump: BumpCardapio; itens: ItemOferta[]; escopo?: EscopoBump }
 /** Item da oferta que o cliente aceitou */
 export interface ExtraBump { p: ProdutoMesa; qtd: number; preco: number; bump_id: string }
 
@@ -157,15 +157,33 @@ export function soltarBumpsSozinhos(c: Linha[]): Linha[] {
   return c.map((l) => ({ ...l, bump_id: undefined, preco_bump: undefined, chave: l.chave.replace(/\|bump:.*/, '|') }));
 }
 
-// Ofertas já mostradas nesta visita (não aparece de novo a mesma)
-const CHAVE_VISTAS = 'bf:bumps-vistos';
-export function bumpsVistos(): Set<string> {
-  try { return new Set(JSON.parse(sessionStorage.getItem(CHAVE_VISTAS) ?? '[]') as string[]); } catch { return new Set(); }
-}
-export function marcarBumpVisto(id: string) {
+/**
+ * Ofertas já mostradas nesta visita (a mesma não aparece de novo).
+ * Visita da mesa: muda quando a mesa é liberada para um novo cliente ou a conta é fechada (RPC mesa_visita).
+ * Delivery: quem recusou só vê a oferta de novo depois de finalizar um pedido (fica salvo no aparelho).
+ */
+export interface EscopoBump { grupo: string; visita: string }
+const chaveVistas = (grupo: string) => `bf:bumps-vistos:${grupo}`;
+export function bumpsVistos(e: EscopoBump): Set<string> {
   try {
-    const s = bumpsVistos();
+    const v = JSON.parse(localStorage.getItem(chaveVistas(e.grupo)) ?? 'null') as { visita: string; ids: string[] } | null;
+    return new Set(v?.visita === e.visita ? v.ids : []);
+  } catch { return new Set(); }
+}
+export function marcarBumpVisto(id: string, e: EscopoBump) {
+  try {
+    const s = bumpsVistos(e);
     s.add(id);
-    sessionStorage.setItem(CHAVE_VISTAS, JSON.stringify([...s]));
+    localStorage.setItem(chaveVistas(e.grupo), JSON.stringify({ visita: e.visita, ids: [...s] }));
   } catch { /* sem armazenamento */ }
+}
+
+/** Ciclo do delivery: dura até o cliente finalizar um pedido (`nova` começa outro ciclo). */
+export function visitaLoja(codigo: string, nova = false): string {
+  const chave = `bf:visita-loja:${codigo}`;
+  try {
+    let v = nova ? null : localStorage.getItem(chave);
+    if (!v) { v = Math.random().toString(36).slice(2); localStorage.setItem(chave, v); }
+    return v;
+  } catch { return 'sem-armazenamento'; }
 }

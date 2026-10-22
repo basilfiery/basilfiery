@@ -9,13 +9,13 @@ import { brl, cx } from '../lib/util';
 
 /** itens nulo = pedido inteiro */
 interface Escolha { itens: string[] | null; motivo: string }
-interface Pergunta { pedido: Pedido; responder: (e: Escolha | null) => void }
+interface Pergunta { pedido: Pedido; responder: (e: Escolha | null) => void; inicial?: string }
 
 let abrir: ((p: Pergunta) => void) | null = null;
 
-function escolherCancelamento(pedido: Pedido): Promise<Escolha | null> {
-  if (!abrir) return Promise.resolve(window.confirm(`Cancelar o pedido #${pedido.numero}?`) ? { itens: null, motivo: '' } : null);
-  return new Promise((responder) => abrir!({ pedido, responder }));
+function escolherCancelamento(pedido: Pedido, inicial?: string): Promise<Escolha | null> {
+  if (!abrir) return Promise.resolve(window.confirm(`Cancelar o pedido #${pedido.numero}?`) ? { itens: inicial ? [inicial] : null, motivo: '' } : null);
+  return new Promise((responder) => abrir!({ pedido, responder, inicial }));
 }
 
 /** Pergunta o que cancelar e por quê, cancela no servidor e atualiza a tela. A mesa recebe o aviso. */
@@ -23,8 +23,10 @@ export async function cancelarComMotivo(
   p: Pedido,
   atualizar: (id: string, m: Partial<Pedido>) => void,
   toast: ReturnType<typeof useToast>,
+  /** Já abre com este item marcado (botão de lixeira no item) */
+  itemInicial?: string,
 ) {
-  const e = await escolherCancelamento(p);
+  const e = await escolherCancelamento(p, itemInicial);
   if (!e) return;
   const { data, error } = await supabase.rpc('pedido_cancelar', { p_pedido: p.id, p_itens: e.itens, p_motivo: e.motivo });
   if (error) return toast(msgErro(error), 'erro');
@@ -54,9 +56,9 @@ export function ProvedorCancelar({ children }: { children: ReactNode }) {
   );
 }
 
-function ModalCancelar({ pedido: p, responder, fechar }: Pergunta & { fechar: () => void }) {
+function ModalCancelar({ pedido: p, responder, fechar, inicial }: Pergunta & { fechar: () => void }) {
   const itens = p.pedido_itens;
-  const [sel, setSel] = useState<Set<string>>(() => new Set(itens.length === 1 ? [itens[0].id] : []));
+  const [sel, setSel] = useState<Set<string>>(() => new Set(inicial ? [inicial] : itens.length === 1 ? [itens[0].id] : []));
   const [motivo, setMotivo] = useState('');
   const [outro, setOutro] = useState('');
   const todos = itens.length === 0 || sel.size === itens.length;

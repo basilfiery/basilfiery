@@ -494,6 +494,13 @@
 .linhas-conta { list-style: none; margin: 0; padding: 0; }
 .linhas-conta li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: .93rem; }
 .linhas-conta li:last-child { border-bottom: 0; }
+.linhas-conta .linha-item { align-items: center; }
+.linha-item__fim { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.linha-item__excluir {
+  width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--muted-2); cursor: pointer; transition: color .15s, background .15s, border-color .15s;
+}
+.linha-item__excluir:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
 .total-linha { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.05rem; }
 .total-linha strong { font-size: 1.4rem; }
 .link-mesa { display: flex; gap: 8px; align-items: center; }

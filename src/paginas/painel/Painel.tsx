@@ -22,7 +22,7 @@ import {
   lerConfigImpressao, programaDesktop,
 } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
-import { definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
+import { REPETIR_CHAMADO_MS, definirSom, notificarLocal, somLigado, tocarAlerta, tocarChamado, tocarChamadoUmaVez } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, MesaAcesso, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
 import { PAPEL_ROTULO, brl, cx, descreverChamado, duracao, ehGestor, ls, podeCaixa, quando, tempoDesde, useAgora } from '../../lib/util';
@@ -40,6 +40,8 @@ export interface ContextoPainel {
   carregando: boolean;
   recarregar: () => Promise<void>;
   atualizarPedido: (id: string, mudancas: Partial<Pedido>) => void;
+  /** Tira o chamado da lista na hora (o toque para) */
+  removerChamado: (id: string) => void;
   /** Caixa aberto agora (null = fechado, undefined = carregando) */
   caixa: ResumoCaixa | null | undefined;
   abrirCaixa: () => void;
@@ -247,24 +249,34 @@ export default function Painel() {
       notificarLocal(`Chegou um novo pedido! #${p.numero} · ${p.mesa_nome}`, [resumo, `Total ${brl(p.total)}`].filter(Boolean).join(' · '), `pedido-${p.id}`);
     },
     aoNovoChamado: (c) => {
-      tocarChamado(r?.som_chamado);
+      tocarChamadoUmaVez(`chamado-${c.id}`, r?.som_chamado);
       notificarLocal(`${c.mesa_nome}: ${descreverChamado(c)}`, c.detalhe ?? 'Toque para ver.', `chamado-${c.id}`);
     },
     aoNovoAcesso: (a) => {
-      tocarChamado(r?.som_chamado);
+      tocarChamadoUmaVez(`acesso-${a.id}`, r?.som_chamado);
       notificarLocal(`${a.mesa_nome} quer fazer pedidos`, `${a.aparelho ?? 'Um aparelho'} pediu para abrir a mesa. Libere no sistema.`, `acesso-${a.id}`);
     },
   });
 
-  // Chamado é obrigatório: enquanto ninguém marcar "Atendido", o toque repete a cada 30 s
+  // Chamado é obrigatório: enquanto ninguém marcar "Atendido", o toque repete a cada 8 s.
+  // Antes de tocar de novo confere no servidor: se já atenderam (em outro aparelho), para na hora.
   const somChamadoRef = useRef(r?.som_chamado);
   somChamadoRef.current = r?.som_chamado;
   const haChamados = vivo.chamados.length > 0 || vivo.acessos.length > 0;
+  const recarregarVivo = vivo.recarregar;
   useEffect(() => {
-    if (!haChamados) return;
-    const i = setInterval(() => tocarChamado(somChamadoRef.current), 30000);
+    if (!haChamados || !r?.id) return;
+    const rest = r.id;
+    const i = setInterval(async () => {
+      const [c, a] = await Promise.all([
+        supabase.from('chamados').select('id').eq('restaurante_id', rest).is('atendido_em', null).limit(1),
+        supabase.from('mesa_acessos').select('id').eq('restaurante_id', rest).eq('status', 'pendente').limit(1),
+      ]);
+      if (!c.error && !a.error && !c.data?.length && !a.data?.length) { void recarregarVivo(); return; }
+      tocarChamadoUmaVez(`repete-${Math.floor(Date.now() / REPETIR_CHAMADO_MS)}`, somChamadoRef.current);
+    }, REPETIR_CHAMADO_MS);
     return () => clearInterval(i);
-  }, [haChamados]);
+  }, [haChamados, r?.id, recarregarVivo]);
 
   /* ---------- Fila de impressão: o garçom pede a conta pelo celular, este computador imprime ---------- */
   const cfgImpRef = useRef(cfgImp);
@@ -454,8 +466,9 @@ export default function Painel() {
   const ultimoPedido = vivo.pedidos.filter((p) => p.status !== 'cancelado').slice(-1)[0];
 
   async function atender(c: Chamado) {
+    vivo.removerChamado(c.id); // o toque para na hora
     const { error } = await supabase.rpc('chamado_atender', { p_chamado: c.id });
-    if (error) toast(msgErro(error), 'erro');
+    if (error) { toast(msgErro(error), 'erro'); void vivo.recarregar(); }
   }
 
   function alternarSom() {
@@ -475,6 +488,7 @@ export default function Painel() {
     carregando: vivo.carregando,
     recarregar: vivo.recarregar,
     atualizarPedido: vivo.atualizarPedido,
+    removerChamado: vivo.removerChamado,
     caixa,
     abrirCaixa: () => setModoCaixa('resumo'),
     recarregarCaixa: () => void carregarCaixa(),

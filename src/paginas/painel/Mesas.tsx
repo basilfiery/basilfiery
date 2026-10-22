@@ -16,6 +16,7 @@ import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, ordenarNo
 import { usePainel } from './Painel';
 import { linkMesa } from '../../lib/linkCurto';
 import { confirmar } from '../../componentes/Confirmar';
+import { cancelarComMotivo } from '../../componentes/CancelarPedido';
 
 
 type Situacao = 'livre' | 'ocupada' | 'pagando' | 'inativa';
@@ -319,7 +320,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   aoMudar: () => void;
 }) {
   const toast = useToast();
-  const { caixa, abrirCaixa, recarregarCaixa } = usePainel();
+  const { caixa, abrirCaixa, recarregarCaixa, removerChamado, atualizarPedido } = usePainel();
   const caixaAberto = !!caixa;
   const [nome, setNome] = useState(mesa.nome);
   const [setorMesa, setSetorMesa] = useState(mesa.setor ?? '');
@@ -333,6 +334,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
 
   async function atender(c: Chamado) {
     setAtendidos((l) => [...l, c.id]);
+    removerChamado(c.id); // o sino para na hora
     const { error } = await supabase.rpc('chamado_atender', { p_chamado: c.id });
     if (error) {
       setAtendidos((l) => l.filter((x) => x !== c.id));
@@ -407,7 +409,17 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
                 </div>
                 <ul className="linhas-conta">
                   {p.pedido_itens.map((i) => (
-                    <li key={i.id}><span>{i.qtd}× {i.nome}{i.complementos && <small className="muted" style={{ display: 'block' }}>{i.complementos}</small>}</span><span>{brl(i.qtd * i.preco_unit)}</span></li>
+                    <li key={i.id} className="linha-item">
+                      <span>{i.qtd}× {i.nome}{i.complementos && <small className="muted" style={{ display: 'block' }}>{i.complementos}</small>}</span>
+                      <span className="linha-item__fim">
+                        {brl(i.qtd * i.preco_unit)}
+                        {/* Cliente pediu errado: exclui só este item (pede o motivo; a mesa é avisada) */}
+                        <button type="button" className="linha-item__excluir" title="Excluir item" aria-label={`Excluir ${i.nome}`}
+                          onClick={() => void cancelarComMotivo(p, (id, m) => { atualizarPedido(id, m); aoMudar(); }, toast, i.id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      </span>
+                    </li>
                   ))}
                 </ul>
               </div>

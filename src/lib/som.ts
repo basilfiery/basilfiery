@@ -157,6 +157,23 @@ export function tocarChamado(som: SomChamado | string | null | undefined = 'camp
 }
 
 /**
+ * Toca o chamado UMA vez mesmo com o sistema aberto em várias abas/janelas deste navegador:
+ * a primeira que pegar a "chave" toca, as outras ficam quietas (Web Locks).
+ */
+export function tocarChamadoUmaVez(chave: string, som: SomChamado | string | null | undefined) {
+  const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+  if (!locks) { tocarChamado(som); return; }
+  void locks.request(`bf-som-${chave}`, { ifAvailable: true }, async (trava) => {
+    if (!trava) return;
+    tocarChamado(som);
+    await new Promise((r) => setTimeout(r, 4000)); // segura a chave enquanto as outras abas recebem o mesmo aviso
+  });
+}
+
+/** Intervalo do toque repetido enquanto ninguém marca "Atendido". */
+export const REPETIR_CHAMADO_MS = 8000;
+
+/**
  * Notificação na área de trabalho (canto da tela do Windows).
  * No programa BasilFiery aparece sempre, como no Anota AI; no navegador, quando a aba não está na frente.
  */

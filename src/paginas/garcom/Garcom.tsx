@@ -14,7 +14,7 @@ import { PedidoCard } from '../../componentes/PedidoCard';
 import { useToast } from '../../componentes/Toast';
 import { ativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
-import { definirSom, somLigado, tocarAlerta, tocarChamado } from '../../lib/som';
+import { REPETIR_CHAMADO_MS, definirSom, somLigado, tocarAlerta, tocarChamadoUmaVez } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Mesa, MesaAcesso, Pedido, RestauranteComPapel, StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
@@ -39,8 +39,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   const vivo = usePedidosAoVivo(r?.id, {
     aoNovoPedido: () => tocarAlerta('pedido'),
     aoPedidoPronto: (p) => { tocarAlerta('pronto'); toast(`Pedido #${p.numero} pronto · ${p.mesa_nome}`, 'ok'); },
-    aoNovoChamado: (c) => { tocarChamado(r?.som_chamado); toast(`${c.mesa_nome}: ${descreverChamado(c)}`, 'info'); },
-    aoNovoAcesso: (a) => { tocarChamado(r?.som_chamado); toast(`${a.mesa_nome} quer fazer pedidos. Libere a mesa.`, 'info'); },
+    aoNovoChamado: (c) => { tocarChamadoUmaVez(`chamado-${c.id}`, r?.som_chamado); toast(`${c.mesa_nome}: ${descreverChamado(c)}`, 'info'); },
+    aoNovoAcesso: (a) => { tocarChamadoUmaVez(`acesso-${a.id}`, r?.som_chamado); toast(`${a.mesa_nome} quer fazer pedidos. Libere a mesa.`, 'info'); },
   });
 
   // Chamado é obrigatório: o toque repete a cada 30 s até alguém marcar "Atendido"
@@ -49,7 +49,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   const haChamados = vivo.chamados.length > 0 || vivo.acessos.length > 0;
   useEffect(() => {
     if (!haChamados) return;
-    const i = setInterval(() => tocarChamado(somRef.current), 30000);
+    const i = setInterval(() => tocarChamadoUmaVez(`repete-${Math.floor(Date.now() / REPETIR_CHAMADO_MS)}`, somRef.current), REPETIR_CHAMADO_MS);
     return () => clearInterval(i);
   }, [haChamados]);
 

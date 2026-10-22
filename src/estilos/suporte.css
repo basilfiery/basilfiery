@@ -227,9 +227,11 @@
 .sup-audio__barra i { display: block; height: 100%; background: currentColor; border-radius: 4px; transition: width .2s linear; }
 .sup-audio small { flex: none; font-size: .72rem; opacity: .85; font-variant-numeric: tabular-nums; }
 
-.sup-sistema { display: flex; justify-content: center; margin: 6px 0; }
-.sup-sistema span { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; max-width: 90%; padding: 5px 12px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: .74rem; font-weight: 600; text-align: center; }
-.sup-sistema-bloco { display: grid; gap: 8px; justify-items: center; margin: 4px 0; }
+.sup-sistema { width: 100%; display: flex; justify-content: center; margin: 6px 0; }
+.sup-sistema span { display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 92%; padding: 6px 14px; border-radius: 14px; background: var(--surface-2); color: var(--muted); font-size: .74rem; font-weight: 600; line-height: 1.35; text-align: center; }
+.sup-sistema span svg { flex: none; }
+.sup-sistema-bloco { width: 100%; display: grid; gap: 8px; justify-items: stretch; margin: 4px 0; }
+.sup-sistema-bloco > .sup-avaliacao--feita { justify-self: center; }
 
 .sup-estrelas { display: inline-flex; gap: 2px; }
 .sup-estrelas button { display: grid; place-items: center; padding: 2px; border: 0; background: transparent; color: var(--line-2); cursor: default; }

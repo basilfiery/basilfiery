@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, LogOut, MessagesSquare, Plus, Receipt, Store, Trash2 } from 'lucide-react';
+import { LayoutDashboard, LogOut, MessagesSquare, Plus, Receipt, Store, Trash2, Users } from 'lucide-react';
+import { ResumoAvaliacoes, TimeSuporte } from './TimeSuporte';
 import { CaixaSuporte, useCaixaSuporte } from '../../componentes/ChatSuporte';
 import { notificarLocal, somLigado, tocarChamado } from '../../lib/som';
 import { confirmar } from '../../componentes/Confirmar';
@@ -18,14 +19,21 @@ import '../../estilos/painel.css';
 export default function Plataforma() {
   const s = useSessao();
   const [temAdmin, setTemAdmin] = useState<boolean | null>(null);
+  // Time de suporte (atendentes) entra só na central de atendimento
+  const [atendente, setAtendente] = useState<boolean | null>(null);
 
   useEffect(() => {
     void supabase.rpc('plataforma_tem_admin').then(({ data, error }) => setTemAdmin(error ? true : !!data));
   }, []);
+  useEffect(() => {
+    if (!s.usuario) { setAtendente(false); return; }
+    void supabase.rpc('eh_atendente').then(({ data }) => setAtendente(!!data));
+  }, [s.usuario]);
 
-  if (s.carregando || temAdmin === null) return <Carregando />;
+  if (s.carregando || temAdmin === null || (s.usuario && atendente === null)) return <Carregando />;
   if (!temAdmin) return <PrimeiroAcesso />;
-  if (!s.usuario) return <Navigate to="/login" replace state={{ de: '/plataforma' }} />;
+  if (!s.usuario) return <Navigate to="/login" replace state={{ de: `/plataforma${window.location.search}` }} />;
+  if (!s.ehAdmin && atendente) return <Restaurantes admin={false} />;
   if (!s.ehAdmin) {
     return (
       <div className="tela-login">
@@ -38,7 +46,7 @@ export default function Plataforma() {
       </div>
     );
   }
-  return <Restaurantes />;
+  return <Restaurantes admin />;
 }
 
 /** Cria a conta do administrador da plataforma. Só aparece enquanto não existe nenhum. */
@@ -79,24 +87,26 @@ function PrimeiroAcesso() {
   );
 }
 
-function Restaurantes() {
+function Restaurantes({ admin }: { admin: boolean }) {
   const s = useSessao();
   const toast = useToast();
   const [lista, setLista] = useState<Restaurante[] | null>(null);
   const [criando, setCriando] = useState(false);
   const [cobranca, setCobranca] = useState<Restaurante | null>(null);
   const [params, setParams] = useSearchParams();
-  const aba = params.get('aba') === 'suporte' ? 'suporte' : 'lojas';
+  const pedida = params.get('aba');
+  const aba = !admin ? 'suporte' : pedida === 'suporte' || pedida === 'equipe' ? pedida : 'lojas';
   const suporte = useCaixaSuporte(true, (m) => {
     if (somLigado()) tocarChamado('sino');
     notificarLocal('Suporte · nova mensagem', m.texto, 'suporte-admin');
   });
 
   const carregar = useCallback(async () => {
+    if (!admin) { setLista([]); return; }
     const { data, error } = await supabase.from('restaurantes').select('*').order('criado_em', { ascending: false });
     if (error) toast(msgErro(error), 'erro');
     setLista((data ?? []) as Restaurante[]);
-  }, [toast]);
+  }, [toast, admin]);
 
   useEffect(() => { void carregar(); }, [carregar]);
 
@@ -114,21 +124,22 @@ function Restaurantes() {
     <div className="plataforma">
       <div className="plataforma__topo">
         <Logo />
-        <span className="badge badge--laranja">Administração da plataforma</span>
+        <span className="badge badge--laranja">{admin ? 'Administração da plataforma' : 'Central de atendimento'}</span>
         <div>
-          <Link to="/painel" className="btn btn--contorno btn--sm"><LayoutDashboard size={16} /> Painel</Link>
+          {admin && <Link to="/painel" className="btn btn--contorno btn--sm"><LayoutDashboard size={16} /> Painel</Link>}
           <button className="btn btn--fantasma btn--sm" onClick={() => void s.sair()}><LogOut size={16} /> Sair</button>
         </div>
       </div>
 
       <div className="plat-abas" role="tablist">
-        <button type="button" role="tab" aria-selected={aba === 'lojas'} className={aba === 'lojas' ? 'ativo' : ''} onClick={() => setParams({})}><Store size={17} /> Restaurantes</button>
+        {admin && <button type="button" role="tab" aria-selected={aba === 'lojas'} className={aba === 'lojas' ? 'ativo' : ''} onClick={() => setParams({})}><Store size={17} /> Restaurantes</button>}
         <button type="button" role="tab" aria-selected={aba === 'suporte'} className={aba === 'suporte' ? 'ativo' : ''} onClick={() => setParams({ aba: 'suporte' })}>
-          <MessagesSquare size={17} /> Suporte {suporte.naoLidas > 0 && <span className="plat-abas__selo">{suporte.naoLidas}</span>}
+          <MessagesSquare size={17} /> Atendimento {suporte.naoLidas + suporte.esperando > 0 && <span className="plat-abas__selo">{suporte.naoLidas + suporte.esperando}</span>}
         </button>
+        {admin && <button type="button" role="tab" aria-selected={aba === 'equipe'} className={aba === 'equipe' ? 'ativo' : ''} onClick={() => setParams({ aba: 'equipe' })}><Users size={17} /> Time de suporte</button>}
       </div>
 
-      {aba === 'suporte' ? <CaixaSuporte conversas={suporte.conversas} /> : <>
+      {aba === 'suporte' ? <><ResumoAvaliacoes /><CaixaSuporte conversas={suporte.conversas} /></> : aba === 'equipe' ? <TimeSuporte /> : <>
       <div className="pagina__cab">
         <div style={{ flex: 1 }}>
           <h1 className="titulo">Restaurantes clientes</h1>

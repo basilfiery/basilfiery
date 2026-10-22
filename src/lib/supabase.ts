@@ -107,7 +107,7 @@ export async function imagemExibivel(arquivo: Blob & { name?: string }): Promise
 }
 
 /** Converte qualquer foto e reduz para no máximo 1600 px — carrega rápido no tablet. */
-async function prepararImagem(arquivo: Blob & { name?: string }): Promise<Blob> {
+export async function prepararImagem(arquivo: Blob & { name?: string }): Promise<Blob> {
   const blob = await imagemExibivel(arquivo);
   if (/svg|gif/i.test(blob.type)) return blob; // mantém vetor e animação
   try {

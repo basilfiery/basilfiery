@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Printer, QrCode, Receipt, RefreshCw, Rocket, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Headset, Printer, QrCode, Receipt, RefreshCw, Rocket, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -563,6 +563,21 @@ export default function Painel() {
               )))}
             </div>
           ))}
+          {/* Só para o dono da plataforma: atalho para a central de atendimento (hq.basilfiery.com.br) */}
+          {s.ehAdmin && !termo && (
+            <div className="lateral__secao">
+              <p className="lateral__titulo">Dono do BasilFiery</p>
+              <Link to="/plataforma?aba=suporte" className="lateral__item" title="Central de atendimento">
+                <Headset size={20} strokeWidth={1.8} />
+                <span>Central de atendimento</span>
+                {suporte.naoLidas + suporte.esperando > 0 && <b className="lateral__contador lateral__contador--alerta">{suporte.naoLidas + suporte.esperando}</b>}
+              </Link>
+              <Link to="/plataforma" className="lateral__item" title="Plataforma">
+                <ShieldCheck size={20} strokeWidth={1.8} />
+                <span>Plataforma</span>
+              </Link>
+            </div>
+          )}
         </nav>
 
         <div className="lateral__rodape">
@@ -871,9 +886,9 @@ export default function Painel() {
       )}
 
       <ErroTela silencioso><BalaoSuporte restauranteId={r.id} /></ErroTela>
-      {s.ehAdmin && suporte.naoLidas > 0 && (
+      {s.ehAdmin && suporte.naoLidas + suporte.esperando > 0 && (
         <Link className="sup-admin-aviso" to="/plataforma?aba=suporte">
-          <MessagesSquare size={16} /> {suporte.naoLidas === 1 ? '1 mensagem nova no suporte' : `${suporte.naoLidas} mensagens novas no suporte`}
+          <MessagesSquare size={16} /> {suporte.esperando > 0 ? (suporte.esperando === 1 ? '1 loja quer falar com uma pessoa' : `${suporte.esperando} lojas querem falar com uma pessoa`) : suporte.naoLidas === 1 ? '1 mensagem nova no suporte' : `${suporte.naoLidas} mensagens novas no suporte`}
         </Link>
       )}
 

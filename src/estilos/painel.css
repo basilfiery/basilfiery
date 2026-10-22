@@ -2947,3 +2947,21 @@
   background: var(--ok); color: #fff; font: inherit; font-weight: 800; font-size: .9rem; cursor: pointer;
 }
 .gqr__liberar:disabled, .gqr__recusar:disabled { opacity: .6; cursor: default; }
+
+/* ---------- Relatórios › Mesas e comandas ---------- */
+.rm-abertas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.rm-aberta {
+  display: grid; gap: 3px; padding: 12px 14px; border-radius: 14px; min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--fire) 35%, var(--line)); background: color-mix(in srgb, var(--fire) 5%, var(--surface));
+}
+.rm-aberta__mesa { color: var(--muted); font-size: .8rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-aberta strong { font-size: 1.15rem; }
+.rm-aberta small { color: var(--muted); font-size: .76rem; line-height: 1.35; }
+.rm-ferramentas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rm-busca {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+}
+.rm-busca input { width: 130px; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: .88rem; }
+.rm-comandas td { white-space: nowrap; }
+.rm-forma { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: .76rem; font-weight: 600; }

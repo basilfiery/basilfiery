@@ -115,6 +115,7 @@ export default function App() {
           <Route index element={<Pedidos />} />
           <Route path="mesas" element={<Mesas />} />
           <Route path="relatorios" element={<Relatorios />} />
+          <Route path="relatorios/:aba" element={<Relatorios />} />
           <Route path="cardapio" element={<Cardapio />} />
           <Route path="cardapio/aparencia" element={<Aparencia />} />
           <Route path="apps" element={<AppsCelular />} />

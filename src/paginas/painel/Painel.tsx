@@ -79,7 +79,14 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
   {
     titulo: 'Análises',
     itens: [
-      { para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: CAIXA },
+      {
+        para: '/painel/relatorios', icone: BarChart3, rotulo: 'Relatórios', papeis: CAIXA,
+        filhos: [
+          { para: '/painel/relatorios', rotulo: 'Visão geral' },
+          { para: '/painel/relatorios/itens', rotulo: 'Itens', novo: true },
+          { para: '/painel/relatorios/mesas', rotulo: 'Mesas e comandas' },
+        ],
+      },
       { para: '/painel/apps', icone: Smartphone, rotulo: 'Apps no celular', papeis: GESTORES },
     ],
   },

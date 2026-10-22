@@ -9,9 +9,10 @@ import { useToast } from '../../componentes/Toast';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, ehGestor, hora, inicioDoDia, tempoDesde, useAgora } from '../../lib/util';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { usePainel } from './Painel';
 import { RelatorioItens } from './RelatorioItens';
+import { RelatorioMesas } from './RelatorioMesas';
 
 /* ---------------- Tipos vindos do banco ---------------- */
 interface Relatorio {
@@ -110,6 +111,9 @@ export default function Relatorios() {
   const veLucro = ehGestor(papel);
   const toast = useToast();
   const agora = useAgora(30000);
+  // Subpáginas do menu: Visão geral · Itens · Mesas e comandas
+  const { aba: abaUrl } = useParams<{ aba?: string }>();
+  const aba = abaUrl === 'itens' || abaUrl === 'mesas' ? abaUrl : 'geral';
 
   const [preset, setPreset] = useState<Preset>('mes');
   const [de, setDe] = useState(iso(somarDias(new Date(), -6)));
@@ -179,8 +183,12 @@ export default function Relatorios() {
     <div className="pagina relatorios rl">
       <div className="rl-cab">
         <div>
-          <h1 className="titulo">Relatórios</h1>
-          <span className="rl-cab__sub">Vendas são os pedidos não cancelados · tudo se atualiza sozinho</span>
+          <h1 className="titulo">{aba === 'itens' ? 'Itens vendidos' : aba === 'mesas' ? 'Mesas e comandas' : 'Relatórios'}</h1>
+          <span className="rl-cab__sub">
+            {aba === 'itens' ? 'Os itens mais vendidos, por quantidade e faturamento'
+              : aba === 'mesas' ? 'Cada conta de mesa fechada no caixa é uma comanda'
+                : 'Vendas são os pedidos não cancelados · tudo se atualiza sozinho'}
+          </span>
         </div>
         <AoVivoHoje pedidos={aoVivo} agora={agora} />
       </div>
@@ -210,6 +218,24 @@ export default function Relatorios() {
         <p className="erro-form">{erro}</p>
       ) : !rel ? (
         <div className="carregando"><div className="spinner" /></div>
+      ) : aba === 'mesas' ? (
+        <div className={cx('relatorio', carregando && 'recarregando')}>
+          <RelatorioMesas restauranteId={restaurante.id} inicio={periodo.inicio} fim={periodo.fim} tz={TZ} versao={atualizadoEm ?? 0} rotuloPeriodo={rotuloPeriodo} agora={agora} aoErro={(m) => toast(m, 'erro')} />
+        </div>
+      ) : aba === 'itens' ? (
+        <div className={cx('relatorio', carregando && 'recarregando')}>
+          <div className="relatorio__duplo">
+            <section className="card rl-card">
+              <header className="rl-card__cab"><div><h2>Produtos mais vendidos</h2><small>Top {Math.min(10, rel.top_produtos.length) || 10} do período</small></div></header>
+              <Ranking linhas={rel.top_produtos.slice(0, 10).map((p) => ({ nome: p.nome, qtd: p.qtd, valor: Number(p.faturamento) }))} coluna="Produto" unidade="un." />
+            </section>
+            <section className="card rl-card">
+              <header className="rl-card__cab"><div><h2>Vendas por categoria</h2><small>Itens e receita de cada categoria</small></div></header>
+              <Ranking linhas={rel.por_categoria.map((c) => ({ nome: c.categoria, qtd: c.qtd, valor: Number(c.faturamento) }))} coluna="Categoria" unidade="itens" />
+            </section>
+          </div>
+          <RelatorioItens restauranteId={restaurante.id} inicio={periodo.inicio} fim={periodo.fim} tz={TZ} versao={atualizadoEm ?? 0} rotuloPeriodo={rotuloPeriodo} aoErro={(m) => toast(m, 'erro')} />
+        </div>
       ) : (
         <div className={cx('relatorio', carregando && 'recarregando')}>
           <section className="card rl-card">
@@ -238,19 +264,6 @@ export default function Relatorios() {
             </header>
             {verVendas === 'meses' ? <GraficoMensal meses={meses} aoEscolher={escolherMes} /> : <GraficoPeriodo rel={rel} periodo={periodo} dias={dias} />}
           </section>
-
-          <div className="relatorio__duplo">
-            <section className="card rl-card">
-              <header className="rl-card__cab"><div><h2>Produtos mais vendidos</h2><small>Top {Math.min(10, rel.top_produtos.length) || 10} do período</small></div></header>
-              <Ranking linhas={rel.top_produtos.slice(0, 10).map((p) => ({ nome: p.nome, qtd: p.qtd, valor: Number(p.faturamento) }))} coluna="Produto" unidade="un." />
-            </section>
-            <section className="card rl-card">
-              <header className="rl-card__cab"><div><h2>Vendas por categoria</h2><small>Itens e receita de cada categoria</small></div></header>
-              <Ranking linhas={rel.por_categoria.map((c) => ({ nome: c.categoria, qtd: c.qtd, valor: Number(c.faturamento) }))} coluna="Categoria" unidade="itens" />
-            </section>
-          </div>
-
-          <RelatorioItens restauranteId={restaurante.id} inicio={periodo.inicio} fim={periodo.fim} tz={TZ} versao={atualizadoEm ?? 0} rotuloPeriodo={rotuloPeriodo} aoErro={(m) => toast(m, 'erro')} />
 
           <ListaPedidos restauranteId={restaurante.id} restauranteNome={restaurante.nome} periodo={periodo} versao={atualizadoEm ?? 0} aoErro={(m) => toast(m, 'erro')} />
         </div>

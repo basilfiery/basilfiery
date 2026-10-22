@@ -106,6 +106,9 @@
 .sup-escrever__enviar:disabled { background: var(--surface-2); color: var(--muted-2); cursor: default; }
 .sup-escrever__enviar:not(:disabled):active { transform: scale(.94); }
 
+/* Fim das páginas não fica escondido atrás do balão */
+.painel:has(.sup-botao) .painel__conteudo:not(.painel__conteudo--cheio) { padding-bottom: 96px; }
+
 /* Atualização disponível: sobe para não ficar embaixo do balão */
 .painel:has(.sup-botao, .sup-janela) .aviso-atualizacao { bottom: 94px; }
 .painel:has(.sup-janela) .aviso-atualizacao { right: 418px; }

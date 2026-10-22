@@ -1040,9 +1040,9 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
     finalizar(false);
   }
 
-  function finalizar(comOferta: boolean) {
+  function finalizar(comOferta: boolean, escolha = extras) {
     const lista: ExtraBump[] = comOferta && oferta
-      ? oferta.itens.filter((i) => extras[i.p.id] > 0).map((i) => ({ p: i.p, qtd: extras[i.p.id], preco: i.preco, bump_id: oferta.bump.id }))
+      ? oferta.itens.filter((i) => escolha[i.p.id] > 0).map((i) => ({ p: i.p, qtd: escolha[i.p.id], preco: i.preco, bump_id: oferta.bump.id }))
       : [];
     aoAdicionar(qtd, obs.trim(), grupos.length ? { escolhas, extra: calc.extra, texto: calc.texto } : undefined, lista);
   }
@@ -1114,9 +1114,18 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
           {naOferta && oferta ? (
             <>
               <button type="button" className="btn btn--contorno btn--lg obump__nao" onClick={() => finalizar(false)}>Não, obrigado</button>
-              <button type="button" className="btn btn--primario btn--lg obump__sim" disabled={qtdExtras === 0} onClick={() => finalizar(true)}>
-                {qtdExtras === 0 ? 'Escolha uma oferta' : `Adicionar tudo · ${brl(unitario * qtd + totalExtras)}`}
-              </button>
+              {qtdExtras > 0 ? (
+                <button type="button" className="btn btn--primario btn--lg obump__sim" onClick={() => finalizar(true)}>
+                  Adicionar · {brl(unitario * qtd + totalExtras)}
+                </button>
+              ) : oferta.itens.length === 1 ? (
+                // Uma oferta só: um toque e já entra no pedido
+                <button type="button" className="btn btn--primario btn--lg obump__sim" onClick={() => finalizar(true, { [oferta.itens[0].p.id]: 1 })}>
+                  {oferta.itens[0].preco === 0 ? 'Quero, é grátis!' : `Quero por ${brl(oferta.itens[0].preco)}`}
+                </button>
+              ) : (
+                <button type="button" className="btn btn--primario btn--lg obump__sim" disabled>Toque em uma oferta</button>
+              )}
             </>
           ) : !p.disponivel ? (
             // Esgotado/indisponível: dá para ver tudo do item, mas não para pedir

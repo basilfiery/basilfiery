@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Printer, QrCode, Receipt, RefreshCw, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Printer, QrCode, Receipt, RefreshCw, Rocket, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -54,7 +54,7 @@ const GESTORES: Papel[] = ['dono', 'gerente'];
 const CAIXA: Papel[] = ['dono', 'gerente', 'caixa'];
 
 interface FilhoMenu { para: string; rotulo: string; papeis?: Papel[]; novo?: boolean }
-interface ItemMenu { para: string; icone: LucideIcon; rotulo: string; curto?: string; papeis: Papel[]; fim?: boolean; filhos?: FilhoMenu[] }
+interface ItemMenu { para: string; icone: LucideIcon; rotulo: string; curto?: string; papeis: Papel[]; fim?: boolean; filhos?: FilhoMenu[]; novo?: boolean }
 
 /** Menu lateral em seções (como no Anota AI). Itens com "filhos" abrem e fecham. */
 const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
@@ -74,6 +74,12 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
       { para: '/painel/notas', icone: FileText, rotulo: 'Notas fiscais', papeis: CAIXA },
       { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: CAIXA },
       { para: '/painel/compras', icone: ShoppingCart, rotulo: 'Lista de compras', curto: 'Compras', papeis: TODOS },
+    ],
+  },
+  {
+    titulo: 'Venda mais',
+    itens: [
+      { para: '/painel/alavancar-vendas', icone: Rocket, rotulo: 'Alavancar vendas', papeis: GESTORES },
     ],
   },
   {
@@ -548,6 +554,7 @@ export default function Painel() {
                   <m.icone size={20} strokeWidth={1.8} />
                   <span>{m.rotulo}</span>
                   {m.para === '/painel' && novos > 0 && <b className="lateral__contador">{novos}</b>}
+                  {m.novo && <em className="lateral__novo">Novo</em>}
                   {m.para === '/painel/compras' && compras.itens + compras.pessoas > 0 && <b className={cx('lateral__contador', compras.pessoas > 0 && 'lateral__contador--alerta')}>{compras.itens + compras.pessoas}</b>}
                 </NavLink>
               )))}

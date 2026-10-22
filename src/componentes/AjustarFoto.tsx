@@ -3,7 +3,7 @@ import { Minus, Move, Plus, RotateCw } from 'lucide-react';
 import { Modal } from './Modal';
 import { useToast } from './Toast';
 import { imagemExibivel, msgErro } from '../lib/supabase';
-import { cx } from '../lib/util';
+import { cx, zoomPagina } from '../lib/util';
 
 const SAIDA = 640; // tamanho final (px) da foto recortada (perfil e logos)
 const SAIDA_LARGA = 1200; // fotos de produto: maiores, para ficarem nítidas em telas grandes
@@ -121,7 +121,8 @@ export function AjustarFoto({ arquivo, formato = 'circulo', titulo = 'Ajustar fo
       mudarZoom(pinca.current.zoom * (Math.hypot(a.x - b.x, a.y - b.y) / pinca.current.dist));
       return;
     }
-    setPos((p) => limitar({ x: p.x + e.clientX - antes.x, y: p.y + e.clientY - antes.y }));
+    const z = zoomPagina(); // painel reduzido no notebook: o arraste acompanha o dedo/mouse
+    setPos((p) => limitar({ x: p.x + (e.clientX - antes.x) / z, y: p.y + (e.clientY - antes.y) / z }));
   }
   function soltar(e: EventoPonteiro) {
     toques.current.delete(e.pointerId);

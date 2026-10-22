@@ -27,7 +27,7 @@
 
 .sup-janela {
   position: fixed; z-index: 200; right: 22px; bottom: 22px;
-  width: min(380px, calc(100vw - 32px)); height: min(600px, calc(100dvh - 44px));
+  width: min(380px, calc(100vw / var(--zoom, 1) - 32px)); height: min(600px, calc(100dvh / var(--zoom, 1) - 44px));
   display: flex; flex-direction: column; overflow: hidden;
   border-radius: 20px; border: 1px solid var(--line); background: var(--surface); color: var(--text);
   box-shadow: 0 24px 64px rgba(0, 0, 0, .28), 0 4px 14px rgba(0, 0, 0, .12);

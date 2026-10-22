@@ -39,6 +39,7 @@ const Garcons = tela(() => import('./paginas/painel/Garcons'));
 const Configuracoes = tela(() => import('./paginas/painel/Configuracoes'));
 const Conta = tela(() => import('./paginas/painel/Conta'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
+const AlavancarVendas = tela(() => import('./paginas/painel/AlavancarVendas'));
 const Pdv = tela(() => import('./paginas/painel/Pdv'));
 const Compras = tela(() => import('./paginas/painel/Compras'));
 const Aparencia = tela(() => import('./paginas/painel/Aparencia'));
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="mesas" element={<Mesas />} />
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="relatorios/:aba" element={<Relatorios />} />
+          <Route path="alavancar-vendas" element={<AlavancarVendas />} />
           <Route path="cardapio" element={<Cardapio />} />
           <Route path="cardapio/aparencia" element={<Aparencia />} />
           <Route path="apps" element={<AppsCelular />} />

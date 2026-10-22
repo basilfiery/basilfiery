@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { zoomPagina } from '../lib/util';
 
 interface Props {
   /** Botão que abre o menu. Recebe se está aberto e a função para abrir/fechar. */
@@ -23,13 +24,15 @@ export function Suspenso({ gatilho, children, alinhar = 'dir', largura }: Props)
 
   useLayoutEffect(() => {
     if (!aberto || !ancora.current) return;
+    // Medidas da tela vêm em pixels visíveis; com o painel reduzido (zoom no notebook) o CSS usa pixels sem zoom
+    const z = zoomPagina();
     const r = ancora.current.getBoundingClientRect();
-    const altura = painel.current?.offsetHeight ?? 280;
+    const altura = (painel.current?.offsetHeight ?? 280) * z;
     const cabeAbaixo = r.bottom + 8 + altura < window.innerHeight;
-    const vertical: CSSProperties = cabeAbaixo ? { top: r.bottom + 8 } : { bottom: window.innerHeight - r.top + 8 };
+    const vertical: CSSProperties = cabeAbaixo ? { top: (r.bottom + 8) / z } : { bottom: (window.innerHeight - r.top + 8) / z };
     const horizontal: CSSProperties = alinhar === 'dir'
-      ? { right: Math.max(8, window.innerWidth - r.right) }
-      : { left: Math.max(8, r.left) };
+      ? { right: Math.max(8, (window.innerWidth - r.right) / z) }
+      : { left: Math.max(8, r.left / z) };
     setPos({ ...vertical, ...horizontal });
   }, [aberto, alinhar]);
 

@@ -11,7 +11,8 @@ import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { msgErro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco, useAgora } from '../../lib/util';
-import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, ofertaPara, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
+import { juntarBump, soltarBumpsSozinhos, type BumpCardapio, type ExtraBump, type SugestoesBump } from '../../lib/orderBump';
 import { calcularAdicionais, gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
 import { supabaseCliente, useContaCliente, type ContaCliente } from '../../lib/contaCliente';
 import { ModalConta } from './ContaCliente';
@@ -152,6 +153,9 @@ interface Dados {
   adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>;
   /** A loja escolheu esconder os esgotados (Configurações › Cardápio digital) */
   ocultar_esgotados?: boolean;
+  /** Ofertas do Alavancar vendas (order bump) */
+  bumps?: BumpCardapio[];
+  bump_auto?: SugestoesBump;
 }
 interface Cliente {
   nome: string; telefone: string;
@@ -242,6 +246,11 @@ export default function LojaCardapio() {
   // Mudou algo no painel (banner, preço, esgotado…): atualiza na hora
   useCardapioAoVivo(dados?.restaurante.id, () => void carregar());
   useEffect(() => ls.gravar(`bf:loja:carrinho:${codigo}`, carrinho), [carrinho, codigo]);
+  // Oferta só vale junto com outro item: se sobrar só ela, volta ao preço normal
+  useEffect(() => {
+    const ok = soltarBumpsSozinhos(carrinho);
+    if (ok !== carrinho) setCarrinho(ok);
+  }, [carrinho]);
   const ads = dados?.restaurante.ads;
   useEffect(() => { if (ads) iniciarAnuncios(ads); }, [ads]);
   useAppInstalavel(dados ? { nome: dados.restaurante.nome, curto: dados.restaurante.nome.slice(0, 12), inicio, escopo: base || '/' } : null);
@@ -263,6 +272,11 @@ export default function LojaCardapio() {
     }
     return { produtosLoja, saboresPorCategoria };
   }, [dados]);
+  // Order bump: escolhida quando o item abre (não muda enquanto a janela está aberta)
+  const ofertaAberta = useMemo(
+    () => (produtoAberto ? ofertaPara(produtoAberto, dados, produtosLoja, carrinho, 'delivery') : null),
+    [produtoAberto?.id], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const porId = useMemo(() => new Map([
     ...produtosLoja.map((p) => [p.id, p] as const),
     ...[...saboresPorCategoria.values()].flat().map((p) => [p.id, p] as const),
@@ -333,11 +347,12 @@ export default function LojaCardapio() {
     toast(faltou ? `Itens na sacola. ${faltou} ${faltou === 1 ? 'item não está' : 'itens não estão'} disponível agora.` : 'Pronto! Seu pedido está na sacola.', faltou ? 'info' : 'ok');
   }
 
-  function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
+  function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos, extras: ExtraBump[] = []) {
     if (!p.disponivel) return; // esgotado: só para ver
-    setCarrinho((c) => juntarNoCarrinho(c, p, qtd, obs, a));
-    toast(`${qtd}× ${nomeItem(p)} na sacola`, 'ok');
-    rastrear('AddToCart', (Number(p.preco) + (a?.extra ?? 0)) * qtd);
+    setCarrinho((c) => extras.reduce(juntarBump, juntarNoCarrinho(c, p, qtd, obs, a)));
+    const n = extras.reduce((s, e) => s + e.qtd, 0);
+    toast(`${qtd}× ${nomeItem(p)}${n ? ` + ${n} da oferta` : ''} na sacola`, 'ok');
+    rastrear('AddToCart', (Number(p.preco) + (a?.extra ?? 0)) * qtd + extras.reduce((s, e) => s + e.preco * e.qtd, 0));
   }
   const mudarQtd = (chave: string, qtd: number) =>
     setCarrinho((c) => (qtd <= 0 ? c.filter((l) => l.chave !== chave) : c.map((l) => (l.chave === chave ? { ...l, qtd } : l))));
@@ -355,7 +370,7 @@ export default function LojaCardapio() {
             return (
               <li key={l.chave} className="carrinho__linha">
                 <div className="carrinho__info">
-                  <strong>{nomeItem(p)}</strong>
+                  <strong>{nomeItem(p)}{l.bump_id && <em className="carrinho__oferta">Oferta</em>}</strong>
                   {l.texto && <small className="carrinho__adic">{l.texto}</small>}
                   {l.obs && <small>“{l.obs}”</small>}
                   <span>{brl(precoLinha(l, p) * l.qtd)}</span>
@@ -542,7 +557,8 @@ export default function LojaCardapio() {
           key={produtoAberto.id}
           p={produtoAberto}
           aoFechar={() => setProdutoAberto(null)}
-          aoAdicionar={(qtd, obs, a) => { adicionar(produtoAberto, qtd, obs, a); setProdutoAberto(null); }}
+          aoAdicionar={(qtd, obs, a, extras) => { adicionar(produtoAberto, qtd, obs, a, extras); setProdutoAberto(null); }}
+          oferta={ofertaAberta}
           jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
           grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados.adicionais_grupos, dados.produto_grupos)}
           semObs={loja.obs === false}
@@ -814,7 +830,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntr
       p_tipo: tipo,
       p_itens: carrinho.map((l) => {
         const p = porId.get(l.produto_id);
-        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [] };
+        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [], bump_id: l.bump_id ?? null };
       }),
       p_cliente: {
         nome: cli.nome, telefone: cli.telefone, pagamento: forma,

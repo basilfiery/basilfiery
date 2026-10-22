@@ -23,6 +23,8 @@ import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Es
 import { JogoMemoria } from './JogoMemoria';
 import { telefoneFormatado } from '../loja/ContaCliente';
 import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
+import { bumpsVistos, escolherBump, juntarBump, marcarBumpVisto, soltarBumpsSozinhos, type BumpCardapio, type ExtraBump, type OfertaBump, type SugestoesBump } from '../../lib/orderBump';
+import { CorpoOrderBump } from '../../componentes/OrderBump';
 import '../../estilos/mesa.css';
 
 /** Jogo da memória no topo do cardápio da mesa (para tirar: false). */
@@ -82,13 +84,30 @@ interface DadosMesa {
   produto_grupos?: Record<string, string[]>;
   /** A loja escolheu esconder os esgotados (Configurações › Cardápio digital) */
   ocultar_esgotados?: boolean;
+  /** Ofertas do Alavancar vendas (order bump) */
+  bumps?: BumpCardapio[];
+  bump_auto?: SugestoesBump;
 }
 
 /** Linha do carrinho. Com adicionais, guarda a escolha, o acréscimo e o texto para mostrar. */
-export interface Linha { chave: string; produto_id: string; qtd: number; obs: string; adicionais?: Escolha[]; extra?: number; texto?: string }
+export interface Linha {
+  chave: string; produto_id: string; qtd: number; obs: string; adicionais?: Escolha[]; extra?: number; texto?: string;
+  /** Veio de uma oferta (order bump): preço com o desconto dela */
+  bump_id?: string; preco_bump?: number;
+}
 
-/** Preço de uma unidade da linha (produto + adicionais). */
-export const precoLinha = (l: Linha, p?: ProdutoMesa) => (p ? Number(p.preco) + (l.extra ?? 0) : 0);
+/** Preço de uma unidade da linha (produto + adicionais; com o preço da oferta quando veio do order bump). */
+export const precoLinha = (l: Linha, p?: ProdutoMesa) => (p ? (l.preco_bump ?? Number(p.preco)) + (l.extra ?? 0) : 0);
+
+/** Ofertas do order bump para um item (mesa e delivery usam a mesma regra). */
+export function ofertaPara(p: ProdutoMesa, d: { bumps?: BumpCardapio[]; bump_auto?: SugestoesBump; categorias: CategoriaMesa[]; adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]> } | null,
+  produtos: ProdutoMesa[], carrinho: Linha[], canal: 'mesa' | 'delivery'): OfertaBump | null {
+  if (!d?.bumps?.length) return null;
+  return escolherBump({
+    produto: p, bumps: d.bumps, sugestoes: d.bump_auto, produtos, categorias: d.categorias,
+    grupos: d.adicionais_grupos, produtoGrupos: d.produto_grupos, canal, carrinho, jaVistas: bumpsVistos(),
+  });
+}
 
 /** Nova linha (ou soma na igual): mesma combinação de item, observação e adicionais. */
 export function juntarNoCarrinho(c: Linha[], p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos): Linha[] {
@@ -365,12 +384,23 @@ export default function Mesa() {
   const total = carrinho.reduce((s, l) => s + precoLinha(l, porId.get(l.produto_id)) * l.qtd, 0);
   const qtdItens = carrinho.reduce((s, l) => s + l.qtd, 0);
   const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
+  // Order bump: escolhida quando o item abre (não muda enquanto a janela está aberta)
+  const ofertaAberta = useMemo(
+    () => (produtoAberto ? ofertaPara(produtoAberto, dados, produtosMesa, carrinho, 'mesa') : null),
+    [produtoAberto?.id], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
-  function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
+  function adicionar(p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos, extras: ExtraBump[] = []) {
     if (!p.disponivel) return; // esgotado: só para ver
-    setCarrinho((c) => juntarNoCarrinho(c, p, qtd, obs, a));
-    toast(`${qtd}× ${nomeItem(p)} no seu pedido`, 'ok');
+    setCarrinho((c) => extras.reduce(juntarBump, juntarNoCarrinho(c, p, qtd, obs, a)));
+    const n = extras.reduce((s, e) => s + e.qtd, 0);
+    toast(`${qtd}× ${nomeItem(p)}${n ? ` + ${n} da oferta` : ''} no seu pedido`, 'ok');
   }
+  // Oferta só vale junto com outro item: se sobrar só ela, volta ao preço normal
+  useEffect(() => {
+    const ok = soltarBumpsSozinhos(carrinho);
+    if (ok !== carrinho) setCarrinho(ok);
+  }, [carrinho]);
 
   function mudarQtd(chave: string, qtd: number) {
     setCarrinho((c) => (qtd <= 0 ? c.filter((l) => l.chave !== chave) : c.map((l) => (l.chave === chave ? { ...l, qtd } : l))));
@@ -384,7 +414,7 @@ export default function Mesa() {
       p_dispositivo: dispositivo,
       p_itens: carrinho.map((l) => {
         const p = porId.get(l.produto_id);
-        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [] };
+        return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [], bump_id: l.bump_id ?? null };
       }),
       p_obs: obsPedido,
     });
@@ -528,7 +558,7 @@ export default function Mesa() {
               return (
                 <li key={l.chave} className="carrinho__linha">
                   <div className="carrinho__info">
-                    <strong>{nomeItem(p)}</strong>
+                    <strong>{nomeItem(p)}{l.bump_id && <em className="carrinho__oferta">Oferta</em>}</strong>
                     {l.texto && <small className="carrinho__adic">{l.texto}</small>}
                     {l.obs && <small>“{l.obs}”</small>}
                     <span>{brl(precoLinha(l, p) * l.qtd)}</span>
@@ -687,10 +717,11 @@ export default function Mesa() {
           key={produtoAberto.id}
           p={produtoAberto}
           aoFechar={() => setProdutoAberto(null)}
-          aoAdicionar={(qtd, obs, a) => {
-            adicionar(produtoAberto, qtd, obs, a);
+          aoAdicionar={(qtd, obs, a, extras) => {
+            adicionar(produtoAberto, qtd, obs, a, extras);
             setProdutoAberto(null);
           }}
+          oferta={ofertaAberta}
           jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
           grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados?.adicionais_grupos, dados?.produto_grupos)}
         />
@@ -939,16 +970,20 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
   );
 }
 
-export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, grupos = [] }: {
+export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, grupos = [], oferta }: {
   p: ProdutoMesa;
   aoFechar: () => void;
-  aoAdicionar: (qtd: number, obs: string, adicionais?: AdicionaisEscolhidos) => void;
+  aoAdicionar: (qtd: number, obs: string, adicionais?: AdicionaisEscolhidos, extras?: ExtraBump[]) => void;
   jaNoCarrinho: number;
   /** Loja desligou o campo de observação */
   semObs?: boolean;
   /** Grupos de adicionais ligados ao produto (ex.: Sabores) */
   grupos?: GrupoAdicionalMesa[];
+  /** Order bump: oferta que aparece depois de "Adicionar", antes de ir para o carrinho */
+  oferta?: OfertaBump | null;
 }) {
+  const [naOferta, setNaOferta] = useState(false);
+  const [extras, setExtras] = useState<Record<string, number>>({});
   const [qtd, setQtd] = useState(1);
   const [obs, setObs] = useState('');
   const [escolhas, setEscolhas] = useState<Escolha[]>([]);
@@ -994,8 +1029,25 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       subir();
       return;
     }
-    aoAdicionar(qtd, obs.trim(), grupos.length ? { escolhas, extra: calc.extra, texto: calc.texto } : undefined);
+    // Order bump: antes de ir para o carrinho, mostra a oferta (uma vez por visita)
+    if (oferta && !naOferta) {
+      setNaOferta(true);
+      marcarBumpVisto(oferta.bump.id);
+      void supabase.rpc('bump_exibido', { p_bump: oferta.bump.id }).then(() => undefined);
+      subir();
+      return;
+    }
+    finalizar(false);
   }
+
+  function finalizar(comOferta: boolean) {
+    const lista: ExtraBump[] = comOferta && oferta
+      ? oferta.itens.filter((i) => extras[i.p.id] > 0).map((i) => ({ p: i.p, qtd: extras[i.p.id], preco: i.preco, bump_id: oferta.bump.id }))
+      : [];
+    aoAdicionar(qtd, obs.trim(), grupos.length ? { escolhas, extra: calc.extra, texto: calc.texto } : undefined, lista);
+  }
+  const totalExtras = oferta ? oferta.itens.reduce((s, i) => s + i.preco * (extras[i.p.id] ?? 0), 0) : 0;
+  const qtdExtras = Object.values(extras).reduce((s, n) => s + n, 0);
 
   const grupo = (g: GrupoAdicionalMesa) => {
     const total = totalGrupo(g);
@@ -1053,12 +1105,20 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
   return (
     <Modal
       aberto
-      aoFechar={aoFechar}
-      classe="mesa-modal modal-produto"
+      // Fechou na tela da oferta: o item que ele já escolheu vai para o carrinho mesmo assim
+      aoFechar={naOferta ? () => finalizar(false) : aoFechar}
+      classe={cx('mesa-modal modal-produto', naOferta && 'modal-produto--oferta')}
       largura={620}
       rodape={
         <div className="modal-produto__rodape">
-          {!p.disponivel ? (
+          {naOferta && oferta ? (
+            <>
+              <button type="button" className="btn btn--contorno btn--lg obump__nao" onClick={() => finalizar(false)}>Não, obrigado</button>
+              <button type="button" className="btn btn--primario btn--lg obump__sim" disabled={qtdExtras === 0} onClick={() => finalizar(true)}>
+                {qtdExtras === 0 ? 'Escolha uma oferta' : `Adicionar tudo · ${brl(unitario * qtd + totalExtras)}`}
+              </button>
+            </>
+          ) : !p.disponivel ? (
             // Esgotado/indisponível: dá para ver tudo do item, mas não para pedir
             <div className="modal-produto__indisponivel" role="status">
               <Ban size={18} />
@@ -1087,6 +1147,14 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
         </div>
       }
     >
+      {naOferta && oferta ? (
+        <CorpoOrderBump
+          oferta={oferta}
+          escolhidos={extras}
+          aoMudar={(id, n) => setExtras((e) => ({ ...e, [id]: n }))}
+          item={{ nome: nomeItem(p) + (calc.texto ? ` (${calc.texto})` : ''), qtd, total: unitario * qtd, foto: p }}
+        />
+      ) : <>
       {etapa === 0 ? (
         <>
           <GaleriaProduto p={p} />
@@ -1131,6 +1199,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
           <textarea className="textarea" rows={2} maxLength={140} value={obs} onChange={(e) => setObs(e.target.value)} placeholder={p.dica_obs || sugerirObs(p.nome, p.prefixo, p.descricao)} />
         </label>
       )}
+      </>}
     </Modal>
   );
 }

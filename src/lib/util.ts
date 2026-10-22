@@ -79,6 +79,12 @@ export function mascaraPreco(txt: string): string {
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
+/** Zoom da página (o painel fica um pouco menor em telas de notebook; ver base.css). */
+export function zoomPagina() {
+  const z = parseFloat(getComputedStyle(document.documentElement).zoom);
+  return Number.isFinite(z) && z > 0 ? z : 1;
+}
+
 export const ordenarNome = <T extends { nome: string; ordem?: number }>(a: T, b: T) =>
   (a.ordem ?? 0) - (b.ordem ?? 0) || a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true });
 

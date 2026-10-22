@@ -1,0 +1,52 @@
+/* ================= Order bump (Alavancar vendas): oferta antes de ir para o carrinho ================= */
+.obump { display: grid; gap: 16px; animation: obump-entra .32s cubic-bezier(.2, .9, .3, 1.1); }
+@keyframes obump-entra { from { opacity: 0; transform: translateY(14px); } }
+.obump__item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px;
+  background: color-mix(in srgb, var(--ok) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line));
+}
+.obump__ok { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--ok); color: #fff; }
+.obump__item-foto { flex: none; width: 40px !important; height: 40px !important; border-radius: 10px; font-size: 1.3rem; overflow: hidden; }
+.obump__item-nome { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.obump__item-nome small { color: var(--muted); font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.obump__item-nome b { font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obump__item-preco { flex: none; font-size: .92rem; }
+
+.obump__cab { display: grid; gap: 6px; justify-items: start; }
+.obump__selo {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--acento) 22%, transparent), color-mix(in srgb, var(--acento) 10%, transparent));
+  color: var(--acento); font-size: .76rem; font-weight: 800; letter-spacing: .02em;
+}
+.obump__cab h2 { margin: 2px 0 0; font-family: var(--titulo); font-size: clamp(1.3rem, 4.6vw, 1.6rem); line-height: 1.15; letter-spacing: -.01em; }
+.obump__cab p { margin: 0; color: var(--muted); font-size: .92rem; line-height: 1.4; }
+
+.obump__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.obump__oferta {
+  position: relative; display: flex; align-items: center; gap: 6px; padding-right: 12px; border-radius: 16px;
+  border: 1.5px solid var(--line); background: var(--surface); transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.obump__oferta.marcada { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 7%, var(--surface)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 16%, transparent); }
+.obump__toque { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 0 10px 10px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.obump__foto { flex: none; width: 68px !important; height: 68px !important; border-radius: 12px; overflow: hidden; font-size: 1.9rem; }
+.obump__txt { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.obump__txt strong { font-size: .96rem; line-height: 1.25; }
+.obump__txt small { color: var(--muted); font-size: .8rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.obump__precos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; }
+.obump__precos s { color: var(--muted-2); font-size: .8rem; }
+.obump__precos em { font-style: normal; font-weight: 800; color: var(--acento); }
+.obump__precos i { font-style: normal; padding: 2px 6px; border-radius: 6px; background: var(--ok); color: #fff; font-size: .68rem; font-weight: 800; }
+.obump__mais {
+  flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; pointer-events: none;
+  background: var(--acento); color: #fff; box-shadow: 0 6px 14px color-mix(in srgb, var(--acento) 35%, transparent);
+}
+.obump__qtd { flex: none; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 12px; background: var(--acento); color: #fff; }
+.obump__qtd button { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; }
+.obump__qtd button:disabled { opacity: .5; }
+.obump__qtd span { min-width: 18px; text-align: center; font-weight: 800; }
+.modal-produto--oferta .modal-produto__rodape .obump__nao { flex: 0 1 150px; }
+.modal-produto--oferta .modal-produto__rodape .obump__sim { flex: 1 1 200px; }
+.carrinho__oferta {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 2px;
+  background: color-mix(in srgb, var(--acento) 18%, transparent); color: var(--acento); font-style: normal; font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em;
+}

@@ -367,6 +367,7 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, pedidos, ago
       aberto
       aoFechar={aoFechar}
       titulo={mesa.nome}
+      classe="gmesa"
       rodape={
         <>
           <a className="btn btn--contorno" href={`/mesa/${mesa.token}`} target="_blank" rel="noopener"><ExternalLink size={18} /> Lançar pedido</a>

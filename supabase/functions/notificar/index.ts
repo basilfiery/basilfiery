@@ -48,26 +48,38 @@ Deno.serve(async (req) => {
     if (!segredo || req.headers.get('x-segredo') !== segredo) return json({ erro: 'Não autorizado' }, 401);
 
     const p = await req.json();
-    const { data: inscricoes, error } = await admin
+    const { data: todas, error } = await admin
       .from('push_inscricoes')
-      .select('id, endpoint, p256dh, auth, app')
-      .eq('restaurante_id', p.restaurante_id);
+      .select('id, endpoint, p256dh, auth, app, user_id, criado_em')
+      .eq('restaurante_id', p.restaurante_id)
+      .order('criado_em', { ascending: false });
     if (error) throw error;
 
+    // Um aviso por pessoa e app: inscrições antigas do mesmo app (reinstalou, trocou de aparelho) não repetem o aviso
+    const vistos = new Set<string>();
+    const inscricoes = (todas ?? []).filter((s) => {
+      const chave = `${s.user_id ?? s.id}|${s.app ?? 'garcom'}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+    // Quem tem o app da equipe recebe o "Novo pedido" por ele; o app do dono só avisa pedido se a pessoa não tiver o outro
+    const temEquipe = new Set(inscricoes.filter((s) => s.app !== 'dono').map((s) => s.user_id));
+
     const mensagem = JSON.stringify({ titulo: p.titulo, corpo: p.corpo, tag: p.tag, url: p.url });
-    // App do dono: só as vendas, com texto de venda, e o toque abre o app do dono
+    // App do dono: pedido novo e venda (conta paga); o toque abre o app do dono
     const mensagemDono = JSON.stringify({
-      titulo: 'Nova venda! ' + (p.valor ?? ''),
-      corpo: p.mesa ? `${p.mesa} · toque para ver` : p.corpo,
+      titulo: p.evento === 'venda' ? p.titulo : `Novo pedido · ${p.mesa ?? ''}`,
+      corpo: p.evento === 'venda' ? p.corpo : `${p.valor ?? ''} · toque para ver`,
       tag: p.tag,
       url: '/dono',
     });
     let enviados = 0;
-    await Promise.all((inscricoes ?? []).map(async (s) => {
+    await Promise.all(inscricoes.map(async (s) => {
       const doDono = s.app === 'dono';
-      if (doDono && p.evento !== 'venda') return;
-      // Venda de balcão já entregue: só interessa ao dono
-      if (!doDono && p.so_dono) return;
+      if (doDono && p.evento !== 'venda' && !(p.evento === 'pedido' && !temEquipe.has(s.user_id))) return;
+      // Venda (conta paga) só interessa ao dono
+      if (!doDono && p.evento === 'venda') return;
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

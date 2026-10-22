@@ -14,7 +14,7 @@ import { PedidoCard } from '../../componentes/PedidoCard';
 import { useToast } from '../../componentes/Toast';
 import { ativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
-import { REPETIR_CHAMADO_MS, definirSom, somLigado, tocarAlerta, tocarChamadoUmaVez } from '../../lib/som';
+import { REPETIR_CHAMADO_MS, definirSom, somLigado, tocarAlerta, tocarChamadoUmaVez, vibrar } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Mesa, MesaAcesso, Pedido, RestauranteComPapel, StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
@@ -447,7 +447,7 @@ function QrMesa({ restaurante, mesa, mesas, pendentes, aoResponder }: {
   // Cliente acabou de escanear: vibra para o garçom perceber
   const antes = useRef(pendentes.length);
   useEffect(() => {
-    if (pendentes.length > antes.current && 'vibrate' in navigator) navigator.vibrate?.([120, 60, 120]);
+    if (pendentes.length > antes.current) vibrar([120, 60, 120]);
     antes.current = pendentes.length;
   }, [pendentes.length]);
 

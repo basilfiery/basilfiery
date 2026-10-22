@@ -9,7 +9,7 @@ import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { useAppInstalavel } from '../../lib/manifesto';
-import { msgErro, supabase } from '../../lib/supabase';
+import { msgErro, rpcSeguro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco, useAgora } from '../../lib/util';
 import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, ofertaPara, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import { juntarBump, soltarBumpsSozinhos, visitaLoja, type BumpCardapio, type ExtraBump, type SugestoesBump } from '../../lib/orderBump';
@@ -825,7 +825,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntr
     setEnviando(true);
     ls.gravar('bf:loja:cliente', cli);
     // Pelo cliente: com conta, o pedido fica ligado a ela (Meus pedidos / Pedir de novo)
-    const { data, error } = await supabaseCliente.rpc('loja_pedido_enviar', {
+    const { data, error } = await rpcSeguro(supabaseCliente, 'loja_pedido_enviar', {
       p_codigo: codigo,
       p_tipo: tipo,
       p_itens: carrinho.map((l) => {

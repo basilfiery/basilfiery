@@ -156,3 +156,18 @@ export async function enviarVideo(restauranteId: string, arquivo: File, pasta: s
   const tipo = /^(mov|qt)$/.test(ext) || arquivo.type === 'video/quicktime' ? 'video/mp4' : arquivo.type || 'video/mp4';
   return subir(`${restauranteId}/${pasta}/${crypto.randomUUID()}.${ext}`, arquivo, tipo);
 }
+
+/**
+ * Chama a função do banco e tenta de novo quando o banco pede (casa cheia: "deadlock"/"serialize").
+ * Nesses casos nada foi gravado, então repetir é seguro — o pedido do cliente não se perde.
+ */
+export async function rpcSeguro<T = unknown>(cliente: SupabaseClient, nome: string, args: Record<string, unknown>) {
+  let ultimo: { data: T | null; error: { message: string } | null } = { data: null, error: null };
+  for (let tentativa = 0; tentativa < 4; tentativa++) {
+    const r = await cliente.rpc(nome, args);
+    ultimo = { data: r.data as T | null, error: r.error };
+    if (!r.error || !/deadlock|could not serialize|40P01|40001/i.test(`${r.error.message} ${(r.error as { code?: string }).code ?? ''}`)) break;
+    await new Promise((ok) => setTimeout(ok, 150 + Math.random() * 350 * (tentativa + 1)));
+  }
+  return ultimo;
+}

@@ -7,7 +7,7 @@ import { Modal } from '../../componentes/Modal';
 import { IconeForma } from '../../componentes/Pagamento';
 import { useToast } from '../../componentes/Toast';
 import { imprimirPedido } from '../../lib/impressao';
-import { msgErro, supabase } from '../../lib/supabase';
+import { msgErro, supabase, rpcSeguro } from '../../lib/supabase';
 import type { FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
 import { brl, cx, lerPreco, mascaraPreco, podeCaixa, precoParaTexto } from '../../lib/util';
 import { ModalProduto, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type CategoriaMesa, type Linha, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
@@ -168,7 +168,7 @@ export default function Pdv() {
       return;
     }
     setEnviando(true);
-    const { data, error } = await supabase.rpc('pdv_vender', {
+    const { data, error } = await rpcSeguro(supabase, 'pdv_vender', {
       p_rest: r.id,
       p_itens: linhas.map((l) => {
         const p = porId.get(l.produto_id);

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, Footprints, RotateCcw, Sparkles, Trophy } from 'lucide-react';
 import { Modal } from '../../componentes/Modal';
 import { cx, ls } from '../../lib/util';
+import { vibrar } from '../../lib/som';
 
 /* =====================================================================
    Jogo da memória para passar o tempo enquanto o pedido fica pronto.
@@ -62,7 +63,7 @@ export function JogoMemoria({ aoFechar }: { aoFechar: () => void }) {
     const melhor = !atual || jogadas < atual.jogadas || (jogadas === atual.jogadas && segundos < atual.segundos);
     if (melhor) ls.gravar('bf:jogo:recordes', { ...recordes, [nivel]: { jogadas, segundos } });
     setNovoRecorde(melhor);
-    if ('vibrate' in navigator) navigator.vibrate?.([60, 40, 60, 40, 120]);
+    vibrar([60, 40, 60, 40, 120]);
   }, [venceu]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function reiniciar(n: Nivel = nivel) {
@@ -91,7 +92,7 @@ export function JogoMemoria({ aoFechar }: { aoFechar: () => void }) {
       setAbertas([]);
       setAcertou(c.id);
       setTimeout(() => setAcertou(null), 600);
-      if ('vibrate' in navigator) navigator.vibrate?.(30);
+      vibrar(30);
     } else {
       travado.current = true;
       setAbertas(novas);

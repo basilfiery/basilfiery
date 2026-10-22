@@ -15,6 +15,12 @@ export function destravarSom() {
 }
 
 export const somLigado = () => ls.ler('bf:som', true);
+
+/** Vibra o celular — só depois que a pessoa já tocou na tela (antes disso o navegador bloqueia e reclama no console). */
+export function vibrar(padrao: number | number[]) {
+  const ativo = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? true;
+  if (ativo && 'vibrate' in navigator) navigator.vibrate?.(padrao);
+}
 export const definirSom = (v: boolean) => ls.gravar('bf:som', v);
 
 const MELODIAS = {
@@ -44,7 +50,7 @@ export function tocarAlerta(tipo: keyof typeof MELODIAS = 'pedido') {
     osc.start(t);
     osc.stop(t + dur + 0.01);
   });
-  if ('vibrate' in navigator) navigator.vibrate?.([200, 100, 200]);
+  vibrar([200, 100, 200]);
 }
 
 /** Confirmação discreta de "pedido enviado" (cliente): duas notas suaves, curtinhas. */
@@ -55,7 +61,7 @@ export function tocarEnviado() {
   const t = c.currentTime + 0.02;
   nota(c, t, 1046.5, 0.32, 'sine', 0.22, [[2, 0.03]]);
   nota(c, t + 0.12, 1568, 0.55, 'sine', 0.2, [[2, 0.025]]);
-  if ('vibrate' in navigator) navigator.vibrate?.(35);
+  vibrar(35);
 }
 
 /** Aviso ao cliente (ex.: item cancelado): duas notas descendo, suaves, chamam a atenção sem assustar. */
@@ -66,7 +72,7 @@ export function tocarAviso() {
   const t = c.currentTime + 0.02;
   nota(c, t, 1318.5, 0.4, 'sine', 0.22, [[2, 0.03]]);
   nota(c, t + 0.16, 987.8, 0.6, 'sine', 0.2, [[2, 0.025]]);
-  if ('vibrate' in navigator) navigator.vibrate?.([120, 80, 120]);
+  vibrar([120, 80, 120]);
 }
 
 /* ---------- Toques do "chamar garçom" (escolhidos pelo restaurante) ---------- */
@@ -156,7 +162,7 @@ export function tocarChamado(som: SomChamado | string | null | undefined = 'camp
     default: // sino de garçom (campainha de balcão): um "ding"
       sinoDeBalcao(c, t, 1);
   }
-  if (!teste && 'vibrate' in navigator) navigator.vibrate?.([200, 100, 200, 100, 300]);
+  if (!teste) vibrar([200, 100, 200, 100, 300]);
 }
 
 /**
@@ -211,5 +217,5 @@ export function tocarVenda() {
   const t = c.currentTime + 0.02;
   nota(c, t, 1975.5, 0.5, 'sine', 0.35, [[2.01, 0.08]]);
   nota(c, t + 0.09, 2637, 0.7, 'sine', 0.3, [[2.01, 0.06]]);
-  if ('vibrate' in navigator) navigator.vibrate?.([60, 40, 60]);
+  vibrar([60, 40, 60]);
 }

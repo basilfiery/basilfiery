@@ -10,7 +10,7 @@ import { Carregando } from '../../componentes/Carregando';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
 import { descreverAparelho, idDispositivo } from '../../lib/dispositivo';
-import { msgErro, supabase } from '../../lib/supabase';
+import { msgErro, rpcSeguro, supabase } from '../../lib/supabase';
 import type { StatusPedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
 import { useNovaVersao } from '../../lib/versao';
@@ -418,7 +418,7 @@ export default function Mesa() {
   async function enviar() {
     destravarSom(); // ainda dentro do toque: libera o áudio do celular
     setEnviando(true);
-    const { data, error } = await supabase.rpc('mesa_pedido_enviar', {
+    const { data, error } = await rpcSeguro(supabase, 'mesa_pedido_enviar', {
       p_token: token,
       p_dispositivo: dispositivo,
       p_itens: carrinho.map((l) => {

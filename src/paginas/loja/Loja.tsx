@@ -375,7 +375,7 @@ export default function LojaCardapio() {
                   {l.obs && <small>“{l.obs}”</small>}
                   <span>{brl(precoLinha(l, p) * l.qtd)}</span>
                 </div>
-                <div className="carrinho__qtd"><Stepper valor={l.qtd} min={0} max={p.estoque_max ?? 50} aoMudar={(v) => mudarQtd(l.chave, v)} /></div>
+                <div className="carrinho__qtd"><Stepper valor={l.qtd} min={0} max={l.bump_id ? (l.max_bump ?? 1) : p.estoque_max ?? 50} aoMudar={(v) => mudarQtd(l.chave, v)} /></div>
               </li>
             );
           })}

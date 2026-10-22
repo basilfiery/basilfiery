@@ -17,6 +17,7 @@ export function CorpoOrderBump({ oferta, escolhidos, aoMudar, item }: {
   const { bump, itens } = oferta;
   const selo = rotuloDesconto(bump.desconto_tipo, Number(bump.desconto_valor));
   const temDesconto = itens.some((i) => i.preco < i.precoDe);
+  const maxQtd = Math.max(1, bump.max_qtd ?? 1);
   return (
     <div className="obump">
       {item && (
@@ -59,13 +60,13 @@ export function CorpoOrderBump({ oferta, escolhidos, aoMudar, item }: {
                   </span>
                   <span className="obump__check" aria-hidden="true">{n > 0 ? <Check size={18} strokeWidth={3} /> : <Plus size={18} strokeWidth={2.6} />}</span>
                 </button>
-                {n > 0 && (
+                {n > 0 && maxQtd > 1 && (
                   <div className="obump__qtd-linha">
-                    <span>Quantidade</span>
+                    <span>Quantidade <small>(até {maxQtd})</small></span>
                     <div className="obump__qtd">
                       <button type="button" onClick={() => aoMudar(p.id, n - 1)} aria-label={`Menos ${p.nome}`}><Minus size={15} /></button>
                       <span>{n}</span>
-                      <button type="button" disabled={n >= 10} onClick={() => aoMudar(p.id, n + 1)} aria-label={`Mais ${p.nome}`}><Plus size={15} /></button>
+                      <button type="button" disabled={n >= maxQtd} onClick={() => aoMudar(p.id, n + 1)} aria-label={`Mais ${p.nome}`}><Plus size={15} /></button>
                     </div>
                   </div>
                 )}

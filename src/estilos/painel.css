@@ -2980,4 +2980,19 @@
 .rm-busca input { width: 130px; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: .88rem; }
 .rm-comandas td { white-space: nowrap; }
 .lateral__item .lateral__novo { margin-left: auto; }
+
+/* Mesas › janela da mesa: chamado com botão "Atendido" */
+.mesa-chamado {
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--fire) 40%, var(--line)); background: color-mix(in srgb, var(--fire) 7%, var(--surface));
+  transition: opacity .2s;
+}
+.mesa-chamado--conta { border-color: color-mix(in srgb, var(--info) 40%, var(--line)); background: color-mix(in srgb, var(--info) 7%, var(--surface)); }
+.mesa-chamado--ok { opacity: .5; }
+.mesa-chamado__icone { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: var(--fire); color: #fff; }
+.mesa-chamado--conta .mesa-chamado__icone { background: var(--info); }
+.mesa-chamado__txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.mesa-chamado__txt b { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mesa-chamado__txt small { color: var(--muted); font-size: .76rem; }
+.mesa-chamado .btn { flex: none; }
 .rm-forma { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: .76rem; font-weight: 600; }

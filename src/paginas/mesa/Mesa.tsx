@@ -94,6 +94,8 @@ export interface Linha {
   chave: string; produto_id: string; qtd: number; obs: string; adicionais?: Escolha[]; extra?: number; texto?: string;
   /** Veio de uma oferta (order bump): preço com o desconto dela */
   bump_id?: string; preco_bump?: number;
+  /** Até quantas unidades a oferta vale */
+  max_bump?: number;
 }
 
 /** Preço de uma unidade da linha (produto + adicionais; com o preço da oferta quando veio do order bump). */
@@ -571,7 +573,7 @@ export default function Mesa() {
                     <span>{brl(precoLinha(l, p) * l.qtd)}</span>
                   </div>
                   <div className="carrinho__qtd">
-                    <Stepper valor={l.qtd} min={0} max={p.estoque_max ?? 50} aoMudar={(v) => mudarQtd(l.chave, v)} />
+                    <Stepper valor={l.qtd} min={0} max={l.bump_id ? (l.max_bump ?? 1) : p.estoque_max ?? 50} aoMudar={(v) => mudarQtd(l.chave, v)} />
                   </div>
                 </li>
               );
@@ -1049,7 +1051,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
 
   function finalizar(comOferta: boolean, escolha = extras) {
     const lista: ExtraBump[] = comOferta && oferta
-      ? oferta.itens.filter((i) => escolha[i.p.id] > 0).map((i) => ({ p: i.p, qtd: escolha[i.p.id], preco: i.preco, bump_id: oferta.bump.id }))
+      ? oferta.itens.filter((i) => escolha[i.p.id] > 0).map((i) => ({ p: i.p, qtd: escolha[i.p.id], preco: i.preco, bump_id: oferta.bump.id, max: oferta.bump.max_qtd ?? 1 }))
       : [];
     aoAdicionar(qtd, obs.trim(), grupos.length ? { escolhas, extra: calc.extra, texto: calc.texto } : undefined, lista);
   }

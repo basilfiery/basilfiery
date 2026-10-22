@@ -327,8 +327,19 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   const [ativo, setAtivo] = useState(mesa.ativo);
   const [ocupado, setOcupado] = useState(false);
   const [trocando, setTrocando] = useState(false);
+  const [atendidos, setAtendidos] = useState<string[]>([]);
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
   const { restaurante } = usePainel();
+
+  async function atender(c: Chamado) {
+    setAtendidos((l) => [...l, c.id]);
+    const { error } = await supabase.rpc('chamado_atender', { p_chamado: c.id });
+    if (error) {
+      setAtendidos((l) => l.filter((x) => x !== c.id));
+      return toast(msgErro(error), 'erro');
+    }
+    toast(`${mesa.nome} atendida.`, 'ok');
+  }
   const link = linkMesa(restaurante, { ...mesa, token }, mesas);
 
   async function fecharConta(forma: FormaPagamento) {
@@ -373,10 +384,15 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
     <Modal aberto aoFechar={aoFechar} titulo={mesa.nome} largura={560}>
       <section className="bloco">
         <h3>Conta aberta</h3>
+        {/* Chamados da mesa: marcar "Atendido" aqui mesmo, mesa por mesa */}
         {chamados.map((c) => (
-          <span key={c.id} className={`badge badge--icone ${c.tipo === 'conta' ? 'badge--azul' : 'badge--laranja'}`}>
-            {c.tipo === 'conta' ? <Receipt size={13} /> : <ConciergeBell size={13} />} {descreverChamado(c)}
-          </span>
+          <div key={c.id} className={cx('mesa-chamado', c.tipo === 'conta' && 'mesa-chamado--conta', atendidos.includes(c.id) && 'mesa-chamado--ok')}>
+            <span className="mesa-chamado__icone">{c.tipo === 'conta' ? <Receipt size={16} /> : <ConciergeBell size={16} />}</span>
+            <span className="mesa-chamado__txt"><b>{descreverChamado(c)}</b><small>{tempoDesde(c.criado_em, Date.now()) === 'agora' ? 'agora mesmo' : `há ${tempoDesde(c.criado_em, Date.now())}`}</small></span>
+            <button className="btn btn--sucesso btn--sm" onClick={() => void atender(c)} disabled={atendidos.includes(c.id)}>
+              <Check size={15} /> Atendido
+            </button>
+          </div>
         ))}
         {pedidos.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>Nenhum pedido em aberto.</p>

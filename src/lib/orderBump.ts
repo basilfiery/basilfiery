@@ -22,6 +22,8 @@ export interface BumpCardapio {
   ofertas_modo: 'manual' | 'automatico';
   ofertas: string[];
   max_ofertas: number;
+  /** Unidades de cada item que o cliente pode levar (1 = sem botão de quantidade) */
+  max_qtd?: number;
   desconto_tipo: DescontoBump;
   desconto_valor: number;
   canais: CanalBump[];
@@ -33,7 +35,7 @@ export interface SugestoesBump { juntos?: Record<string, string[]>; mais_vendido
 export interface ItemOferta { p: ProdutoMesa; preco: number; precoDe: number }
 export interface OfertaBump { bump: BumpCardapio; itens: ItemOferta[]; escopo?: EscopoBump }
 /** Item da oferta que o cliente aceitou */
-export interface ExtraBump { p: ProdutoMesa; qtd: number; preco: number; bump_id: string }
+export interface ExtraBump { p: ProdutoMesa; qtd: number; preco: number; bump_id: string; max: number }
 
 export const semAcento = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
@@ -147,14 +149,14 @@ export function escolherBump(x: Contexto): OfertaBump | null {
 export function juntarBump(c: Linha[], e: ExtraBump): Linha[] {
   const chave = `${e.p.id}|bump:${e.bump_id}`;
   return c.some((l) => l.chave === chave)
-    ? c.map((l) => (l.chave === chave ? { ...l, qtd: Math.min(20, l.qtd + e.qtd) } : l))
-    : [...c, { chave, produto_id: e.p.id, qtd: e.qtd, obs: '', bump_id: e.bump_id, preco_bump: e.preco }];
+    ? c.map((l) => (l.chave === chave ? { ...l, qtd: Math.min(e.max, l.qtd + e.qtd) } : l))
+    : [...c, { chave, produto_id: e.p.id, qtd: Math.min(e.max, e.qtd), obs: '', bump_id: e.bump_id, preco_bump: e.preco, max_bump: e.max }];
 }
 
 /** Oferta só vale junto com outro item: se sobrou só item de oferta, volta ao preço normal. */
 export function soltarBumpsSozinhos(c: Linha[]): Linha[] {
   if (!c.length || c.some((l) => !l.bump_id)) return c;
-  return c.map((l) => ({ ...l, bump_id: undefined, preco_bump: undefined, chave: l.chave.replace(/\|bump:.*/, '|') }));
+  return c.map((l) => ({ ...l, bump_id: undefined, preco_bump: undefined, max_bump: undefined, chave: l.chave.replace(/\|bump:.*/, '|') }));
 }
 
 /**

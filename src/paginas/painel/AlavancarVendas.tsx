@@ -39,6 +39,7 @@ interface OrderBump {
   ofertas_modo: 'manual' | 'automatico';
   ofertas: string[];
   max_ofertas: number;
+  max_qtd: number;
   desconto_tipo: DescontoBump;
   desconto_valor: number;
   canais: CanalBump[];
@@ -76,9 +77,9 @@ function comoCardapio(p: Produto, cats: Map<string, Categoria>): ProdutoMesa {
   };
 }
 
-const paraCardapio = (b: Pick<OrderBump, 'id' | 'titulo' | 'subtitulo' | 'gatilho' | 'gatilho_categorias' | 'gatilho_produtos' | 'gatilho_palavras' | 'ofertas_modo' | 'ofertas' | 'max_ofertas' | 'desconto_tipo' | 'desconto_valor' | 'canais'>): BumpCardapio => ({
+const paraCardapio = (b: Pick<OrderBump, 'id' | 'titulo' | 'subtitulo' | 'gatilho' | 'gatilho_categorias' | 'gatilho_produtos' | 'gatilho_palavras' | 'ofertas_modo' | 'ofertas' | 'max_ofertas' | 'max_qtd' | 'desconto_tipo' | 'desconto_valor' | 'canais'>): BumpCardapio => ({
   id: b.id, titulo: b.titulo || 'Que tal levar junto?', subtitulo: b.subtitulo, gatilho: b.gatilho, categorias: b.gatilho_categorias, produtos: b.gatilho_produtos,
-  palavras: b.gatilho_palavras, ofertas_modo: b.ofertas_modo, ofertas: b.ofertas, max_ofertas: b.max_ofertas, desconto_tipo: b.desconto_tipo,
+  palavras: b.gatilho_palavras, ofertas_modo: b.ofertas_modo, ofertas: b.ofertas, max_ofertas: b.max_ofertas, max_qtd: b.max_qtd, desconto_tipo: b.desconto_tipo,
   desconto_valor: Number(b.desconto_valor), canais: b.canais,
 });
 
@@ -231,6 +232,7 @@ export default function AlavancarVendas() {
                   <div className="ab-bump__chips">
                     <span className="ab-chip"><Sparkles size={13} /> {onde(b)}</span>
                     {selo && <span className="ab-chip ab-chip--ok">{selo} na oferta</span>}
+                    {b.max_qtd > 1 && <span className="ab-chip">Até {b.max_qtd} un. por item</span>}
                     {b.canais.length < 2 && <span className="ab-chip">{b.canais[0] === 'mesa' ? <><UtensilsCrossed size={13} /> Só na mesa</> : <><Bike size={13} /> Só no delivery</>}</span>}
                   </div>
                   <div className="ab-bump__ofertas">
@@ -308,7 +310,7 @@ function modelos(itens: ProdutoMesa[], cats: Categoria[]) {
   };
   const bebidas = daCategoria(/bebida|refri|suco|drink|cerveja/);
   const doces = daCategoria(/sobremesa|doce|sorvete/);
-  const base = { ativo: true, canais: ['mesa', 'delivery'] as CanalBump[], max_ofertas: 3, desconto_tipo: 'nenhum' as DescontoBump, desconto_valor: 0, gatilho_categorias: [], gatilho_produtos: [], gatilho_palavras: [], subtitulo: null };
+  const base = { ativo: true, canais: ['mesa', 'delivery'] as CanalBump[], max_ofertas: 3, max_qtd: 1, desconto_tipo: 'nenhum' as DescontoBump, desconto_valor: 0, gatilho_categorias: [], gatilho_produtos: [], gatilho_palavras: [], subtitulo: null };
   return [
     {
       chave: 'auto', icone: <Wand2 size={20} />, titulo: 'Deixe o sistema vender', texto: 'Automático: oferece o que mais sai junto com cada item.',
@@ -353,6 +355,7 @@ function EditorBump({ inicial, restauranteId, proxima, cats, itens, obrigatorios
     ofertas_modo: inicial.ofertas_modo ?? 'manual' as 'manual' | 'automatico',
     ofertas: inicial.ofertas ?? [],
     max_ofertas: inicial.max_ofertas ?? 3,
+    max_qtd: inicial.max_qtd ?? 1,
     desconto_tipo: inicial.desconto_tipo ?? 'nenhum' as DescontoBump,
     desconto: inicial.desconto_valor ? (inicial.desconto_tipo === 'valor' ? mascaraPreco(String(Math.round(Number(inicial.desconto_valor) * 100))) : String(inicial.desconto_valor)) : '',
     canais: inicial.canais ?? ['mesa', 'delivery'] as CanalBump[],
@@ -374,7 +377,7 @@ function EditorBump({ inicial, restauranteId, proxima, cats, itens, obrigatorios
 
   const rascunho: BumpCardapio = paraCardapio({
     id: inicial.id ?? 'previa', titulo: f.titulo, subtitulo: f.subtitulo.trim() || null, gatilho: f.gatilho, gatilho_categorias: f.categorias,
-    gatilho_produtos: f.produtos, gatilho_palavras: palavras, ofertas_modo: f.ofertas_modo, ofertas: f.ofertas, max_ofertas: f.max_ofertas,
+    gatilho_produtos: f.produtos, gatilho_palavras: palavras, ofertas_modo: f.ofertas_modo, ofertas: f.ofertas, max_ofertas: f.max_ofertas, max_qtd: f.max_qtd,
     desconto_tipo: f.desconto_tipo, desconto_valor: valorDesconto, canais: f.canais,
   });
   const produtoGrupos = useMemo(() => Object.fromEntries([...obrigatorios].map((id) => [id, ['obrigatorio']])), [obrigatorios]);
@@ -424,6 +427,7 @@ function EditorBump({ inicial, restauranteId, proxima, cats, itens, obrigatorios
       ofertas_modo: f.ofertas_modo,
       ofertas: f.ofertas_modo === 'manual' ? f.ofertas : [],
       max_ofertas: f.max_ofertas,
+      max_qtd: f.max_qtd,
       desconto_tipo: f.desconto_tipo,
       desconto_valor: f.desconto_tipo === 'nenhum' ? 0 : valorDesconto,
       canais: f.canais,
@@ -559,6 +563,11 @@ function EditorBump({ inicial, restauranteId, proxima, cats, itens, obrigatorios
               <span>Mostrar até</span>
               {[1, 2, 3, 4].map((n) => <button key={n} type="button" className={cx(f.max_ofertas === n && 'ativo')} onClick={() => set('max_ofertas', n)}>{n}</button>)}
               <span>{f.max_ofertas === 1 ? 'item' : 'itens'} por vez</span>
+            </div>
+            <div className="ab-max">
+              <span>Cada item até</span>
+              {[1, 2, 3, 5, 10].map((n) => <button key={n} type="button" className={cx(f.max_qtd === n && 'ativo')} onClick={() => set('max_qtd', n)}>{n}</button>)}
+              <span>{f.max_qtd === 1 ? 'unidade (sem botão de quantidade)' : 'unidades com desconto'}</span>
             </div>
           </section>
 

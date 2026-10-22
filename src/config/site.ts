@@ -25,21 +25,21 @@ export const SITE = {
   planos: [
     {
       nome: 'Start',
-      preco: 'R$ 149',
+      preco: 'R$ 97,00',
       periodo: '/mês',
       descricao: 'Para começar a vender pelo tablet.',
       itens: ['Até 10 mesas', 'Cardápio no tablet', 'Painel de pedidos ao vivo', 'Impressão automática no caixa', 'Aviso no celular do garçom', 'Cardápio em basilfiery.com.br/assinante/sua-loja'],
       destaque: false,
-      checkout: '',
+      checkout: 'https://pay.kirvano.com/e5251ee3-142f-4c09-bf69-ca63de7a9975',
     },
     {
       nome: 'Premium',
-      preco: 'R$ 249',
+      preco: 'R$ 297,00',
       periodo: '/mês',
       descricao: 'Para a casa cheia todos os dias.',
       itens: ['Até 30 mesas', 'Tudo do Start', 'Domínio próprio (suapizzaria.com.br)', 'Controle de estoque', 'Equipe com cargos e permissões', 'Fotos nos pratos'],
       destaque: true,
-      checkout: '',
+      checkout: 'https://pay.kirvano.com/56b1f204-010b-41cc-81df-127e8eeded2c',
     },
     {
       nome: 'Rede',

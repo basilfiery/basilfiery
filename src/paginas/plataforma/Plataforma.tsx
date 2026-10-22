@@ -255,7 +255,7 @@ function ModalCobranca({ restaurante: r, aoFechar, aoSalvar }: { restaurante: Re
       <div className="form">
         <h3 style={{ margin: 0, fontSize: '1rem' }}>Plano</h3>
         <div className="form-linha">
-          <Campo rotulo="Valor mensal (R$)"><input className="input" inputMode="decimal" value={plano.valor} onChange={(e) => setPlano({ ...plano, valor: mascaraPreco(e.target.value) })} placeholder="149,00" /></Campo>
+          <Campo rotulo="Valor mensal (R$)"><input className="input" inputMode="decimal" value={plano.valor} onChange={(e) => setPlano({ ...plano, valor: mascaraPreco(e.target.value) })} placeholder="97,00" /></Campo>
           <Campo rotulo="Vencimento do plano"><input className="input" type="date" value={plano.vence} onChange={(e) => setPlano({ ...plano, vence: e.target.value })} /></Campo>
           <Campo rotulo="Forma de pagamento">
             <select className="select" value={plano.forma} onChange={(e) => setPlano({ ...plano, forma: e.target.value })}>

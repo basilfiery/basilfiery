@@ -479,7 +479,9 @@
   .sv-nav { padding: 8px 10px; }
   .sv-nav--rolou { padding-top: 8px; }
   .sv-nav__in { gap: 8px; padding: 6px; border-radius: 16px; }
-  .sv-nav__marca { gap: 6px; }
+  /* Logo centralizada no espaço entre o menu e os botões */
+  .sv-nav__marca { flex: 1; gap: 6px; }
+  .sv-nav__marca .sv-marca { margin: 0 auto; }
   .sv-nav__menu { width: 38px; height: 38px; border-radius: 11px; }
   .sv-marca { min-width: 0; }
   .sv-marca img { height: 36px; max-width: 100%; object-fit: contain; }

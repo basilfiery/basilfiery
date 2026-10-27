@@ -89,8 +89,15 @@ function RotasDominio() {
   );
 }
 
+/** Trocou de página: começa do topo (sem herdar a rolagem da página anterior). */
+function useTopoAoNavegar() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+}
+
 export default function App() {
   usePrecarregarPainel();
+  useTopoAoNavegar();
   if (DOMINIO_PROPRIO) return <RotasDominio />;
   return (
     <Suspense fallback={<Carregando />}>

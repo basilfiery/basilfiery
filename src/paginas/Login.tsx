@@ -12,7 +12,10 @@ import '../estilos/login.css';
 
 type Modo = 'entrar' | 'esqueci' | 'enviado' | 'nova-senha';
 
-const SUPORTE = SITE.whatsappVendas ? `https://wa.me/${SITE.whatsappVendas}?text=${encodeURIComponent(`Olá! Preciso de ajuda para entrar no ${SITE.marca}.`)}` : '';
+/** Celular/tablet: sem foco automático (o iPhone rola a tela até o campo e a página abre "descida"). */
+const TOQUE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
+const SUPORTE =SITE.whatsappVendas ? `https://wa.me/${SITE.whatsappVendas}?text=${encodeURIComponent(`Olá! Preciso de ajuda para entrar no ${SITE.marca}.`)}` : '';
 
 /** Sessão só até fechar o navegador quando "Manter conectado" está desmarcado (o index.html limpa ao abrir de novo). */
 function lembrarSessao(manter: boolean) {
@@ -120,7 +123,7 @@ export default function Login() {
           <div className="lg-campos">
             {modo !== 'nova-senha' && (
               <Campo rotulo="E-mail" icone={<Mail size={18} />}>
-                <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@restaurante.com.br" autoFocus />
+                <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@restaurante.com.br" autoFocus={!TOQUE} />
               </Campo>
             )}
             {modo !== 'esqueci' && (

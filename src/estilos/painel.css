@@ -3059,3 +3059,76 @@
 .mc--novo { box-shadow: 0 0 0 2px var(--fire), 0 10px 26px -10px color-mix(in srgb, var(--fire) 60%, transparent) !important; animation: mc-novo 1.6s ease-in-out infinite; }
 @keyframes mc-novo { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--fire) 35%, transparent), 0 10px 26px -10px color-mix(in srgb, var(--fire) 60%, transparent); } }
 .mc__novo { background: var(--fire) !important; color: #fff !important; border-color: transparent !important; }
+
+/* =====================================================================
+   Seletor de período (relatórios): botão + calendário com atalhos
+   ===================================================================== */
+.rl-cab__dir { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.sp { position: relative; }
+.sp-fundo { display: none; }
+.sp-botao {
+  display: inline-flex; align-items: center; gap: 9px; height: 42px; padding: 0 12px 0 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: .9rem; font-weight: 600; white-space: nowrap; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04); transition: border-color .15s, box-shadow .15s;
+}
+.sp-botao > svg:first-child { color: var(--acento); }
+.sp-botao:hover, .sp-botao.aberto { border-color: color-mix(in srgb, var(--acento) 55%, var(--line)); }
+.sp-botao.aberto { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 16%, transparent); }
+.sp-botao__seta { color: var(--muted); transition: transform .2s; }
+.sp-botao.aberto .sp-botao__seta { transform: rotate(180deg); }
+
+.sp-pop {
+  position: absolute; z-index: 60; top: calc(100% + 8px); right: 0; display: grid; grid-template-columns: 330px 196px;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 24px 60px -12px rgba(0, 0, 0, .28), 0 4px 14px rgba(0, 0, 0, .06);
+  overflow: hidden; animation: sp-entra .16s ease-out;
+}
+@keyframes sp-entra { from { opacity: 0; transform: translateY(-6px); } }
+.sp-cal { display: flex; flex-direction: column; padding: 16px 16px 0; }
+.sp-cal__topo { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.sp-nav { flex: none; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; }
+.sp-nav:hover { background: var(--hover); }
+.sp-sel {
+  flex: 1; min-width: 0; height: 34px; padding: 0 10px; border: 0; border-radius: 10px; background: var(--hover); color: var(--text);
+  font: inherit; font-size: .88rem; font-weight: 700; text-align: center; text-align-last: center; cursor: pointer; appearance: none;
+}
+.sp-sel:focus-visible { outline: 2px solid var(--acento); }
+.sp-grade { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 4px; }
+.sp-semana { padding: 6px 0 8px; text-align: center; color: var(--muted); font-size: .76rem; font-weight: 700; }
+.sp-cel { position: relative; display: grid; place-items: center; height: 40px; }
+.sp-cel::before { content: ''; position: absolute; inset: 2px 0; z-index: 0; background: color-mix(in srgb, var(--acento) 11%, transparent); opacity: 0; }
+.sp-cel.entre::before { opacity: 1; }
+.sp-cel.ini::before { opacity: 1; left: 50%; }
+.sp-cel.fim::before { opacity: 1; right: 50%; }
+.sp-dia {
+  position: relative; z-index: 1; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text);
+  font: inherit; font-size: .88rem; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; transition: background .12s;
+}
+.sp-dia:hover:not(.marcado) { background: var(--hover); }
+.sp-dia.fora { color: var(--muted-2, var(--muted)); opacity: .55; }
+.sp-dia.hoje:not(.marcado) { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acento) 60%, transparent); font-weight: 700; }
+.sp-dia.marcado { background: var(--acento); color: #fff; font-weight: 700; opacity: 1; box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--acento) 55%, transparent); }
+.sp-rodape { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 12px -16px 0; padding: 12px 16px; border-top: 1px solid var(--line); }
+.sp-rodape .btn { height: 38px; padding: 0 14px; }
+.sp-atalhos { display: flex; flex-direction: column; gap: 2px; padding: 12px 10px; border-left: 1px solid var(--line); background: color-mix(in srgb, var(--hover) 40%, var(--surface)); }
+.sp-atalho {
+  display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text);
+  font: inherit; font-size: .88rem; text-align: left; cursor: pointer; transition: background .12s;
+}
+.sp-atalho:hover { background: var(--hover); }
+.sp-atalho.ativo { background: color-mix(in srgb, var(--acento) 13%, transparent); color: var(--acento); font-weight: 700; }
+
+/* Celular: o calendário sobe como uma folha, atalhos em fileira no topo */
+@media (max-width: 640px) {
+  .rl-cab__dir { width: 100%; justify-content: space-between; }
+  .sp-fundo { display: block; position: fixed; inset: 0; z-index: 300; background: rgba(0, 0, 0, .45); animation: aparecer .15s; }
+  .sp-rodape .btn { flex: 1; }
+  .sp-pop {
+    position: fixed; z-index: 301; left: 10px; right: 10px; top: auto; bottom: 10px; grid-template-columns: minmax(0, 1fr); max-height: calc(100dvh - 20px); overflow-y: auto;
+    animation-name: sp-sobe;
+  }
+  @keyframes sp-sobe { from { opacity: 0; transform: translateY(16px); } }
+  .sp-atalhos { order: -1; flex-direction: row; overflow-x: auto; scrollbar-width: none; padding: 10px; border-left: 0; border-bottom: 1px solid var(--line); }
+  .sp-atalhos::-webkit-scrollbar { display: none; }
+  .sp-atalho { flex: none; width: auto; padding: 8px 12px; white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; }
+  .sp-atalho.ativo { border-color: transparent; }
+}

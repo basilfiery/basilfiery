@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  ArrowDownRight, ArrowUpRight, BadgePercent, Banknote, BarChart3, Bike, CalendarDays, ChevronLeft, ChevronRight, Clock, CreditCard, DollarSign, Download, Minus, Package,
+  ArrowDownRight, ArrowUpRight, BadgePercent, Banknote, BarChart3, Bike, ChevronLeft, ChevronRight, Clock, CreditCard, DollarSign, Download, Minus, Package,
   PiggyBank, QrCode, Radio, ReceiptText, ShoppingBasket, Store, Table2, Ticket, TrendingUp, UtensilsCrossed, Wallet, XCircle,
 } from 'lucide-react';
 import { GraficoColunas, type Ponto } from '../../componentes/Graficos';
@@ -13,6 +13,7 @@ import { Link, useParams } from 'react-router-dom';
 import { usePainel } from './Painel';
 import { RelatorioItens } from './RelatorioItens';
 import { RelatorioMesas } from './RelatorioMesas';
+import { SeletorPeriodo } from '../../componentes/SeletorPeriodo';
 
 /* ---------------- Tipos vindos do banco ---------------- */
 interface Relatorio {
@@ -47,8 +48,8 @@ type Preset = 'hoje' | 'ontem' | '7d' | '30d' | 'mes' | 'mes_passado' | 'ano' | 
 const PRESETS: { id: Preset; rotulo: string }[] = [
   { id: 'hoje', rotulo: 'Hoje' },
   { id: 'ontem', rotulo: 'Ontem' },
-  { id: '7d', rotulo: '7 dias' },
-  { id: '30d', rotulo: '30 dias' },
+  { id: '7d', rotulo: 'Últimos 7 dias' },
+  { id: '30d', rotulo: 'Últimos 30 dias' },
   { id: 'mes', rotulo: 'Este mês' },
   { id: 'mes_passado', rotulo: 'Mês passado' },
   { id: 'ano', rotulo: 'Este ano' },
@@ -188,30 +189,24 @@ export default function Relatorios() {
             {aba === 'itens' ? 'Os itens mais vendidos, por quantidade e faturamento'
               : aba === 'mesas' ? 'Cada conta de mesa fechada no caixa é uma comanda'
                 : 'Vendas são os pedidos não cancelados · tudo se atualiza sozinho'}
+            {atualizadoEm && <> · atualizado {hora(new Date(atualizadoEm).toISOString())}</>}
           </span>
         </div>
-        <AoVivoHoje pedidos={aoVivo} agora={agora} />
-      </div>
-
-      {/* Filtro: escopo de tudo que vem abaixo */}
-      <div className="filtros" role="group" aria-label="Período do relatório">
-        <div className="filtros__presets">
-          {PRESETS.map((p) => (
-            <button key={p.id} className={cx('filtro', preset === p.id && 'ativo')} onClick={() => setPreset(p.id)}>{p.rotulo}</button>
-          ))}
-          <button className={cx('filtro', preset === 'personalizado' && 'ativo')} onClick={() => setPreset('personalizado')}>Personalizado</button>
+        <div className="rl-cab__dir">
+          <AoVivoHoje pedidos={aoVivo} agora={agora} />
+          {/* Período: vale para tudo que vem abaixo (visão geral, itens, mesas e comandas) */}
+          <SeletorPeriodo
+            inicio={periodo.inicio}
+            fim={periodo.fim}
+            preset={preset}
+            atalhos={PRESETS.map((p) => ({ id: p.id, rotulo: p.rotulo, periodo: () => periodoDe(p.id, de, ate) }))}
+            aoEscolher={(id, inicio, ultimoDia) => {
+              setDe(iso(inicio));
+              setAte(iso(ultimoDia));
+              setPreset(id as Preset);
+            }}
+          />
         </div>
-        {preset === 'personalizado' && (
-          <div className="filtros__datas">
-            <label>De <input className="input" type="date" value={de} max={ate} onChange={(e) => e.target.value && setDe(e.target.value)} /></label>
-            <label>Até <input className="input" type="date" value={ate} min={de} onChange={(e) => e.target.value && setAte(e.target.value)} /></label>
-            <label>Mês <input className="input" type="month" value={de.slice(0, 7)} onChange={(e) => e.target.value && escolherMes(e.target.value)} /></label>
-          </div>
-        )}
-        <span className="filtros__info">
-          <CalendarDays size={15} /> <b>{rotuloPeriodo}</b>
-          {atualizadoEm && <> · atualizado {hora(new Date(atualizadoEm).toISOString())}</>}
-        </span>
       </div>
 
       {erro ? (

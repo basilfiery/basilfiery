@@ -167,6 +167,8 @@ function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado 
     const { data, error } = await supabase.rpc('caixa_fechar', { p_caixa: r.caixa_id, p_valor_contado: valorContado, p_obs: obs });
     setOcupado(false);
     if (error) return toast(msgErro(error), 'erro');
+    // Fechou: o demonstrativo sai na impressora na hora (com espaço para assinatura)
+    imprimirFechamento(data as ResumoCaixa, restaurante.nome, false);
     aoFechado(data as ResumoCaixa);
   }
 
@@ -359,7 +361,7 @@ function Resultado({ r, restaurante, aoConcluir, atualizar }: { r: ResumoCaixa; 
       </div>
       <ResumoView r={r} />
       <div className="acoes-linha">
-        <button className="btn btn--contorno" onClick={() => imprimirFechamento(r, restaurante, false)}><Printer size={18} /> Imprimir fechamento</button>
+        <button className="btn btn--contorno" onClick={() => imprimirFechamento(r, restaurante, false)}><Printer size={18} /> Imprimir de novo</button>
         <button className="btn btn--primario" style={{ flex: 1 }} onClick={aoConcluir}>
           {atualizar ? <><RefreshCw size={18} /> Concluir e atualizar o sistema</> : 'Concluir'}
         </button>

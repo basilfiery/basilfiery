@@ -1,5 +1,5 @@
 import type { Pedido, ResumoCaixa } from './tipos';
-import { FORMAS, brl, ls } from './util';
+import { brl, ls } from './util';
 
 /* =====================================================================
    Impressão térmica (cupom 58/80 mm)
@@ -425,44 +425,84 @@ function corpoConta(mesaNome: string, pedidos: Pedido[]) {
 }
 
 function corpoFechamento(r: ResumoCaixa, parcial: boolean) {
-  const dt = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const dt = (s: string) => new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+  const linhaData = (rotulo: string, valor: string) => `<div class="cx-l"><span>${esc(rotulo)}</span><span>${valor}</span></div>`;
+  const n = (v: unknown) => Number(v ?? 0);
   const linha = (rotulo: string, valor: string) => `<tr><td>${esc(rotulo)}</td><td class="v">${valor}</td></tr>`;
-  const formas = FORMAS.filter((f) => r.por_forma[f.id]).map((f) => linha(f.rotulo, brl(Number(r.por_forma[f.id])))).join('')
-    || linha('Nenhum pagamento', brl(0));
-  const conferencia = r.valor_contado !== undefined && r.valor_contado !== null
-    ? `${linha('Dinheiro contado', brl(Number(r.valor_contado)))}${linha(Number(r.diferenca) >= 0 ? 'Sobra' : 'Falta', brl(Math.abs(Number(r.diferenca))))}`
+  const titulo = (t: string, dir = '') => `<tr class="cx-tit"><td>${t}</td><td class="v">${dir}</td></tr>`;
+  const total = (rotulo: string, v: number) => `<div class="tot"><span>${rotulo}</span><span>${brl(v)}</span></div>`;
+
+  // Faturamento por forma (crédito e débito separados, como na maquininha)
+  const ordem: [string, string][] = [['dinheiro', 'Dinheiro'], ['credito', 'Cartão de crédito'], ['debito', 'Cartão de débito'], ['pix', 'Pix'], ['outro', 'Outros']];
+  const formas = ordem.filter(([id]) => id !== 'outro' || n(r.por_forma.outro) > 0)
+    .map(([id, rot]) => linha(rot, brl(n(r.por_forma[id as keyof typeof r.por_forma])))).join('');
+  const aj = r.ajustes;
+  const tipos = r.por_tipo
+    ? ([['mesa', 'Mesa'], ['balcao', 'Balcão'], ['delivery', 'Delivery'], ['retirada', 'Retirada']] as const)
+      .map(([id, rot]) => linha(rot, brl(n(r.por_tipo?.[id])))).join('')
     : '';
-  return `<div class="c g">${parcial ? 'PARCIAL DO CAIXA' : 'FECHAMENTO DE CAIXA'}</div>
-    <hr>
+
+  // Conferência do dinheiro (no fechamento, quando contaram a gaveta)
+  const contado = r.valor_contado !== undefined && r.valor_contado !== null;
+  const dif = n(r.diferenca);
+  const conferencia = contado ? `<hr>
+    <b>CONFERÊNCIA</b>
     <table>
-      ${linha('Aberto', dt(r.aberto_em))}
-      ${r.aberto_por_nome ? linha('Por', esc(r.aberto_por_nome)) : ''}
-      ${linha(parcial ? 'Até' : 'Fechado', dt(r.ate))}
-      ${r.fechado_por_nome ? linha('Por', esc(r.fechado_por_nome)) : ''}
+      ${linha('Esperado em caixa', brl(n(r.dinheiro_esperado)))}
+      ${linha('Dinheiro contado', brl(n(r.valor_contado)))}
     </table>
+    <div class="p">${Math.abs(dif) < 0.005 ? 'Não existe nenhuma diferença no dinheiro.' : `${dif > 0 ? 'SOBRA' : 'FALTA'} de ${brl(Math.abs(dif))} no dinheiro.`}</div>` : '';
+
+  const retiradas = (r.movimentos ?? []).map((m) => linha(
+    `${new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} ${m.tipo === 'retirada' ? 'Retirada' : 'Reforço'}${m.motivo ? ` · ${m.motivo}` : ''}`,
+    `${m.tipo === 'retirada' ? '-' : '+'}${brl(n(m.valor))}`,
+  )).join('');
+
+  return `<style>.cx-tit td { padding-bottom: 3px; font-weight: 900; text-decoration: underline; } .cx-l { display: flex; justify-content: space-between; gap: 8px; padding: 1.5px 0; } .cx-l span:last-child { text-align: right; } .cx-ass { margin: 34px 8px 0; border-top: 1.5px solid #000; padding-top: 4px; text-align: center; font-weight: 900; }</style>
+    <div class="c g">${parcial ? 'PARCIAL DO CAIXA' : 'FECHAMENTO DE CAIXA'}</div>
     <hr>
-    <b>RECEBIDO POR FORMA</b>
-    <table>${formas}</table>
-    <div class="tot"><span>TOTAL RECEBIDO</span><span>${brl(Number(r.recebido))}</span></div>
-    <div class="p">${r.contas_fechadas} conta(s) fechada(s)</div>
+    ${linhaData('Abertura', dt(r.aberto_em))}
+      ${r.aberto_por_nome ? linhaData('Aberto por', esc(r.aberto_por_nome)) : ''}
+      ${linhaData(parcial ? 'Até' : 'Fechamento', dt(r.ate))}
+      ${r.fechado_por_nome ? linhaData('Fechado por', esc(r.fechado_por_nome)) : ''}
+    ${conferencia}
     <hr>
-    <b>GAVETA (DINHEIRO)</b>
+    <b>FATURAMENTO</b>
+    <table>${titulo('Forma de pag.', 'Valor')}${formas}</table>
+    ${total('TOTAL FATURADO', n(r.recebido))}
+    ${aj ? `<div class="p">*Incluso no total faturado:</div>
     <table>
-      ${linha('Troco inicial', brl(Number(r.valor_inicial)))}
-      ${linha('+ Recebido em dinheiro', brl(Number(r.por_forma.dinheiro ?? 0)))}
-      ${Number(r.suprimentos ?? 0) > 0 ? linha('+ Reforços de troco', brl(Number(r.suprimentos))) : ''}
-      ${Number(r.retiradas ?? 0) > 0 ? linha('- Retiradas', brl(Number(r.retiradas))) : ''}
-      ${linha('= Esperado', brl(Number(r.dinheiro_esperado)))}
-      ${conferencia}
+      ${linha('Entregas', brl(n(aj.entregas)))}
+      ${n(aj.acrescimos) > 0 ? linha('Acréscimos / serviço', brl(n(aj.acrescimos))) : ''}
+      ${linha('Descontos (-)', brl(n(aj.descontos)))}
+    </table>` : ''}
+    <div class="p">${r.contas_fechadas} ${r.contas_fechadas === 1 ? 'venda recebida' : 'vendas recebidas'}</div>
+    ${tipos ? `<hr>
+    <b>FATURAMENTO POR TIPO DE VENDA</b>
+    <table>${titulo('Tipo de venda', 'Valor')}${tipos}</table>
+    ${total('TOTAL FATURADO', Object.values(r.por_tipo ?? {}).reduce((s, v) => s + n(v), 0))}` : ''}
+    <hr>
+    <b>CAIXA (DINHEIRO)</b>
+    <table>
+      ${linha('Abertura (+)', brl(n(r.valor_inicial)))}
+      ${linha('Vendas em dinheiro (+)', brl(n(r.por_forma.dinheiro)))}
+      ${linha('Retiradas (-)', brl(n(r.retiradas)))}
+      ${linha('Suprimento (+)', brl(n(r.suprimentos)))}
     </table>
+    ${total('EM CAIXA', n(r.dinheiro_esperado))}
+    ${retiradas ? `<div class="p" style="margin-top:4px">Movimentos da gaveta:</div><table class="p">${retiradas}</table>` : ''}
     <hr>
+    <b>PEDIDOS</b>
     <table>
-      ${linha(`Vendas (${r.vendas.pedidos} pedidos)`, brl(Number(r.vendas.total)))}
-      ${linha(`Cancelados (${r.cancelados.pedidos})`, brl(Number(r.cancelados.total)))}
-      ${linha(`Em aberto (${r.em_aberto.mesas} mesas)`, brl(Number(r.em_aberto.total)))}
+      ${linha(`Vendas (${r.vendas.pedidos})`, brl(n(r.vendas.total)))}
+      ${linha(`Cancelados (${r.cancelados.pedidos})`, brl(n(r.cancelados.total)))}
+      ${linha(`Em aberto${r.em_aberto.mesas ? ` (${r.em_aberto.mesas} ${r.em_aberto.mesas === 1 ? 'mesa' : 'mesas'})` : ''}`, brl(n(r.em_aberto.total)))}
     </table>
     ${r.observacao ? `<hr><b>OBS:</b> ${esc(r.observacao)}` : ''}
-    <div class="c p">Impresso em ${agoraTxt()}</div>`;
+    ${parcial ? '' : `<hr>
+    <div class="c">Confirmo que as informações acima conferem com a soma dos comprovantes, recibos e dinheiro recebidos por mim.</div>
+    <div class="cx-ass">ASSINATURA</div>`}
+    <div class="c p" style="margin-top:8px">Impresso em ${agoraTxt()}</div>`;
 }
 
 type Movimento = { tipo: 'retirada' | 'suprimento'; valor: number; motivo: string | null; user_nome: string | null; criado_em: string };
@@ -545,8 +585,10 @@ const PEDIDO_EXEMPLO = {
 const RESUMO_EXEMPLO = {
   caixa_id: 'x', aberto_em: new Date(Date.now() - 8 * 3600e3).toISOString(), aberto_por_nome: 'Adriano', valor_inicial: 100,
   ate: new Date().toISOString(), vendas: { pedidos: 42, total: 2380.5 }, cancelados: { pedidos: 1, total: 35 }, recebido: 2380.5,
-  contas_fechadas: 31, por_forma: { pix: 1210.5, dinheiro: 640, credito: 380, debito: 150 }, dinheiro_esperado: 640, em_aberto: { mesas: 0, total: 0 },
-  retiradas: 100, suprimentos: 0, fechado_por_nome: 'Adriano', valor_contado: 640, diferenca: 0,
+  contas_fechadas: 31, por_forma: { pix: 1210.5, dinheiro: 640, credito: 380, debito: 150 }, dinheiro_esperado: 540, em_aberto: { mesas: 0, total: 0 },
+  retiradas: 100, suprimentos: 0, fechado_por_nome: 'Adriano', valor_contado: 540, diferenca: 0,
+  por_tipo: { mesa: 1690.5, balcao: 410, delivery: 280, retirada: 0 }, ajustes: { descontos: 18, acrescimos: 96, entregas: 35 },
+  movimentos: [{ id: 'm', tipo: 'retirada', valor: 100, motivo: 'Pagamento do gás', user_nome: 'Adriano', criado_em: new Date().toISOString() }],
 } as unknown as ResumoCaixa;
 
 /** HTML completo do cupom de exemplo, com os ajustes que a pessoa está fazendo. */

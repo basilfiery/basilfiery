@@ -274,6 +274,9 @@ export interface ResumoCaixa {
   retiradas?: number;
   suprimentos?: number;
   movimentos?: MovimentoCaixa[];
+  // faturamento por tipo de venda e ajustes (ausentes em fechamentos antigos)
+  por_tipo?: Partial<Record<'mesa' | 'balcao' | 'delivery' | 'retirada', number>>;
+  ajustes?: { descontos: number; acrescimos: number; entregas: number };
   // só no fechamento
   valor_contado?: number | null;
   diferenca?: number | null;

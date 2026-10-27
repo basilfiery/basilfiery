@@ -2340,7 +2340,7 @@
 .mc--ocupada::before, .mc--pagando::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--mc-cor); }
 .mc__topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 16px 0 20px; }
 .mc__nome { min-width: 0; display: grid; gap: 1px; }
-.mc__nome strong { font-size: 1.18rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc__nome strong { font-size: 1.18rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; } /* nome sempre inteiro: se não couber, quebra a linha */
 .mc__nome small { color: var(--muted); font-size: .76rem; }
 .mc__acoes { display: flex; gap: 10px; flex: none; }
 .mc__pedido {
@@ -3131,4 +3131,12 @@
   .sp-atalhos::-webkit-scrollbar { display: none; }
   .sp-atalho { flex: none; width: auto; padding: 8px 12px; white-space: nowrap; border: 1px solid var(--line); border-radius: 999px; }
   .sp-atalho.ativo { border-color: transparent; }
+}
+
+/* Cartão de mesa estreito: botões mais enxutos para o nome caber inteiro (ex.: "Comanda 2") */
+.mc { container-type: inline-size; }
+@container (max-width: 360px) {
+  .mc__topo { gap: 8px; padding: 16px 14px 0 16px; }
+  .mc__acoes { gap: 6px; }
+  .mc__pedido { gap: 4px; padding: 0 11px; font-size: .9rem; }
 }

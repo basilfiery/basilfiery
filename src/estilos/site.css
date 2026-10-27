@@ -476,17 +476,23 @@
 @media (max-width: 640px) {
   .sv-nav { padding: 10px 12px; }
   .sv-nav .sv-btn--vermelho { height: 40px; padding: 0 14px; font-size: .86rem; }
-  .sv-hero { padding: 104px 18px 70px; gap: 10px; }
+  .sv-hero { padding: 104px 18px 24px; gap: 10px; }
   .sv-hero__descer { display: none; }
-  /* Celular: dois aparelhos lado a lado (cardápio do cliente e app do dono) */
-  .sv-cena { height: 500px; margin-top: 34px; perspective: 1200px; }
-  .sv-cena__grupo { transform: rotateX(8deg) rotateY(-10deg); }
-  .sv-cena__tablet { left: 0; top: 70px; width: 200px; height: 410px; padding: 7px; border-radius: 32px; font-size: 10px; }
+  /* Celular: composição plana e centrada (sem 3D, que no iPhone aumenta e corta os aparelhos) */
+  .sv-hero h1 { font-size: clamp(2.15rem, 9.6vw, 2.6rem); }
+  .sv-hero__texto { gap: 18px; }
+  .sv-hero__texto > p { font-size: 1rem; line-height: 1.55; }
+  .sv-hero .sv-btn--grande { height: 48px; padding: 0 18px; font-size: .95rem; }
+  .sv-cena { height: 500px; margin-top: 26px; perspective: none; }
+  .sv-cena__grupo { transform: none; }
+  .sv-cena__grupo > * { transform-style: flat; }
+  .sv-cena__tablet { left: calc(50% - 172px); top: 62px; width: 196px; height: 400px; padding: 7px; border-radius: 32px; font-size: 9.5px; transform: rotate(-5deg); }
   .sv-cena__tablet > * { border-radius: 26px; }
-  .sv-cena__celular { right: 0; top: 40px; width: 190px; height: 390px; font-size: 10.5px; transform: translateZ(90px); }
-  .sv-cena__notif { left: 6%; right: 6%; top: 14px; width: auto; transform: translateZ(140px); }
-  .sv-cena__chip { right: 4%; top: 466px; transform: translateZ(120px); }
-  .sv-cena__cupom { display: none; }
+  .sv-cena__celular { right: calc(50% - 172px); left: auto; top: 50px; width: 186px; height: 382px; font-size: 9.5px; transform: rotate(4deg); }
+  .sv-cena__notif { left: 50%; top: 0; width: min(300px, 86%); transform: translateX(-50%); font-size: .92em; }
+  .sv-cena__notif .mk-notif { padding: 9px 11px; }
+  .sv-cena__chip { left: 50%; right: auto; top: auto; bottom: 6px; transform: translateX(-50%); white-space: nowrap; }
+  .sv-cena__cupom, .sv-cena__sombra { display: none; }
   .sv-secao { padding: 90px 18px 0; }
   .sv-cab { margin-bottom: 38px; }
   .sv-bento { grid-template-columns: minmax(0, 1fr); }

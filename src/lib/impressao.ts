@@ -225,8 +225,8 @@ function rodape(m: ModeloImpressao) {
 let fila: Promise<void> = Promise.resolve();
 
 function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
-  const html = documento(corpo, largura);
   const desktop = programaDesktop();
+  const html = documento(corpo, largura, !!desktop);
 
   // No programa para Windows: direto na impressora, sem janela
   if (desktop) {
@@ -269,7 +269,7 @@ function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
  * - A térmica só faz preto: nada de cinza, texto fino ou filtros (o Windows transforma em pontos falhados).
  *   Fonte sem serifa, em negrito, preta.
  */
-export function documento(corpo: string, largura: 58 | 80) {
+export function documento(corpo: string, largura: 58 | 80, programa = false) {
   const margem = largura === 58 ? 5.5 : 5; // mm de cada lado (área morta da cabeça + folga)
   const fonte = largura === 58 ? 11.5 : 13; // px
   const logo = largura === 58 ? 22 : 28; // mm (largura máxima da logo)
@@ -279,7 +279,11 @@ export function documento(corpo: string, largura: 58 | 80) {
       * { box-sizing: border-box; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       html, body { margin: 0; padding: 0; background: #fff; }
       body { width: ${largura}mm; padding: 1mm ${margem}mm 3mm; font: 700 ${fonte}px/1.38 Arial, 'Helvetica Neue', Helvetica, 'Segoe UI', sans-serif; letter-spacing: .01em; -webkit-font-smoothing: none; text-rendering: geometricPrecision; overflow-wrap: anywhere; word-break: break-word; }
-      .via { width: 100%; overflow: hidden; }
+      .via { width: 100%; overflow: hidden; }${programa ? `
+      /* Programa do Windows: a página vai com a altura do papel do driver (rolo de 297 mm).
+         Página menor que o papel, o Windows centraliza e sobra um espaço enorme em cima do cupom;
+         o que fica em branco embaixo a térmica corta sozinha. */
+      body { min-height: 290mm; }` : ''}
       .via + .via { page-break-before: always; break-before: page; }
       .logo { display: block; width: auto; max-width: min(${logo}mm, 100%); max-height: ${logoAlt}mm; height: auto; margin: 0 auto 3px; image-rendering: pixelated; }
       h1 { font-size: 1.3em; font-weight: 900; margin: 0; text-align: center; line-height: 1.2; }

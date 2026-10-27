@@ -108,19 +108,20 @@ export default function Site() {
       {/* ================= Navegação ================= */}
       <header className={`sv-nav${rolou ? ' sv-nav--rolou' : ''}`}>
         <div className="sv-nav__in">
-          <Link to="/" className="sv-marca" aria-label="BasilFiery, início"><img src="/marca/logo-basilfiery.png" alt="Basil Fiery" /></Link>
+          <div className="sv-nav__marca">
+            <button className="sv-nav__menu" onClick={() => setMenuAberto((v) => !v)} aria-label="Menu" aria-expanded={menuAberto}>{menuAberto ? <X size={20} /> : <Menu size={20} />}</button>
+            <Link to="/" className="sv-marca" aria-label="BasilFiery, início"><img src="/marca/logo-basilfiery.png" alt="Basil Fiery" /></Link>
+          </div>
           <nav className={`sv-nav__links${menuAberto ? ' aberto' : ''}`} onClick={() => setMenuAberto(false)}>
             <a href="#sistema">Sistema</a>
             <a href="#tour">Na prática</a>
             <a href="#como-funciona">Como funciona</a>
             <a href="#planos">Planos</a>
             <a href="#duvidas">Dúvidas</a>
-            <Link to="/login" className="sv-nav__entrar-mobile">Entrar</Link>
           </nav>
           <div className="sv-nav__acoes">
-            <Link to="/login" className="sv-btn sv-btn--fantasma sv-so-desktop">Entrar</Link>
+            <Link to="/login" className="sv-btn sv-btn--fantasma sv-nav__entrar">Entrar</Link>
             <a href="#planos" className="sv-btn sv-btn--vermelho">Começar agora <ArrowRight size={16} /></a>
-            <button className="sv-nav__menu" onClick={() => setMenuAberto((v) => !v)} aria-label="Menu">{menuAberto ? <X size={22} /> : <Menu size={22} />}</button>
           </div>
         </div>
       </header>
@@ -174,7 +175,7 @@ export default function Site() {
           </div>
           <div className="sv-bento">
             {MODULOS.map((m, i) => (
-              <Tilt key={m.titulo} className={`bento ${m.classe ?? ''}`} max={5} style={{ '--i': i } as CSSProperties}>
+              <Tilt key={m.titulo} className={`bento ${m.classe ?? ''}${m.visual ? '' : ' bento--simples'}`} max={5} style={{ '--i': i } as CSSProperties}>
                 <div className="bento__cab" data-revelar>
                   <span className="bento__icone"><m.icone size={20} /></span>
                   <h3>{m.titulo}</h3>

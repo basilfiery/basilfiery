@@ -64,9 +64,9 @@
 .sv-nav__links { display: flex; gap: 4px; margin: 0 auto; }
 .sv-nav__links a { padding: 8px 12px; border-radius: 10px; color: var(--sv-fraco); font-size: .9rem; font-weight: 600; transition: color .15s, background .15s; }
 .sv-nav__links a:hover { color: var(--sv-texto); background: rgba(255, 255, 255, .05); }
-.sv-nav__entrar-mobile { display: none; }
-.sv-nav__acoes { display: flex; align-items: center; gap: 6px; }
-.sv-nav__menu { display: none; width: 42px; height: 42px; place-items: center; border: 1px solid var(--sv-linha-2); border-radius: 12px; background: rgba(255, 255, 255, .04); color: var(--sv-texto); cursor: pointer; }
+.sv-nav__marca { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sv-nav__acoes { display: flex; align-items: center; gap: 6px; flex: none; }
+.sv-nav__menu { display: none; flex: none; width: 42px; height: 42px; place-items: center; padding: 0; border: 1px solid var(--sv-linha-2); border-radius: 12px; background: rgba(255, 255, 255, .04); color: var(--sv-texto); cursor: pointer; }
 
 /* ---------- Hero ---------- */
 .sv-hero {
@@ -460,9 +460,10 @@
   }
   .sv-nav__links.aberto { display: flex; }
   .sv-nav__links a { padding: 13px 14px; font-size: 1rem; }
-  .sv-nav__entrar-mobile { display: block; }
   .sv-nav__menu { display: grid; }
-  .sv-so-desktop { display: none !important; }
+  .sv-nav__acoes { margin-left: auto; }
+  .sv-nav__entrar { border-color: var(--sv-linha-2); background: rgba(255, 255, 255, .04); color: var(--sv-texto); }
+  .sv-fluxo__passo { align-content: start; }
   .sv-linha, .sv-linha--inverte { grid-template-columns: minmax(0, 1fr); gap: 30px; margin-bottom: 90px; }
   .sv-linha--inverte .sv-linha__texto { order: 0; }
   .sv-linha__visual { min-height: 0; padding: 20px 0; }
@@ -474,15 +475,27 @@
   .sv-rodape__in > div:first-child { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
-  .sv-nav { padding: 10px 12px; }
-  .sv-nav .sv-btn--vermelho { height: 40px; padding: 0 14px; font-size: .86rem; }
-  .sv-hero { padding: 104px 18px 24px; gap: 10px; }
+  /* Topo: [menu + logo] ........ [Entrar] [Começar agora] */
+  .sv-nav { padding: 8px 10px; }
+  .sv-nav--rolou { padding-top: 8px; }
+  .sv-nav__in { gap: 8px; padding: 6px; border-radius: 16px; }
+  .sv-nav__marca { gap: 6px; }
+  .sv-nav__menu { width: 38px; height: 38px; border-radius: 11px; }
+  .sv-marca { min-width: 0; }
+  .sv-marca img { height: 36px; max-width: 100%; object-fit: contain; }
+  .sv-nav__acoes { gap: 6px; }
+  .sv-nav .sv-btn { height: 38px; padding: 0 12px; border-radius: 11px; font-size: .82rem; }
+  .sv-nav .sv-btn--vermelho svg { display: none; }
+  .sv-nav__links { inset: 66px 10px auto; }
+  .sv-hero { padding: 96px 18px 24px; gap: 10px; }
   .sv-hero__descer { display: none; }
   /* Celular: composição plana e centrada (sem 3D, que no iPhone aumenta e corta os aparelhos) */
   .sv-hero h1 { font-size: clamp(2.15rem, 9.6vw, 2.6rem); }
   .sv-hero__texto { gap: 18px; }
   .sv-hero__texto > p { font-size: 1rem; line-height: 1.55; }
-  .sv-hero .sv-btn--grande { height: 48px; padding: 0 18px; font-size: .95rem; }
+  .sv-hero .sv-btn--grande { height: 50px; padding: 0 14px; font-size: .95rem; }
+  .sv-hero__ctas { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sv-checks { gap: 8px 16px; font-size: .84rem; }
   .sv-cena { height: 500px; margin-top: 26px; perspective: none; }
   .sv-cena__grupo { transform: none; }
   .sv-cena__grupo > * { transform-style: flat; }
@@ -498,24 +511,53 @@
   .sv-bento { grid-template-columns: minmax(0, 1fr); }
   .bento--largo, .bento--alto { grid-column: auto; grid-row: auto; }
   .bento__painel { height: 200px; }
-  .sv-fluxo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sv-bento { gap: 10px; }
+  .bento > .tilt__in { padding: 20px; gap: 16px; border-radius: 20px; }
+  /* Cartões só com texto: ícone ao lado do título, bem mais enxutos */
+  .bento--simples > .tilt__in { padding: 16px; }
+  .bento--simples .bento__cab { grid-template-columns: 42px minmax(0, 1fr); column-gap: 14px; row-gap: 4px; align-items: center; }
+  .bento--simples .bento__icone { grid-row: span 2; align-self: start; margin: 0; }
+  .bento--simples h3 { font-size: 1.02rem; }
+  .bento--simples p { font-size: .86rem; line-height: 1.5; }
+  /* Como funciona: linha do tempo vertical */
+  .sv-fluxo { grid-template-columns: minmax(0, 1fr); gap: 0; max-width: 460px; margin: 0 auto; }
+  .sv-fluxo__passo { grid-template-columns: 52px minmax(0, 1fr); column-gap: 16px; row-gap: 3px; justify-items: start; text-align: left; padding-bottom: 22px; }
+  .sv-fluxo__passo:not(:last-child)::before { content: ''; position: absolute; left: 25px; top: 56px; bottom: 2px; width: 2px; border-radius: 2px; background: var(--sv-linha-2); }
+  .sv-fluxo__passo.ativo:not(:last-child)::before { background: linear-gradient(180deg, var(--sv-vermelho), rgba(255, 45, 61, .15)); }
+  .sv-fluxo__icone { grid-row: span 3; width: 52px; height: 52px; border-radius: 15px; }
+  .sv-fluxo__passo.ativo .sv-fluxo__icone { transform: none; }
+  .sv-fluxo__passo small { padding-top: 4px; }
+  .sv-fluxo__passo b { font-size: 1.04rem; }
+  .sv-fluxo__passo p { font-size: .88rem; }
+  /* Na prática: cartões flutuantes no plano, por cima do aparelho e dentro da tela */
+  .sv-linha, .sv-linha--inverte { gap: 26px; margin-bottom: 76px; }
+  .sv-linha:last-child { margin-bottom: 0; }
+  .sv-linha h3 { font-size: clamp(1.8rem, 8vw, 2.2rem); }
+  .sv-linha__texto { gap: 14px; }
+  .sv-linha__texto > p { font-size: 1rem; line-height: 1.6; }
+  .sv-lista li { font-size: .95rem; }
+  .sv-linha__visual { padding: 54px 0 20px; }
+  .sv-linha__visual:has(.sv-linha__cupom) { padding: 24px 0 64px; }
+  .sv-linha__visual > .tilt__in, .sv-linha__visual > .tilt__in > * { transform-style: flat; }
+  .sv-linha__visual .sv-device { transform: none; }
   .sv-device--grande { width: 250px; height: 510px; font-size: 12px; }
   .sv-device--tela { width: 100%; height: 240px; font-size: 8.5px; }
-  .sv-linha__cupom { width: 130px; right: 0; bottom: -14%; }
-  .sv-linha__notif { width: 250px; left: 0; top: -2%; }
-  .sv-flutua--a { right: 0; }
-  .sv-flutua--b { left: 0; }
-  .sv-orbita { --r: 150px; --incl: 58deg; height: 360px; }
-  .sv-orbita__item { padding: 6px 9px; gap: 5px; border-radius: 10px; font-size: .7rem; }
-  .sv-orbita__item svg { width: 13px; height: 13px; }
+  .sv-linha__cupom { width: 120px; right: 2%; bottom: -44px; }
+  /* Órbita no celular: só os ícones, sem nomes encavalados */
+  .sv-orbita { --r: min(140px, 36vw); --incl: 52deg; height: 290px; }
+  .sv-orbita__item { padding: 10px; gap: 0; border-radius: 13px; font-size: 0; }
+  .sv-orbita__item svg { width: 18px; height: 18px; }
   .sv-orbita__nucleo { width: 84px; height: 84px; margin: -42px 0 0 -42px; border-radius: 26px; }
   .sv-orbita__nucleo img { width: 66px; height: 66px; border-radius: 18px; }
-  /* Sem mouse no celular: os cartões flutuantes ficam no plano, sem aumentar */
-  .sv-linha__notif { left: 2%; right: 2%; top: -4%; width: auto; transform: none; }
-  .sv-flutua { transform: none; }
-  .sv-flutua--a { right: 2%; top: 4%; }
-  .sv-flutua--b { left: 2%; top: 6%; }
-  .sv-linha__cupom { transform: rotate(5deg); }
+  /* Sem mouse no celular: os cartões flutuantes ficam no plano, centralizados sobre o aparelho */
+  .sv-linha__notif { left: 50%; right: auto; top: -48px; width: min(300px, 92%); transform: translateX(-50%); z-index: 2; }
+  .sv-flutua { left: 50%; right: auto; top: -44px; bottom: auto; transform: translateX(-50%); z-index: 2; white-space: nowrap; padding: 9px 14px; font-size: .84rem; }
+  .sv-linha__cupom { transform: rotate(5deg) scale(.8); transform-origin: 100% 100%; z-index: 2; }
+  .sv-final { margin-top: 56px; padding: 0 18px; gap: 10px; }
+  .sv-final__texto { gap: 16px; }
+  .sv-final__texto .sv-hero__ctas { max-width: 420px; margin: 4px auto 0; }
+  .sv-final__texto .sv-btn--grande { padding: 0 12px; font-size: .92rem; }
+  .sv-windows { padding: 22px; gap: 16px; }
   .sv-rodape__in { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -551,4 +593,9 @@
 .sv-novidade b { padding: 4px 10px; border-radius: 999px; background: linear-gradient(180deg, #ff4150, var(--sv-vermelho-2)); color: #fff; font-size: .74rem; letter-spacing: .03em; text-transform: uppercase; box-shadow: 0 0 18px rgba(255, 45, 61, .5); }
 .sv-novidade svg { color: var(--sv-vermelho); transition: transform .2s; }
 .sv-novidade:hover svg { transform: translateX(3px); }
-@media (max-width: 640px) { .sv-marca img { height: 46px; } .sv-novidade { font-size: .78rem; } }
+@media (max-width: 640px) { .sv-rodape .sv-marca img { height: 54px; } .sv-novidade { font-size: .78rem; } }
+@media (max-width: 380px) {
+  .sv-cena { height: 460px; }
+  .sv-cena__grupo { transform: scale(.88); transform-origin: 50% 0; }
+}
+@media (max-width: 360px) { .sv-nav .sv-btn { padding: 0 10px; font-size: .78rem; } .sv-marca img { height: 30px; } }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
 import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -17,6 +17,7 @@ import { usePainel } from './Painel';
 import { linkMesa } from '../../lib/linkCurto';
 import { confirmar } from '../../componentes/Confirmar';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
+import Pdv from './Pdv';
 
 
 type Situacao = 'livre' | 'ocupada' | 'pagando' | 'inativa';
@@ -46,6 +47,12 @@ export default function Mesas() {
   const [busca, setBusca] = useState('');
   const [setor, setSetor] = useState('');
   const gestor = ehGestor(papel);
+  // Clicar na mesa abre a tela de lançar produtos (como no PDV); o pop-up da mesa fica no botão "Ver mesa"
+  const [params, setParams] = useSearchParams();
+  const lancarId = params.get('lancar');
+  const lancando = lancarId ? mesas.find((m) => m.id === lancarId && m.ativo) ?? null : null;
+  const abrirMesa = (m: Mesa) => (m.ativo ? setParams({ lancar: m.id }) : setSelecionada(m));
+  const voltarMesas = useCallback(() => setParams({}), [setParams]);
 
   const carregar = useCallback(async () => {
     const [m, p] = await Promise.all([
@@ -62,6 +69,8 @@ export default function Mesas() {
 
   // Recarrega quando chega qualquer novidade em tempo real
   useEffect(() => { void carregar(); }, [carregar, aoVivo]);
+  // Mesa excluída ou desativada enquanto estava aberta: volta para a lista
+  useEffect(() => { if (carregado && lancarId && !lancando) voltarMesas(); }, [carregado, lancarId, lancando, voltarMesas]);
 
   const pedidosDa = (mesaId: string) => abertos.filter((p) => p.mesa_id === mesaId);
   const totalDa = (mesaId: string) => pedidosDa(mesaId).reduce((s, p) => s + Number(p.total), 0);
@@ -112,8 +121,8 @@ export default function Mesas() {
         className={cx('mc', `mc--${st}`, novos > 0 && 'mc--novo')}
         role="button"
         tabIndex={0}
-        onClick={() => setSelecionada(m)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setSelecionada(m); }}
+        onClick={() => abrirMesa(m)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) abrirMesa(m); }}
         aria-label={`${m.nome}, ${ROTULO_SITUACAO[st]}`}
       >
         <header className="mc__topo">
@@ -181,6 +190,98 @@ export default function Mesas() {
   const FILTROS: { id: Filtro; rotulo: string }[] = [
     { id: 'todas', rotulo: 'Todas' }, { id: 'livre', rotulo: 'Livres' }, { id: 'ocupada', rotulo: 'Ocupadas' }, { id: 'pagando', rotulo: 'Pagando conta' },
   ];
+
+  const modais = (
+    <>
+      {selecionada && (
+        <ModalMesa
+          mesa={mesas.find((x) => x.id === selecionada.id) ?? selecionada}
+          pedidos={pedidosDa(selecionada.id)}
+          chamados={chamadosDa(selecionada.id)}
+          restauranteNome={restaurante.nome}
+          podeFechar={podeCaixa(papel)}
+          gestor={gestor}
+          mesas={mesas}
+          setores={setores}
+          totalDa={totalDa}
+          aoFechar={() => setSelecionada(null)}
+          aoMudar={() => void carregar()}
+          aoContaFechada={lancando ? voltarMesas : undefined}
+        />
+      )}
+
+      {trocandoDe && (
+        <ModalTrocarMesa
+          origem={trocandoDe}
+          mesas={mesas}
+          totalDa={totalDa}
+          aoFechar={() => setTrocandoDe(null)}
+          aoTrocar={() => { setTrocandoDe(null); void carregar(); }}
+        />
+      )}
+
+      {organizando && (
+        <ModalSetores
+          mesas={mesas}
+          aoFechar={() => setOrganizando(false)}
+          aoMudar={(ids, setorNovo) => setMesas((l) => l.map((x) => (ids.includes(x.id) ? { ...x, setor: setorNovo } : x)))}
+        />
+      )}
+
+      {verLinks && <ModalLinks mesas={mesas.filter((m) => m.ativo)} aoFechar={() => setVerLinks(false)} />}
+
+      {criando && (
+        <ModalNovaMesa
+          restauranteId={restaurante.id}
+          sugestao={proximoNome(mesas)}
+          nomesUsados={mesas.map((m) => m.nome.trim().toLowerCase())}
+          ordem={Math.max(0, ...mesas.map((m) => m.ordem)) + 1}
+          setores={setores}
+          aoFechar={() => setCriando(false)}
+          aoCriar={() => { setCriando(false); void carregar(); }}
+        />
+      )}
+    </>
+  );
+
+  if (lancando) {
+    const m = lancando;
+    const ps = pedidosDa(m.id);
+    const total = ps.reduce((s2, p) => s2 + Number(p.total), 0);
+    const st = situacao(m);
+    const cs = chamadosDa(m.id);
+    const pedindo = acessos.filter((a) => a.mesa_id === m.id).length;
+    const cabecalho = (
+      <header className="pdv__cab lm-cab">
+        <button className="lm-voltar" onClick={voltarMesas} title="Voltar às mesas" aria-label="Voltar às mesas"><ArrowLeft size={20} /></button>
+        <div className="lm-titulo">
+          <h1>{m.nome}</h1>
+          <span className={cx('lm-status', `lm-status--${st}`)}><i aria-hidden="true" /> {ROTULO_SITUACAO[st]}</span>
+          {m.setor && <small>{m.setor}</small>}
+        </div>
+        {(cs.length > 0 || pedindo > 0) && (
+          <div className="lm-alertas">
+            {cs.map((c) => <span key={c.id} className="badge badge--icone badge--laranja"><ConciergeBell size={13} /> {descreverChamado(c)}</span>)}
+            {pedindo > 0 && <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>}
+          </div>
+        )}
+        {ps.length > 0 && (
+          <div className="lm-info">
+            <span><Users size={15} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : '— pessoas'}</span>
+            <span><Clock size={15} /> {duracao(ps[0].criado_em, agora)}</span>
+            <span className="lm-conta"><small>Conta</small><b>{brl(total)}</b></span>
+          </div>
+        )}
+        <button className="btn btn--contorno lm-ver" onClick={() => setSelecionada(m)}><Receipt size={18} /> Ver mesa</button>
+      </header>
+    );
+    return (
+      <>
+        <Pdv key={m.id} mesaFixa={m} cabecalho={cabecalho} aoLancar={() => void carregar()} />
+        {modais}
+      </>
+    );
+  }
 
   return (
     <div className="pagina mesas-pag">
@@ -262,58 +363,12 @@ export default function Mesas() {
         )
       )}
 
-      {selecionada && (
-        <ModalMesa
-          mesa={mesas.find((x) => x.id === selecionada.id) ?? selecionada}
-          pedidos={pedidosDa(selecionada.id)}
-          chamados={chamadosDa(selecionada.id)}
-          restauranteNome={restaurante.nome}
-          podeFechar={podeCaixa(papel)}
-          gestor={gestor}
-          mesas={mesas}
-          setores={setores}
-          totalDa={totalDa}
-          aoFechar={() => setSelecionada(null)}
-          aoMudar={() => void carregar()}
-        />
-      )}
-
-      {trocandoDe && (
-        <ModalTrocarMesa
-          origem={trocandoDe}
-          mesas={mesas}
-          totalDa={totalDa}
-          aoFechar={() => setTrocandoDe(null)}
-          aoTrocar={() => { setTrocandoDe(null); void carregar(); }}
-        />
-      )}
-
-      {organizando && (
-        <ModalSetores
-          mesas={mesas}
-          aoFechar={() => setOrganizando(false)}
-          aoMudar={(ids, setorNovo) => setMesas((l) => l.map((x) => (ids.includes(x.id) ? { ...x, setor: setorNovo } : x)))}
-        />
-      )}
-
-      {verLinks && <ModalLinks mesas={mesas.filter((m) => m.ativo)} aoFechar={() => setVerLinks(false)} />}
-
-      {criando && (
-        <ModalNovaMesa
-          restauranteId={restaurante.id}
-          sugestao={proximoNome(mesas)}
-          nomesUsados={mesas.map((m) => m.nome.trim().toLowerCase())}
-          ordem={Math.max(0, ...mesas.map((m) => m.ordem)) + 1}
-          setores={setores}
-          aoFechar={() => setCriando(false)}
-          aoCriar={() => { setCriando(false); void carregar(); }}
-        />
-      )}
+      {modais}
     </div>
   );
 }
 
-function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, mesas, setores, totalDa, aoFechar, aoMudar }: {
+function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, mesas, setores, totalDa, aoFechar, aoMudar, aoContaFechada }: {
   mesa: Mesa;
   setores: string[];
   pedidos: Pedido[];
@@ -325,6 +380,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   totalDa: (mesaId: string) => number;
   aoFechar: () => void;
   aoMudar: () => void;
+  aoContaFechada?: () => void;
 }) {
   const toast = useToast();
   const { caixa, abrirCaixa, recarregarCaixa, removerChamado, atualizarPedido } = usePainel();
@@ -360,6 +416,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
     recarregarCaixa();
     aoMudar();
     aoFechar();
+    aoContaFechada?.();
   }
 
   async function salvar(mudancas: Partial<Mesa>) {

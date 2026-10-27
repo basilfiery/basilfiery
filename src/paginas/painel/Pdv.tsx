@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Check, ChefHat, ChevronUp, LayoutGrid, MessageSquareText, Minus, PencilLine, Plus, Printer, Receipt, Search, ShoppingBasket, Trash2, Wallet, X,
 } from 'lucide-react';
@@ -47,11 +47,15 @@ function lerDesconto(txt: string, subtotal: number) {
   return lerPreco(t);
 }
 
-export default function Pdv() {
+/**
+ * `mesaFixa`: aberto pela tela de Mesas (clicou na mesa). Lança direto na conta dela,
+ * com o cabeçalho da mesa no lugar das abas Balcão/Mesas.
+ */
+export default function Pdv({ mesaFixa, cabecalho, aoLancar }: { mesaFixa?: Mesa; cabecalho?: ReactNode; aoLancar?: () => void } = {}) {
   const { restaurante: r, papel, caixa, abrirCaixa } = usePainel();
   const toast = useToast();
   const podeBalcao = podeCaixa(papel);
-  const mesaDaUrl = new URLSearchParams(window.location.search).get('mesa') ?? '';
+  const mesaDaUrl = mesaFixa?.id ?? new URLSearchParams(window.location.search).get('mesa') ?? '';
   const [modo, setModo] = useState<Modo>(mesaDaUrl || !podeBalcao ? 'mesa' : 'balcao');
   const [dados, setDados] = useState<Dados | null>(null);
   const [mesas, setMesas] = useState<Mesa[]>([]);
@@ -184,8 +188,10 @@ export default function Pdv() {
     setEnviando(false);
     if (error) return toast(msgErro(error), 'erro');
     const v = data as { id: string; numero: number; total: number; troco: number | null };
-    if (modo === 'mesa') toast(`Pedido #${v.numero} lançado na ${mesas.find((m) => m.id === mesaId)?.nome ?? 'mesa'}.`, 'ok');
-    else setConcluida({ ...v, forma });
+    if (modo === 'mesa') {
+      toast(`Pedido #${v.numero} lançado na ${mesaFixa?.nome ?? mesas.find((m) => m.id === mesaId)?.nome ?? 'mesa'}.`, 'ok');
+      aoLancar?.();
+    } else setConcluida({ ...v, forma });
     limpar();
     void carregar();
   }
@@ -309,7 +315,7 @@ export default function Pdv() {
           <input className="input" value={cliNome} maxLength={80} onChange={(e) => setCliNome(e.target.value)} placeholder="Nome do cliente" aria-label="Nome do cliente" />
         </div>
 
-        {modo === 'mesa' ? (
+        {mesaFixa ? null : modo === 'mesa' ? (
           <select className="select" value={mesaId} onChange={(e) => setMesaId(e.target.value)} aria-label="Mesa">
             <option value="">Escolha a mesa…</option>
             {mesas.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
@@ -348,7 +354,7 @@ export default function Pdv() {
       </div>
       <div className="pdv-pedido__acao">
         <button type="button" className="btn btn--primario btn--lg btn--bloco pdv-gerar" disabled={!!motivoBloqueio || enviando} onClick={() => void gerar()}>
-          {enviando ? 'Gerando…' : motivoBloqueio || (modo === 'mesa' ? `Lançar na mesa · ${brl(total)}` : `Gerar pedido · ${brl(total)}`)}
+          {enviando ? 'Gerando…' : motivoBloqueio || (modo === 'mesa' ? `Lançar na ${mesaFixa ? mesaFixa.nome : 'mesa'} · ${brl(total)}` : `Gerar pedido · ${brl(total)}`)}
           <kbd>Ctrl + Enter</kbd>
         </button>
       </div>
@@ -357,7 +363,7 @@ export default function Pdv() {
 
   return (
     <div className="pdv">
-      <header className="pdv__cab">
+      {cabecalho ?? <header className="pdv__cab">
         <h1>Pedidos balcão (PDV)</h1>
         <div className="pdv__modos" role="tablist">
           <button role="tab" aria-selected={modo === 'balcao'} className={cx(modo === 'balcao' && 'ativo')} disabled={!podeBalcao} onClick={() => setModo('balcao')}>
@@ -367,7 +373,7 @@ export default function Pdv() {
             <LayoutGrid size={17} /> Mesas <span>lançar na conta</span>
           </button>
         </div>
-      </header>
+      </header>}
 
       {modo === 'balcao' && caixa === null && (
         <div className="pdv__aviso">

@@ -912,7 +912,7 @@ export default function Painel() {
           </div>
         )}
 
-        <main className={cx('painel__conteudo', (naTelaDePedidos || local.pathname === '/painel/pdv') && permitido && 'painel__conteudo--cheio')}>
+        <main className={cx('painel__conteudo', (naTelaDePedidos || local.pathname === '/painel/pdv' || (local.pathname === '/painel/mesas' && local.search.includes('lancar='))) && permitido && 'painel__conteudo--cheio')}>
           {permitido
             ? <ErroTela chave={local.pathname}><Suspense fallback={<div className="carregando"><div className="spinner" /></div>}><Outlet context={ctx} /></Suspense></ErroTela>
             : <p className="vazio">Seu cargo não tem acesso a esta área.</p>}

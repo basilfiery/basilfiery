@@ -4,20 +4,20 @@ import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3,
 import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
-import { SeletorPagamento } from '../../componentes/Pagamento';
 import { iconeAparelho, responderAcesso } from '../../componentes/AcessosMesa';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { Chamado, FormaPagamento, Mesa, MesaAcesso, Pedido } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, ordenarNome, podeCaixa, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
+import type { Chamado, Mesa, MesaAcesso, Pedido } from '../../lib/tipos';
+import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, ordenarNome, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 import { linkMesa } from '../../lib/linkCurto';
 import { confirmar } from '../../componentes/Confirmar';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
 import Pdv from './Pdv';
+import { ContaMesa } from './ContaMesa';
 
 
 type Situacao = 'livre' | 'ocupada' | 'pagando' | 'inativa';
@@ -51,7 +51,13 @@ export default function Mesas() {
   const [params, setParams] = useSearchParams();
   const lancarId = params.get('lancar');
   const lancando = lancarId ? mesas.find((m) => m.id === lancarId && m.ativo) ?? null : null;
-  const abrirMesa = (m: Mesa) => (m.ativo ? setParams({ lancar: m.id }) : setSelecionada(m));
+  const [abaLancar, setAbaLancar] = useState<'pedido' | 'conta'>('pedido');
+  /** Mesa com conta abre na aba Conta (para receber); mesa livre abre no Novo pedido */
+  const abrirMesa = (m: Mesa, aba?: 'pedido' | 'conta') => {
+    if (!m.ativo) return setSelecionada(m);
+    setAbaLancar(aba ?? (abertos.some((p) => p.mesa_id === m.id) ? 'conta' : 'pedido'));
+    setParams({ lancar: m.id });
+  };
   const voltarMesas = useCallback(() => setParams({}), [setParams]);
 
   const carregar = useCallback(async () => {
@@ -142,7 +148,8 @@ export default function Mesas() {
             >
               {(fechar) => (
                 <>
-                  <button className="menu-item" onClick={() => { fechar(); setSelecionada(m); }}><Receipt size={17} /> {comConta ? 'Ver conta e fechar' : 'Detalhes da mesa'}</button>
+                  <button className="menu-item" onClick={() => { fechar(); if (comConta) abrirMesa(m, 'conta'); else setSelecionada(m); }}><Receipt size={17} /> {comConta ? 'Receber e fechar conta' : 'Detalhes da mesa'}</button>
+                  {comConta && <button className="menu-item" onClick={() => { fechar(); setSelecionada(m); }}><Tablet size={17} /> Ver mesa</button>}
                   {comConta && <button className="menu-item" onClick={() => { fechar(); imprimirConta(m.nome, restaurante.nome, ps); }}><Printer size={17} /> Imprimir conta</button>}
                   {comConta && <button className="menu-item" onClick={() => { fechar(); setTrocandoDe(m); }}><ArrowRightLeft size={17} /> Trocar de mesa</button>}
                   <div className="menu-sep" />
@@ -206,7 +213,7 @@ export default function Mesas() {
           totalDa={totalDa}
           aoFechar={() => setSelecionada(null)}
           aoMudar={() => void carregar()}
-          aoContaFechada={lancando ? voltarMesas : undefined}
+          aoReceber={() => { const m = selecionada; setSelecionada(null); abrirMesa(m, 'conta'); }}
         />
       )}
 
@@ -277,7 +284,10 @@ export default function Mesas() {
     );
     return (
       <>
-        <Pdv key={m.id} mesaFixa={m} cabecalho={cabecalho} aoLancar={() => void carregar()} />
+        <Pdv
+          key={m.id} mesaFixa={m} cabecalho={cabecalho} aoLancar={() => void carregar()}
+          conta={{ aba: abaLancar, aoAba: setAbaLancar, total, painel: <ContaMesa key={m.id} mesa={m} pedidos={ps} aoMudar={() => void carregar()} aoFechada={voltarMesas} /> }}
+        />
         {modais}
       </>
     );
@@ -368,7 +378,7 @@ export default function Mesas() {
   );
 }
 
-function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, mesas, setores, totalDa, aoFechar, aoMudar, aoContaFechada }: {
+function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gestor, mesas, setores, totalDa, aoFechar, aoMudar, aoReceber }: {
   mesa: Mesa;
   setores: string[];
   pedidos: Pedido[];
@@ -380,16 +390,14 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   totalDa: (mesaId: string) => number;
   aoFechar: () => void;
   aoMudar: () => void;
-  aoContaFechada?: () => void;
+  aoReceber: () => void;
 }) {
   const toast = useToast();
-  const { caixa, abrirCaixa, recarregarCaixa, removerChamado, atualizarPedido } = usePainel();
-  const caixaAberto = !!caixa;
+  const { removerChamado, atualizarPedido } = usePainel();
   const [nome, setNome] = useState(mesa.nome);
   const [setorMesa, setSetorMesa] = useState(mesa.setor ?? '');
   const [token, setToken] = useState(mesa.token);
   const [ativo, setAtivo] = useState(mesa.ativo);
-  const [ocupado, setOcupado] = useState(false);
   const [trocando, setTrocando] = useState(false);
   const [atendidos, setAtendidos] = useState<string[]>([]);
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
@@ -406,18 +414,6 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
     toast(`${mesa.nome} atendida.`, 'ok');
   }
   const link = linkMesa(restaurante, { ...mesa, token }, mesas);
-
-  async function fecharConta(forma: FormaPagamento) {
-    setOcupado(true);
-    const { error } = await supabase.rpc('mesa_fechar_conta', { p_mesa: mesa.id, p_forma: forma });
-    setOcupado(false);
-    if (error) return toast(msgErro(error), 'erro');
-    toast(`${mesa.nome} liberada. ${brl(total)} recebido no ${rotuloForma(forma)}.`, 'ok');
-    recarregarCaixa();
-    aoMudar();
-    aoFechar();
-    aoContaFechada?.();
-  }
 
   async function salvar(mudancas: Partial<Mesa>) {
     const { error } = await supabase.from('mesas').update(mudancas).eq('id', mesa.id);
@@ -498,14 +494,9 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
               </button>
             </div>
             {podeFechar && (
-              caixaAberto ? (
-                <SeletorPagamento total={total} ocupado={ocupado} aoReceber={(f) => void fecharConta(f)} />
-              ) : (
-                <div className="pagamento pagamento--fechado">
-                  <span>O caixa está fechado. Abra o caixa para receber esta conta.</span>
-                  <button className="btn btn--primario btn--sm" onClick={abrirCaixa}><Wallet size={16} /> Abrir caixa</button>
-                </div>
-              )
+              <button className="btn btn--primario btn--lg btn--bloco" onClick={aoReceber}>
+                <Wallet size={19} /> Receber e fechar conta · {brl(total)}
+              </button>
             )}
           </>
         )}

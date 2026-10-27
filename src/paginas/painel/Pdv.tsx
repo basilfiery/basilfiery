@@ -51,7 +51,9 @@ function lerDesconto(txt: string, subtotal: number) {
  * `mesaFixa`: aberto pela tela de Mesas (clicou na mesa). Lança direto na conta dela,
  * com o cabeçalho da mesa no lugar das abas Balcão/Mesas.
  */
-export default function Pdv({ mesaFixa, cabecalho, aoLancar }: { mesaFixa?: Mesa; cabecalho?: ReactNode; aoLancar?: () => void } = {}) {
+export interface AbaConta { aba: 'pedido' | 'conta'; aoAba: (a: 'pedido' | 'conta') => void; total: number; painel: ReactNode }
+
+export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa?: Mesa; cabecalho?: ReactNode; aoLancar?: () => void; conta?: AbaConta } = {}) {
   const { restaurante: r, papel, caixa, abrirCaixa } = usePainel();
   const toast = useToast();
   const podeBalcao = podeCaixa(papel);
@@ -142,6 +144,7 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar }: { mesaFixa?: Mesa
     if (!p.disponivel) return;
     const max = p.estoque_max ?? 99;
     if (qtdNoPedido(p.id) + qtd > max) return toast(`Só tem ${max} de ${nomeItem(p)} no estoque.`, 'erro');
+    conta?.aoAba('pedido');
     if (!a && gruposDe(p).length) return setEscolhendo(p);
     setLinhas((l) => juntarNoCarrinho(l, p, qtd, obs, a));
   }
@@ -191,6 +194,7 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar }: { mesaFixa?: Mesa
     if (modo === 'mesa') {
       toast(`Pedido #${v.numero} lançado na ${mesaFixa?.nome ?? mesas.find((m) => m.id === mesaId)?.nome ?? 'mesa'}.`, 'ok');
       aoLancar?.();
+      conta?.aoAba('conta');
     } else setConcluida({ ...v, forma });
     limpar();
     void carregar();
@@ -443,15 +447,30 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar }: { mesaFixa?: Mesa
           </div>
         </section>
 
-        <aside className={cx('pdv__pedido', folhaAberta && 'aberta')}>{pedido}</aside>
+        <aside className={cx('pdv__pedido', folhaAberta && 'aberta')}>
+          {conta ? (
+            <div className="pdv-pedido lm-painel">
+              <div className="lm-abas" role="tablist" aria-label="Pedido ou conta">
+                <button type="button" role="tab" aria-selected={conta.aba === 'pedido'} className={cx(conta.aba === 'pedido' && 'ativo')} onClick={() => conta.aoAba('pedido')}>
+                  <ShoppingBasket size={16} /> Novo pedido {qtdItens > 0 && <small>{qtdItens}</small>}
+                </button>
+                <button type="button" role="tab" aria-selected={conta.aba === 'conta'} className={cx(conta.aba === 'conta' && 'ativo')} onClick={() => conta.aoAba('conta')}>
+                  <Receipt size={16} /> Conta <b>{brl(conta.total)}</b>
+                </button>
+                <button type="button" className="icone-btn pdv-pedido__fechar" onClick={() => setFolhaAberta(false)} aria-label="Fechar"><X size={18} /></button>
+              </div>
+              {conta.aba === 'conta' ? conta.painel : pedido}
+            </div>
+          ) : pedido}
+        </aside>
         {folhaAberta && <div className="pdv__fundo" onClick={() => setFolhaAberta(false)} aria-hidden="true" />}
       </div>
 
       {/* Celular/tablet em pé: barra que abre o pedido */}
-      <button type="button" className={cx('pdv__barra', qtdItens > 0 && 'com-itens')} onClick={() => setFolhaAberta(true)}>
+      <button type="button" className={cx('pdv__barra', qtdItens > 0 && 'com-itens')} onClick={() => { conta?.aoAba(qtdItens > 0 ? 'pedido' : 'conta'); setFolhaAberta(true); }}>
         <span className="pdv__barra-qtd">{qtdItens}</span>
-        <span>Ver pedido</span>
-        <strong>{brl(total)}</strong>
+        <span>{conta && !qtdItens ? 'Ver conta' : 'Ver pedido'}</span>
+        <strong>{brl(conta && !qtdItens ? conta.total : total)}</strong>
         <ChevronUp size={18} />
       </button>
 

@@ -374,7 +374,7 @@ const acoes: Record<string, (uid: string, c: Obj) => Promise<unknown>> = {
         const dest = c.destinatario ?? (c.cpf ? { cpf_cnpj: so(c.cpf), nome: c.nome ?? null } : null);
         return { payload: montarNota({
           cfg, modelo, serie: modelo === 65 ? cfg.nfce_serie : cfg.nfe_serie, numero: modelo === 65 ? cfg.nfce_proximo : cfg.nfe_proximo, itens,
-          desconto: Number(ped.desconto ?? 0), outros: Number(ped.taxa_entrega ?? 0), forma: String(c.forma ?? ped.forma_pagamento ?? 'dinheiro'),
+          desconto: Number(ped.desconto ?? 0), outros: Number(ped.taxa_entrega ?? 0) + Number(ped.acrescimo ?? 0), forma: String(c.forma ?? ped.forma_pagamento ?? 'dinheiro'),
           recebido: null, dest, indFinal: 1, infCpl: `Pedido #${ped.numero}`, referencia: 'previa',
         }) };
       }
@@ -403,7 +403,7 @@ const acoes: Record<string, (uid: string, c: Obj) => Promise<unknown>> = {
 
     const payload = montarNota({
       cfg, modelo, serie: nota!.serie, numero: nota!.numero, itens,
-      desconto: Number(ped.desconto ?? 0), outros: Number(ped.taxa_entrega ?? 0),
+      desconto: Number(ped.desconto ?? 0), outros: Number(ped.taxa_entrega ?? 0) + Number(ped.acrescimo ?? 0),
       forma: String(c.forma ?? ped.forma_pagamento ?? 'dinheiro'), recebido: ped.forma_pagamento === 'dinheiro' ? Number(ped.troco_para ?? 0) || null : null,
       dest: nota!.destinatario, indFinal: c.indFinal != null ? Number(c.indFinal) : 1,
       infCpl: `Pedido #${ped.numero}${ped.mesa_nome ? ` - ${ped.mesa_nome}` : ''}`,

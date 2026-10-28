@@ -496,6 +496,7 @@
 .linhas-conta { list-style: none; margin: 0; padding: 0; }
 .linhas-conta li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: .93rem; }
 .linhas-conta li:last-child { border-bottom: 0; }
+.linhas-conta .linha-obs { display: block; margin-top: 2px; font-size: .82rem; font-weight: 600; color: var(--muted); }
 .linhas-conta .linha-item { align-items: center; }
 .linha-item__fim { flex: none; display: inline-flex; align-items: center; gap: 6px; }
 .linha-item__excluir {

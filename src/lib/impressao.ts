@@ -405,12 +405,13 @@ function corpoCozinha(p: Pedido) {
 }
 
 function corpoConta(mesaNome: string, pedidos: Pedido[]) {
-  // Agrupa itens iguais (mesmo nome, adicionais e preço)
-  const ls2 = new Map<string, { nome: string; complementos?: string | null; adicionais?: Adic[] | null; qtd: number; preco: number }>();
+  // Agrupa itens iguais (mesmo nome, adicionais, observação e preço); com observação diferente sai em linha própria
+  const ls2 = new Map<string, { nome: string; complementos?: string | null; adicionais?: Adic[] | null; obs: string | null; qtd: number; preco: number }>();
   for (const p of pedidos) {
     for (const i of p.pedido_itens) {
-      const k = `${i.nome}|${i.complementos ?? ''}|${i.preco_unit}`;
-      const l = ls2.get(k) ?? { nome: i.nome, complementos: i.complementos, adicionais: i.adicionais, qtd: 0, preco: Number(i.preco_unit) };
+      const obs = i.obs?.trim() || null;
+      const k = `${i.nome}|${i.complementos ?? ''}|${obs ?? ''}|${i.preco_unit}`;
+      const l = ls2.get(k) ?? { nome: i.nome, complementos: i.complementos, adicionais: i.adicionais, obs, qtd: 0, preco: Number(i.preco_unit) };
       l.qtd += i.qtd;
       ls2.set(k, l);
     }
@@ -419,7 +420,7 @@ function corpoConta(mesaNome: string, pedidos: Pedido[]) {
   return `<div class="c p">${agoraTxt()}</div>
     <div class="c g">CONTA · ${esc(mesaNome).toUpperCase()}</div>
     <hr>
-    <table>${[...ls2.values()].map((l) => `<tr><td class="q">${l.qtd}x</td><td>${esc(l.nome)}</td><td class="v">${brl(l.qtd * l.preco)}</td></tr>${adicionaisHtml(adicionaisDo(l), l.qtd, true)}`).join('')}</table>
+    <table>${[...ls2.values()].map((l) => `<tr><td class="q">${l.qtd}x</td><td>${esc(l.nome)}</td><td class="v">${brl(l.qtd * l.preco)}</td></tr>${adicionaisHtml(adicionaisDo(l), l.qtd, true)}${linhaObs(l.obs, true)}`).join('')}</table>
     <hr>
     <div class="tot"><span>TOTAL</span><span>${brl(total)}</span></div>`;
 }

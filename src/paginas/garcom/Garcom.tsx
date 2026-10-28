@@ -327,11 +327,12 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, pedidos, ago
 
   // Agrupa itens iguais para a conferência
   const itens = useMemo(() => {
-    const m = new Map<string, { nome: string; qtd: number; valor: number }>();
+    const m = new Map<string, { nome: string; obs: string | null; qtd: number; valor: number }>();
     for (const p of pedidos) for (const i of p.pedido_itens) {
       const nome = i.complementos ? `${i.nome} (${i.complementos})` : i.nome;
-      const k = `${nome}|${i.preco_unit}`;
-      const atual = m.get(k) ?? { nome, qtd: 0, valor: 0 };
+      const obs = i.obs?.trim() || null;
+      const k = `${nome}|${obs ?? ''}|${i.preco_unit}`;
+      const atual = m.get(k) ?? { nome, obs, qtd: 0, valor: 0 };
       atual.qtd += i.qtd;
       atual.valor += i.qtd * Number(i.preco_unit);
       m.set(k, atual);
@@ -393,7 +394,7 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, pedidos, ago
       ) : (
         <div className="form">
           <ul className="linhas-conta">
-            {itens.map((i) => <li key={i.nome}><span>{i.qtd}× {i.nome}</span><span>{brl(i.valor)}</span></li>)}
+            {itens.map((i) => <li key={`${i.nome}|${i.obs ?? ''}`}><span>{i.qtd}× {i.nome}{i.obs && <span className="linha-obs">» {i.obs}</span>}</span><span>{brl(i.valor)}</span></li>)}
           </ul>
           <div className="total-linha"><span>Total da mesa</span><strong>{brl(total)}</strong></div>
           <div className="garcom__conta-pedidos">

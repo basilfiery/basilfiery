@@ -854,6 +854,21 @@
 .garcom__chamado-icone { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--fire) 20%, transparent); color: var(--fire-2); }
 .garcom__chamado--conta .garcom__chamado-icone { background: rgba(125, 211, 252, .18); color: var(--info); }
 .garcom__chamado .btn { flex: none; min-height: 52px; padding: 0 16px; }
+/* O chamado do topo é um atalho: abre a mesa (o "Atendido" fica lá dentro) */
+button.garcom__chamado { width: 100%; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+button.garcom__chamado:active { transform: scale(.985); }
+.garcom__chamado-abrir { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--fire) 18%, transparent); color: var(--fire-2); }
+.garcom__chamado--conta .garcom__chamado-abrir { background: rgba(125, 211, 252, .16); color: var(--info); }
+.gmesa__chamados { display: grid; gap: 8px; margin-bottom: 12px; }
+.gmesa__chamado { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; border: 2px solid color-mix(in srgb, var(--fire) 65%, transparent); background: color-mix(in srgb, var(--fire) 10%, transparent); }
+.gmesa__chamado--conta { border-color: rgba(125, 211, 252, .65); background: rgba(125, 211, 252, .08); }
+.gmesa__chamado > div { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.gmesa__chamado strong { font-size: 1rem; color: var(--fire-2); }
+.gmesa__chamado--conta strong { color: var(--info); }
+.gmesa__chamado small { color: var(--muted); font-size: .8rem; }
+.gmesa__chamado-icone { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--fire) 20%, transparent); color: var(--fire-2); }
+.gmesa__chamado--conta .gmesa__chamado-icone { background: rgba(125, 211, 252, .18); color: var(--info); }
+.gmesa__chamado .btn { flex: none; min-height: 46px; padding: 0 14px; gap: 6px; }
 @keyframes chamando { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--fire) 18%, transparent); } }
 
 .garcom__mesas { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 16px; }
@@ -2386,11 +2401,20 @@
 }
 .mc--livre .mc__status { color: var(--text); }
 .mc__status i { width: 12px; height: 12px; border-radius: 50%; background: var(--mc-cor); }
-/* Ocupada / pagando: faixa preenchida na cor da situação e cartão levemente tingido */
-.mc--ocupada, .mc--pagando { border-color: color-mix(in srgb, var(--mc-cor) 55%, var(--line)); background: color-mix(in srgb, var(--mc-cor) 6%, var(--surface)); }
-.mc--ocupada .mc__status, .mc--pagando .mc__status { background: var(--mc-cor); color: #fff; }
-.mc--ocupada .mc__status i, .mc--pagando .mc__status i { background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .28); }
-.mc__total--sem { font-size: .95rem; font-weight: 700; color: var(--muted); }
+/* Ocupada / pagando: borda e faixa de baixo preenchidas na cor da situação (cartão continua limpo) */
+.mc--ocupada::before, .mc--pagando::before { content: none; }
+.mc--ocupada, .mc--pagando { border-color: color-mix(in srgb, var(--mc-cor) 60%, var(--line)); box-shadow: 0 6px 18px -10px color-mix(in srgb, var(--mc-cor) 55%, transparent); }
+.mc--ocupada .mc__status { background: var(--mc-cor); color: #fff; }
+.mc--pagando .mc__status { background: var(--mc-cor); color: #3a2400; }
+.mc--ocupada .mc__status i { background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .28); }
+.mc--pagando .mc__status i { background: #3a2400; box-shadow: 0 0 0 3px rgba(58, 36, 0, .18); }
+.mc__resumo { width: 100%; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.mc__dados { min-width: 0; display: grid; gap: 4px; }
+.mc__dados .mc__dado { font-size: .9rem; white-space: nowrap; }
+.mc__valor { flex: none; display: grid; justify-items: end; gap: 1px; text-align: right; }
+.mc__valor small { color: var(--muted-2); font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.mc__valor .mc__total { margin: 0; line-height: 1.1; }
+.mc__sem { padding: 3px 10px; border-radius: 999px; background: var(--bg-2); color: var(--muted); font-size: .8rem; font-weight: 700; }
 .mc-pessoas { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; font-size: .9rem; }
 .mc-pessoas > span { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
 .mc-pessoas > div { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; }

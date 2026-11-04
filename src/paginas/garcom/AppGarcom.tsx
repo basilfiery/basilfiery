@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { ConciergeBell, Download, Eye, EyeOff, Lock, LogOut, Mail } from 'lucide-react';
+import { ConciergeBell, Download, Eye, EyeOff, Lock, LogOut, Mail, Smartphone } from 'lucide-react';
+import { Cena3D } from './Cena3D';
 import { Carregando } from '../../componentes/Carregando';
 import { useSessao } from '../../lib/sessao';
 import { msgErro, supabase } from '../../lib/supabase';
@@ -135,6 +136,22 @@ function Marca({ info }: { info: Info }) {
 
 type EventoInstalar = Event & { prompt: () => Promise<void> };
 
+/** 'app' = já está no app instalado (Android/atalho); senão o tipo de celular, para oferecer o download certo. */
+function usePlataforma(): 'app' | 'android' | 'iphone' | 'outro' {
+  const [p] = useState(() => {
+    try {
+      const noApp = matchMedia('(display-mode: standalone)').matches || document.referrer.startsWith('android-app://')
+        || sessionStorage.getItem('bf:no-app') === '1';
+      if (noApp) { sessionStorage.setItem('bf:no-app', '1'); return 'app' as const; }
+    } catch { /* sem armazenamento */ }
+    const ua = navigator.userAgent;
+    if (/android/i.test(ua)) return 'android' as const;
+    if (/iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'iphone' as const;
+    return 'outro' as const;
+  });
+  return p;
+}
+
 function EntrarGarcom({ info }: { info: Info }) {
   const local = useLocation();
   const [email, setEmail] = useState(() => new URLSearchParams(local.search).get('email') ?? '');
@@ -143,6 +160,7 @@ function EntrarGarcom({ info }: { info: Info }) {
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [instalar, setInstalar] = useState<EventoInstalar | null>(null);
+  const plataforma = usePlataforma();
 
   useEffect(() => {
     const aoPoder = (e: Event) => { e.preventDefault(); setInstalar(e as EventoInstalar); };
@@ -163,12 +181,14 @@ function EntrarGarcom({ info }: { info: Info }) {
   }
 
   return (
-    <div className="app-g" style={{ '--acento': info.cor } as CSSProperties}>
-      <main className="app-g__cartao">
-        <Marca info={info} />
+    <div className="app-g app-g--3d" style={{ '--acento': info.cor } as CSSProperties}>
+      <Cena3D>
+        {info.logo_url ? <img src={info.logo_url} alt="" /> : <ConciergeBell size={46} strokeWidth={1.8} />}
+      </Cena3D>
+      <main className="app-g__cartao app-g__cartao--3d">
         <span className="app-g__selo"><ConciergeBell size={15} /> App do garçom</span>
-        <h1>{info.nome}</h1>
-        <p className="app-g__sub">Entre para receber os pedidos e os chamados das mesas no seu celular.</p>
+        <h1>{info.id ? info.nome : 'Bem-vindo de volta'}</h1>
+        <p className="app-g__sub">Entre com o e-mail e a senha que o gerente cadastrou para você.</p>
 
         <form className="app-g__form" onSubmit={entrar}>
           <label className="app-g__campo">
@@ -193,7 +213,18 @@ function EntrarGarcom({ info }: { info: Info }) {
         </form>
 
         <p className="app-g__ajuda">Esqueceu a senha? Peça uma nova ao gerente.</p>
-        {instalar && (
+        {/* Android no navegador: baixa o app de verdade. iPhone: fica no navegador (atalho na tela de início) */}
+        {plataforma === 'android' && (
+          <a className="app-g__baixar" href="/apps/basilfiery-garcom.apk" download>
+            <span className="app-g__baixar-icone"><Smartphone size={20} /></span>
+            <span><b>Baixar o app para Android</b><small>Notificações mesmo com a tela bloqueada</small></span>
+            <Download size={18} />
+          </a>
+        )}
+        {plataforma === 'iphone' && (
+          <p className="app-g__dica-ios">No iPhone, use pelo navegador: toque em <b>Compartilhar</b> › <b>Adicionar à Tela de Início</b>.</p>
+        )}
+        {plataforma === 'outro' && instalar && (
           <button className="app-g__botao app-g__botao--secundario" onClick={() => void instalar.prompt().then(() => setInstalar(null))}>
             <Download size={18} /> Instalar app no celular
           </button>

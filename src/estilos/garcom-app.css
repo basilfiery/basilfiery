@@ -50,7 +50,7 @@
 .app-g__sub { margin: 0 0 22px; color: #b3a69b; font-size: .95rem; line-height: 1.5; }
 .app-g__sub b { color: #f6efe8; }
 
-.app-g__form { width: 100%; display: grid; gap: 14px; text-align: left; }
+.app-g__form { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; text-align: left; }
 .app-g__campo { display: grid; gap: 7px; }
 .app-g__campo > span { font-size: .82rem; font-weight: 600; color: #cfc3b8; }
 .app-g__entrada {
@@ -65,7 +65,7 @@
 }
 .app-g__entrada svg { flex: none; }
 .app-g__entrada input {
-  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent;
+  flex: 1; min-width: 0; width: 100%; height: 100%; border: 0; outline: 0; background: transparent;
   color: #f6efe8; font: inherit; font-size: 1rem;
 }
 .app-g__entrada input::placeholder { color: #6f645b; }
@@ -99,4 +99,127 @@
 @media (max-width: 380px) {
   .app-g__cartao { padding: 26px 16px 20px; border-radius: 24px; }
   .app-g h1 { font-size: 1.5rem; }
+}
+
+/* ======================= Entrada com cena 3D ======================= */
+.app-g--3d { justify-content: flex-start; padding-top: max(8px, env(safe-area-inset-top)); }
+.app-g--3d::before { inset: -20% -30% auto; height: 60%; opacity: 1; }
+
+.g3d {
+  --rx: 0deg; --ry: 0deg; --px: 0; --py: 0;
+  position: relative; width: 100%; max-width: 440px; height: min(34dvh, 290px); min-height: 220px;
+  perspective: 900px; pointer-events: none; flex: none;
+}
+/* Chão quadriculado em perspectiva, andando devagar */
+.g3d__chao {
+  position: absolute; left: -60%; right: -60%; bottom: -8%; height: 120%;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--acento) 38%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--acento) 38%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  transform: perspective(420px) rotateX(72deg) translateY(calc(var(--py) * 12px));
+  transform-origin: 50% 100%;
+  mask-image: radial-gradient(ellipse 60% 75% at 50% 100%, #000 25%, transparent 75%);
+  animation: g3d-chao 2.6s linear infinite; opacity: .55;
+}
+@keyframes g3d-chao { to { background-position: 0 46px, 0 0; } }
+
+.g3d__palco {
+  position: absolute; inset: 0; transform-style: preserve-3d;
+  transform: rotateX(calc(var(--rx) * .5)) rotateY(calc(var(--ry) * .5));
+}
+/* Esferas brilhantes em profundidades diferentes (mexem mais ou menos com a inclinação) */
+.g3d__orbe {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .95), color-mix(in srgb, var(--acento) 85%, #fff) 18%, var(--acento) 45%, color-mix(in srgb, var(--acento) 45%, #000) 78%);
+  box-shadow: 0 18px 40px -12px color-mix(in srgb, var(--acento) 70%, transparent), inset -6px -8px 18px rgba(0, 0, 0, .35);
+  animation: g3d-flutua 6s ease-in-out infinite;
+}
+.g3d__orbe--1 { width: 46px; height: 46px; left: 9%; top: 22%; transform: translateZ(120px); animation-delay: -1s; }
+.g3d__orbe--2 { width: 22px; height: 22px; left: 22%; top: 70%; transform: translateZ(60px); animation-delay: -3s; opacity: .85; }
+.g3d__orbe--3 { width: 64px; height: 64px; right: 7%; top: 52%; transform: translateZ(-60px); animation-delay: -2s; filter: blur(.4px); }
+.g3d__orbe--4 { width: 14px; height: 14px; right: 24%; top: 14%; transform: translateZ(160px); animation-delay: -4.5s; }
+@keyframes g3d-flutua { 50% { translate: 0 -12px; } }
+
+/* Anel girando em volta do bloco */
+.g3d__anel {
+  position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -122px 0 0 -110px;
+  border-radius: 50%; border: 2px solid color-mix(in srgb, var(--acento) 55%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--acento) 45%, transparent), inset 0 0 24px color-mix(in srgb, var(--acento) 30%, transparent);
+  transform: rotateX(74deg); animation: g3d-anel 9s linear infinite;
+}
+.g3d__anel::after { content: ''; position: absolute; top: -6px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 14px 4px var(--acento); }
+@keyframes g3d-anel { to { transform: rotateX(74deg) rotateZ(360deg); } }
+
+/* Bloco com a marca: espessura de verdade (camadas) e brilho passando */
+.g3d__bloco {
+  --lado: 118px;
+  position: absolute; left: 50%; top: 50%; width: var(--lado); height: var(--lado); margin: calc(var(--lado) / -2 - 12px) 0 0 calc(var(--lado) / -2);
+  transform-style: preserve-3d;
+  transform: rotateX(calc(var(--rx) + 8deg)) rotateY(calc(var(--ry) - 14deg));
+  animation: g3d-bloco 5s ease-in-out infinite;
+}
+@keyframes g3d-bloco { 50% { translate: 0 -10px; } }
+.g3d__bloco i {
+  position: absolute; inset: 0; border-radius: 30px;
+  background: color-mix(in srgb, var(--acento) calc(100% - var(--z) * 5%), #000);
+  transform: translateZ(calc(var(--z) * -2.4px));
+}
+.g3d__face {
+  position: absolute; inset: 0; overflow: hidden; border-radius: 30px; display: grid; place-items: center;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--acento) 70%, #fff), var(--acento) 45%, color-mix(in srgb, var(--acento) 70%, #000));
+  color: #fff; transform: translateZ(1px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, .45), inset 0 -10px 24px rgba(0, 0, 0, .22);
+}
+.g3d__face img { width: 74%; height: 74%; object-fit: cover; border-radius: 22px; background: #fff; box-shadow: 0 8px 20px rgba(0, 0, 0, .25); }
+.g3d__face svg { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .3)); }
+.g3d__brilho {
+  position: absolute; inset: -40% auto -40% -60%; width: 50%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .55), transparent);
+  transform: rotate(18deg); animation: g3d-brilho 4.5s ease-in-out infinite;
+}
+@keyframes g3d-brilho { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
+.g3d__sombra {
+  position: absolute; left: 50%; bottom: 6%; width: 150px; height: 26px; margin-left: -75px; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--acento) 55%, transparent), transparent);
+  filter: blur(6px); animation: g3d-sombra 5s ease-in-out infinite;
+}
+@keyframes g3d-sombra { 50% { transform: scale(.86); opacity: .7; } }
+
+/* Cartão do formulário: vidro, levemente "saindo" da tela */
+.app-g__cartao--3d {
+  margin-top: -6px; padding-top: 24px;
+  background: linear-gradient(180deg, rgba(40, 34, 31, .78), rgba(22, 18, 16, .9));
+  border: 1px solid rgba(255, 255, 255, .1);
+  box-shadow: 0 40px 90px -20px rgba(0, 0, 0, .7), 0 0 0 1px color-mix(in srgb, var(--acento) 14%, transparent), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.app-g__cartao--3d .app-g__botao {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--acento) 85%, #fff), var(--acento) 55%, color-mix(in srgb, var(--acento) 80%, #000));
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--acento) 55%, #000), 0 16px 30px -8px color-mix(in srgb, var(--acento) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35);
+  transform: translateY(-2px);
+}
+.app-g__cartao--3d .app-g__botao:active { transform: translateY(3px); box-shadow: 0 1px 0 color-mix(in srgb, var(--acento) 55%, #000), 0 6px 14px -6px color-mix(in srgb, var(--acento) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, .3); }
+
+/* Baixar o app Android (só aparece no navegador do Android) */
+.app-g__baixar {
+  width: 100%; margin-top: 16px; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; text-align: left;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); color: #f6efe8; text-decoration: none;
+  transition: background .15s, border-color .15s;
+}
+.app-g__baixar:active { background: rgba(255, 255, 255, .09); border-color: var(--acento); }
+.app-g__baixar > span:nth-child(2) { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.app-g__baixar b { font-size: .95rem; }
+.app-g__baixar small { color: #a99c90; font-size: .8rem; }
+.app-g__baixar > svg { flex: none; color: color-mix(in srgb, var(--acento) 60%, #fff); }
+.app-g__baixar-icone { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: color-mix(in srgb, var(--acento) 22%, transparent); color: color-mix(in srgb, var(--acento) 55%, #fff); }
+.app-g__dica-ios { margin: 14px 0 0; color: #8a7e74; font-size: .84rem; line-height: 1.45; }
+.app-g__dica-ios b { color: #cfc3b8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .g3d__chao, .g3d__orbe, .g3d__anel, .g3d__bloco, .g3d__brilho, .g3d__sombra { animation: none; }
+}
+@media (max-height: 700px) {
+  .g3d { height: 200px; min-height: 0; }
+  .g3d__bloco { --lado: 96px; }
+  .g3d__anel { width: 180px; height: 180px; margin: -100px 0 0 -90px; }
 }

@@ -59,11 +59,11 @@ export default function AppsCelular() {
                   <span className="app-android__icone"><Smartphone size={20} /></span>
                   <div>
                     <strong>App para Android</strong>
-                    <small>Instala como um aplicativo de verdade, com notificações. Android 7 ou mais novo.</small>
+                    <small>Instala como um aplicativo de verdade, com notificações. O garçom entra com e-mail e senha. Android 7 ou mais novo (no iPhone, use pelo navegador).</small>
                   </div>
                   <div className="app-android__acoes">
                     <a className="btn btn--primario btn--sm" href={APK_GARCOM} download><Download size={15} /> Baixar app</a>
-                    <a className="btn btn--fantasma btn--sm" href={`https://wa.me/?text=${encodeURIComponent(`App dos garçons da ${r.nome} para Android: ${APK_GARCOM}\nDepois de instalar, abra e cole este link: ${origem}/g/${r.codigo}`)}`} target="_blank" rel="noopener"><MessageCircle size={15} /> Enviar</a>
+                    <a className="btn btn--fantasma btn--sm" href={`https://wa.me/?text=${encodeURIComponent(`App dos garçons da ${r.nome} para Android: ${APK_GARCOM}\nDepois de instalar, abra e entre com o seu e-mail e senha.`)}`} target="_blank" rel="noopener"><MessageCircle size={15} /> Enviar</a>
                   </div>
                 </div>
               )}
@@ -78,7 +78,7 @@ export default function AppsCelular() {
         <div className="apps__passos">
           <div><b>iPhone (Safari)</b><span>Abra o link › toque em <Share size={14} /> Compartilhar › <SquarePlus size={14} /> “Adicionar à Tela de Início”.</span></div>
           <div><b>Android (Chrome)</b><span>Abra o link › toque nos três pontinhos › “Instalar app” ou “Adicionar à tela inicial”.</span></div>
-          <div><b>App Android do garçom</b><span>Toque em “Baixar app” no celular › abra o arquivo › se o Android pedir, permita “instalar apps desta fonte” › Instalar. Na primeira vez, cole o link do garçom.</span></div>
+          <div><b>App Android do garçom</b><span>Toque em “Baixar app” no celular › abra o arquivo › se o Android pedir, permita “instalar apps desta fonte” › Instalar. Depois é só abrir e entrar com o e-mail e a senha do garçom.</span></div>
         </div>
       </section>
     </div>

@@ -175,18 +175,23 @@ export default function Mesas() {
         </header>
 
         <div className="mc__meio">
+          {/* Ocupada: dados à esquerda (um embaixo do outro) e o valor à direita */}
           {comConta ? (
-            <>
-              <span className="mc__dado"><Users size={16} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : <em>— pessoas</em>}</span>
-              <span className="mc__dado"><Clock size={16} /> {duracao(sentadoDesde && sentadoDesde < ps[0].criado_em ? sentadoDesde : ps[0].criado_em, agora)}</span>
-              <strong className="mc__total">{brl(total)}</strong>
-            </>
+            <div className="mc__resumo">
+              <div className="mc__dados">
+                <span className="mc__dado"><Users size={15} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : <em>— pessoas</em>}</span>
+                <span className="mc__dado"><Clock size={15} /> {duracao(sentadoDesde && sentadoDesde < ps[0].criado_em ? sentadoDesde : ps[0].criado_em, agora)}</span>
+              </div>
+              <div className="mc__valor"><small>Conta</small><strong className="mc__total">{brl(total)}</strong></div>
+            </div>
           ) : st === 'ocupada' && sentadoDesde ? (
-            <>
-              <span className="mc__dado"><Smartphone size={16} /> Cliente no cardápio</span>
-              <span className="mc__dado"><Clock size={16} /> {duracao(sentadoDesde, agora)}</span>
-              <strong className="mc__total mc__total--sem">Sem pedido</strong>
-            </>
+            <div className="mc__resumo">
+              <div className="mc__dados">
+                <span className="mc__dado"><Smartphone size={15} /> Cliente no cardápio</span>
+                <span className="mc__dado"><Clock size={15} /> {duracao(sentadoDesde, agora)}</span>
+              </div>
+              <div className="mc__valor"><small>Conta</small><span className="mc__sem">Sem pedido</span></div>
+            </div>
           ) : null}
           {(cs.length > 0 || pedindo > 0 || novos + preparo + prontos > 0) && (
             <div className="mc__alertas">

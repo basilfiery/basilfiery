@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, Bell, BellOff, Check, ExternalLink, LayoutDashboard, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Check, ChevronRight, ExternalLink, LayoutDashboard, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Volume2, VolumeX, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
@@ -59,6 +59,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   // Claro ou escuro: escolha de cada celular (Menu › Configurações)
   useAparencia('garcom', true);
   const [tela, setTela] = useState<TelaGarcom>('principal');
+  // Tocar no chamado abre a mesa (o "Atendido" fica lá dentro, para não tocar sem querer)
+  const [abrirMesa, setAbrirMesa] = useState<string | null>(null);
 
   if (s.carregando) return <Carregando />;
   if (!r) {
@@ -176,15 +178,16 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
       {vivo.chamados.length > 0 && (
         <section className="garcom__chamados" aria-label="Mesas chamando">
           {vivo.chamados.map((c) => (
-            <div key={c.id} className={cx('garcom__chamado', c.tipo === 'conta' && 'garcom__chamado--conta')}>
+            <button key={c.id} type="button" className={cx('garcom__chamado', c.tipo === 'conta' && 'garcom__chamado--conta')}
+              onClick={() => { setTela('principal'); setAba('mesas'); setAbrirMesa(c.mesa_id); }}>
               <span className="garcom__chamado-icone">{c.tipo === 'conta' ? <Receipt size={22} /> : <Bell size={22} />}</span>
               <div>
                 <strong>{c.mesa_nome}</strong>
                 <span className="garcom__chamado-motivo">{descreverChamado(c)}</span>
-                <small>há {tempoDesde(c.criado_em, agora)}</small>
+                <small>{tempoDesde(c.criado_em, agora) === 'agora' ? 'agora' : `há ${tempoDesde(c.criado_em, agora)}`} · toque para abrir a mesa</small>
               </div>
-              <button className="btn btn--sucesso btn--lg" onClick={() => void atender(c)}><Check size={20} /> Atendido</button>
-            </div>
+              <span className="garcom__chamado-abrir" aria-hidden="true"><ChevronRight size={22} /></span>
+            </button>
           ))}
         </section>
       )}
@@ -199,7 +202,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
       </nav>
 
       {vivo.carregando ? <Carregando /> : aba === 'mesas' ? (
-        <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} liberados={vivo.liberados} aoResponderAcesso={vivo.removerAcesso} agora={agora} />
+        <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} liberados={vivo.liberados} aoResponderAcesso={vivo.removerAcesso} agora={agora}
+          abrirMesa={abrirMesa} aoAbrir={() => setAbrirMesa(null)} aoAtender={(c) => void atender(c)} />
       ) : (
         <div className="garcom__lista">
           {lista.length === 0 ? (
@@ -217,7 +221,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
 }
 
 /* ---------------- Aba Mesas: conta de cada mesa + imprimir no caixa ---------------- */
-function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados, aoResponderAcesso, agora }: {
+function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados, aoResponderAcesso, agora, abrirMesa, aoAbrir, aoAtender }: {
   restaurante: RestauranteComPapel;
   pedidosAoVivo: Pedido[];
   chamados: Chamado[];
@@ -225,6 +229,10 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   liberados: MesaAcesso[];
   aoResponderAcesso: (id: string) => void;
   agora: number;
+  /** Mesa para abrir já (tocou no chamado lá em cima) */
+  abrirMesa: string | null;
+  aoAbrir: () => void;
+  aoAtender: (c: Chamado) => void;
 }) {
   const restauranteId = restaurante.id;
   const toast = useToast();
@@ -250,6 +258,14 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   // Atualiza junto com os pedidos ao vivo
   const assinatura = useMemo(() => pedidosAoVivo.map((p) => `${p.id}:${p.status}:${p.pago_em ?? ''}`).join('|'), [pedidosAoVivo]);
   useEffect(() => { void carregar(); }, [carregar, assinatura]);
+
+  // Chegou pelo chamado: abre a mesa (e mostra mesas ou comandas, conforme o caso)
+  useEffect(() => {
+    if (!abrirMesa || !mesas) return;
+    const m = mesas.find((x) => x.id === abrirMesa);
+    if (m) { setVer(m.tipo === 'comanda' ? 'comanda' : 'mesa'); setSel(m); }
+    aoAbrir();
+  }, [abrirMesa, mesas, aoAbrir]);
 
   if (!mesas) return <Carregando />;
   if (!mesas.length) return <Vazio titulo="Nenhuma mesa cadastrada" />;
@@ -317,6 +333,8 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
           acessos={acessos.filter((a) => a.mesa_id === sel.id)}
           aoResponderAcesso={aoResponderAcesso}
           mesa={sel}
+          chamados={chamados.filter((c) => c.mesa_id === sel.id)}
+          aoAtender={aoAtender}
           pedidos={pedidosDa(sel.id)}
           agora={agora}
           mesas={mesas}
@@ -330,9 +348,11 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   );
 }
 
-function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }: {
+function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }: {
   restaurante: RestauranteComPapel;
   acessos: MesaAcesso[];
+  chamados: Chamado[];
+  aoAtender: (c: Chamado) => void;
   aoResponderAcesso: (id: string) => void;
   mesa: Mesa;
   pedidos: Pedido[];
@@ -401,6 +421,21 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, pedidos, ago
         </>
       }
     >
+      {/* Chamados desta mesa: o garçom marca "Atendido" aqui dentro */}
+      {chamados.length > 0 && (
+        <div className="gmesa__chamados">
+          {chamados.map((c) => (
+            <div key={c.id} className={cx('gmesa__chamado', c.tipo === 'conta' && 'gmesa__chamado--conta')}>
+              <span className="gmesa__chamado-icone">{c.tipo === 'conta' ? <Receipt size={20} /> : <Bell size={20} />}</span>
+              <div>
+                <strong>{descreverChamado(c)}</strong>
+                <small>Chamou {tempoDesde(c.criado_em, agora) === 'agora' ? 'agora' : `há ${tempoDesde(c.criado_em, agora)}`}</small>
+              </div>
+              <button className="btn btn--sucesso" onClick={() => aoAtender(c)}><Check size={18} strokeWidth={2.6} /> Atendido</button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="gqr-abas" role="tablist">
         <button type="button" role="tab" aria-selected={aba === 'qr'} className={cx(aba === 'qr' && 'ativo')} onClick={() => setAba('qr')}>
           <QrCode size={17} /> QR code{acessos.length > 0 && <b className="gqr-abas__selo">{acessos.length}</b>}

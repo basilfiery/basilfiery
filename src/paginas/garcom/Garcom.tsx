@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, Bell, BellOff, Camera, ChefHat, Check, ChevronLeft, ChevronRight, Clock, ExternalLink, HandPlatter, LayoutDashboard, LayoutGrid, Medal, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Target, Trophy, UserRound, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Camera, ChefHat, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, ExternalLink, HandPlatter, LayoutDashboard, LayoutGrid, Medal, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Target, Trophy, UserRound, Users, Volume2, VolumeX, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
@@ -11,6 +11,7 @@ import { AcessosPendentes, iconeAparelho, responderAcesso } from '../../componen
 import { linkMesa } from '../../lib/linkCurto';
 import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { PedidoCard } from '../../componentes/PedidoCard';
+import { PessoasMesa } from '../../componentes/PessoasMesa';
 import { useToast } from '../../componentes/Toast';
 import { ativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
@@ -24,6 +25,7 @@ import '../../estilos/garcom.css';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
 import { ConfigGarcom, DesafiosGarcom, METAS_HOJE, MenuGarcom, nivel, type Numeros, type TelaGarcom } from './MenuGarcom';
 import { useAparencia } from '../../lib/aparencia';
+import { useEscalaApp } from '../../lib/escalaApp';
 
 type Aba = 'levar' | 'cozinha' | 'mesas' | 'metas';
 const ABAS: Aba[] = ['levar', 'cozinha', 'mesas', 'metas'];
@@ -52,6 +54,36 @@ function useMetas(restauranteId: string | undefined, chave: string) {
   return d;
 }
 
+/**
+ * Saiu versão nova: o app do garçom atualiza sozinho, sem precisar tocar em nada.
+ * Só espera se ele estiver no meio de algo (janela aberta ou digitando); com a tela apagada atualiza na hora.
+ */
+function useAtualizarSozinho(novaVersao: string | null) {
+  useEffect(() => {
+    if (!novaVersao) return;
+    // Segurança contra recarregar sem parar (ex.: a publicação ainda chegando): no máximo 2 tentativas por versão
+    const CHAVE = 'bf:garcom:auto-versao';
+    let feitas = 0;
+    try { const t = JSON.parse(sessionStorage.getItem(CHAVE) ?? '{}') as { v?: string; n?: number }; if (t.v === novaVersao) feitas = t.n ?? 0; } catch { /* sem armazenamento */ }
+    if (feitas >= 2) return;
+    let foi = false;
+    const tentar = () => {
+      if (foi) return;
+      const el = document.activeElement;
+      const digitando = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
+      const ocupado = digitando || !!document.querySelector('.modal-fundo, .gmenu.aberto');
+      if (document.visibilityState !== 'hidden' && ocupado) return;
+      foi = true;
+      try { sessionStorage.setItem(CHAVE, JSON.stringify({ v: novaVersao, n: feitas + 1 })); } catch { /* sem armazenamento */ }
+      aplicarAtualizacao();
+    };
+    tentar();
+    const i = setInterval(tentar, 3000);
+    document.addEventListener('visibilitychange', tentar);
+    return () => { clearInterval(i); document.removeEventListener('visibilitychange', tentar); };
+  }, [novaVersao]);
+}
+
 export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   const s = useSessao();
   const toast = useToast();
@@ -62,7 +94,10 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   const [som, setSom] = useState(somLigado());
   const [push, setPush] = useState<EstadoPush | null>(null);
   const [semDicaFoto, setSemDicaFoto] = useState(() => lerLocal(CHAVE_FOTO) === '1');
-  const novaVersao = useNovaVersao();
+  const novaVersao = useNovaVersao(30000);
+  useAtualizarSozinho(novaVersao);
+  // No app (/appgarcom) quem ajusta a escala é a tela de fora, que também cuida da entrada
+  useEscalaApp(!modoApp);
 
   const vivo = usePedidosAoVivo(r?.id, {
     aoNovoPedido: () => tocarAlerta('pedido'),
@@ -178,8 +213,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
         {novaVersao && (
           <div className="gaviso gaviso--info">
             <span className="gaviso__icone"><RefreshCw size={18} /></span>
-            <div className="gaviso__txt"><b>Nova atualização</b><small>Leva poucos segundos</small></div>
-            <button className="gaviso__btn" onClick={aplicarAtualizacao}>Atualizar</button>
+            <div className="gaviso__txt"><b>Atualizando o app…</b><small>Atualiza sozinho ao fechar esta janela</small></div>
+            <button className="gaviso__btn" onClick={aplicarAtualizacao}>Agora</button>
           </div>
         )}
 
@@ -394,6 +429,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
       <div className="garcom__legenda">
         <span><i className="livre" /> Livres</span>
         <span><i className="ocupada" /> Ocupadas</span>
+        <span><i className="levar" /> Levar</span>
         <span><i className="chamando" /> Chamando</span>
       </div>
     </div>
@@ -406,21 +442,27 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         const pedindo = acessos.some((a) => a.mesa_id === m.id);
         // Liberada pelo garçom (cliente já no cardápio) também é mesa ocupada
         const sentado = liberados.some((a) => a.mesa_id === m.id);
+        // Pisca: pedido pronto para levar, pedido novo do cliente ou mesa chamando
+        const levar = ps.some((p) => p.status === 'pronto');
+        const novo = ps.some((p) => p.status === 'novo');
+        const alerta = chamando ? 'Chamando' : pedindo ? 'Liberar' : levar ? 'Levar pedido' : novo ? 'Pedido novo' : null;
         return (
-          <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando')} onClick={() => setSel(m)}>
+          <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando', !(chamando || pedindo) && levar && 'levar', !(chamando || pedindo) && !levar && novo && 'novo', alerta && 'pisca')} onClick={() => setSel(m)}>
             <span className="garcom__mesa-topo">
               <strong>{m.nome}</strong>
-              {(chamando || pedindo) && <span className="garcom__mesa-sino">{chamando ? <Bell size={13} strokeWidth={2.6} /> : <Smartphone size={13} strokeWidth={2.6} />}</span>}
+              {(chamando || pedindo || levar || novo) && (
+                <span className="garcom__mesa-sino">{chamando ? <Bell size={13} strokeWidth={2.6} /> : pedindo ? <Smartphone size={13} strokeWidth={2.6} /> : levar ? <HandPlatter size={13} strokeWidth={2.4} /> : <ClipboardList size={13} strokeWidth={2.4} />}</span>
+              )}
             </span>
             {m.cliente_nome && <span className="garcom__mesa-cliente">{m.cliente_nome}</span>}
             <span className="garcom__mesa-rodape">
               {ps.length > 0 ? (
                 <>
                   <span className="garcom__mesa-total">{brl(total)}</span>
-                  <small className="garcom__mesa-tempo"><Clock size={11} strokeWidth={2.6} /> {tempoDesde(ps[0].criado_em, agora)}{ps.length > 1 ? ` · ${ps.length} ped.` : ''}</small>
+                  <small className="garcom__mesa-tempo"><Clock size={11} strokeWidth={2.6} /> {tempoDesde(ps[0].criado_em, agora)}{m.pessoas ? <><span className="garcom__mesa-sep">·</span><Users size={11} strokeWidth={2.6} /> {m.pessoas}</> : ps.length > 1 ? ` · ${ps.length} ped.` : ''}</small>
                 </>
-              ) : <small className="garcom__mesa-estado">{sentado ? 'Sem pedido' : 'Livre'}</small>}
-              {chamando ? <span className="garcom__mesa-chamando">Chamando</span> : pedindo && <span className="garcom__mesa-chamando">Liberar</span>}
+              ) : <small className="garcom__mesa-estado">{sentado ? 'Sem pedido' : 'Livre'}{m.pessoas ? <span className="garcom__mesa-sep">· <Users size={11} strokeWidth={2.6} /> {m.pessoas}</span> : null}</small>}
+              {alerta && <span className="garcom__mesa-chamando">{alerta}</span>}
             </span>
           </button>
         );
@@ -440,6 +482,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
           totalDa={totalDa}
           aoFechar={() => setSel(null)}
           aoTrocar={() => { setSel(null); void carregar(); }}
+          aoPessoas={(n) => { setMesas((l) => l && l.map((x) => (x.id === sel.id ? { ...x, pessoas: n } : x))); setSel((x) => x && { ...x, pessoas: n }); }}
         />
       )}
     </div>
@@ -447,7 +490,8 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   );
 }
 
-function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar }: {
+function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar, aoPessoas }: {
+  aoPessoas: (n: number | null) => void;
   restaurante: RestauranteComPapel;
   acessos: MesaAcesso[];
   chamados: Chamado[];
@@ -527,6 +571,7 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
           {mesa.cliente_telefone && <a className="btn btn--fantasma btn--sm" href={`https://wa.me/55${mesa.cliente_telefone}`} target="_blank" rel="noopener">WhatsApp</a>}
         </div>
       )}
+      <PessoasMesa mesa={mesa} aoMudar={aoPessoas} />
       {/* Chamados desta mesa: o garçom marca "Atendido" aqui dentro */}
       {chamados.length > 0 && (
         <div className="gmesa__chamados">

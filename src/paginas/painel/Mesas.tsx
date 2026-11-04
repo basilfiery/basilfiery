@@ -8,6 +8,7 @@ import { Modal } from '../../componentes/Modal';
 import { iconeAparelho, responderAcesso } from '../../componentes/AcessosMesa';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
+import { PessoasMesa } from '../../componentes/PessoasMesa';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
@@ -89,8 +90,9 @@ export default function Mesas() {
     return chamadosDa(m.id).some((c) => c.tipo === 'conta') ? 'pagando' : 'ocupada';
   };
 
+  const mudarPessoasLocal = (id: string, n: number | null) => setMesas((l) => l.map((x) => (x.id === id ? { ...x, pessoas: n } : x)));
   async function definirPessoas(m: Mesa, n: number | null) {
-    setMesas((l) => l.map((x) => (x.id === m.id ? { ...x, pessoas: n } : x)));
+    mudarPessoasLocal(m.id, n);
     const { error } = await supabase.rpc('mesa_definir_pessoas', { p_mesa: m.id, p_pessoas: n ?? 0 });
     if (error) { toast(msgErro(error), 'erro'); void carregar(); }
   }
@@ -181,7 +183,7 @@ export default function Mesas() {
           {comConta ? (
             <div className="mc__resumo">
               <div className="mc__dados">
-                <span className="mc__dado"><Users size={15} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : <em>— pessoas</em>}</span>
+                <PessoasMesa mesa={m} variante="compacto" aoMudar={(n) => mudarPessoasLocal(m.id, n)} />
                 <span className="mc__dado"><Clock size={15} /> {duracao(sentadoDesde && sentadoDesde < ps[0].criado_em ? sentadoDesde : ps[0].criado_em, agora)}</span>
               </div>
               <div className="mc__valor"><small>Conta</small><strong className="mc__total">{brl(total)}</strong></div>
@@ -189,7 +191,7 @@ export default function Mesas() {
           ) : st === 'ocupada' && sentadoDesde ? (
             <div className="mc__resumo">
               <div className="mc__dados">
-                <span className="mc__dado"><Smartphone size={15} /> Cliente no cardápio</span>
+                <PessoasMesa mesa={m} variante="compacto" aoMudar={(n) => mudarPessoasLocal(m.id, n)} />
                 <span className="mc__dado"><Clock size={15} /> {duracao(sentadoDesde, agora)}</span>
               </div>
               <div className="mc__valor"><small>Conta</small><span className="mc__sem">Sem pedido</span></div>
@@ -292,13 +294,11 @@ export default function Mesas() {
             {pedindo > 0 && <span className="badge badge--icone badge--amarelo"><Smartphone size={13} /> Pedindo para abrir</span>}
           </div>
         )}
-        {ps.length > 0 && (
-          <div className="lm-info">
-            <span><Users size={15} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : '— pessoas'}</span>
-            <span><Clock size={15} /> {duracao(ps[0].criado_em, agora)}</span>
-            <span className="lm-conta"><small>Conta</small><b>{brl(total)}</b></span>
-          </div>
-        )}
+        <div className="lm-info">
+          <PessoasMesa mesa={m} variante="compacto" aoMudar={(n) => mudarPessoasLocal(m.id, n)} />
+          {ps.length > 0 && <span><Clock size={15} /> {duracao(ps[0].criado_em, agora)}</span>}
+          {ps.length > 0 && <span className="lm-conta"><small>Conta</small><b>{brl(total)}</b></span>}
+        </div>
         <button className="btn btn--contorno lm-ver" onClick={() => setSelecionada(m)}><Receipt size={18} /> Ver mesa</button>
       </header>
     );

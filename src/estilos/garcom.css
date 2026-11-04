@@ -224,3 +224,21 @@
 .gapp .garcom__legenda i.chamando { background: #ffbf3a; }
 :root[data-tema='claro'] .gnav__icone b:not(.alerta) { background: var(--text); color: var(--bg); }
 :root[data-tema='claro'] .gnav { box-shadow: 0 14px 34px -14px rgba(16, 24, 40, .28); }
+
+/* ---------- Mesa piscando: pedido pronto para levar, pedido novo ou chamando ---------- */
+.gapp .garcom__mesa.levar { color: #fff; background: linear-gradient(160deg, #3ddc8f, #12965a); box-shadow: 0 10px 22px -12px rgba(18, 150, 90, .9); }
+.gapp .garcom__mesa.levar small, .gapp .garcom__mesa.levar .garcom__mesa-total, .gapp .garcom__mesa.levar .garcom__mesa-chamando { color: #fff; }
+.gapp .garcom__mesa.novo .garcom__mesa-chamando { color: #fff; }
+.gapp .garcom__mesa.pisca { animation: gmesa-pisca 1.1s ease-in-out infinite; }
+.gapp .garcom__mesa.levar.pisca { --pisca: #3ddc8f; }
+.gapp .garcom__mesa.chamando.pisca { --pisca: #ffbf3a; }
+.gapp .garcom__mesa.novo.pisca { --pisca: #fff; }
+@keyframes gmesa-pisca {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; filter: none; }
+  50% { box-shadow: 0 0 0 3px var(--pisca, #fff), 0 0 22px 4px color-mix(in srgb, var(--pisca, #fff) 55%, transparent); filter: brightness(1.18) saturate(1.1); }
+}
+.gapp .garcom__mesa.pisca .garcom__mesa-sino { animation: gmesa-sino 1.1s ease-in-out infinite; }
+@keyframes gmesa-sino { 0%, 100% { transform: none; } 25% { transform: rotate(-14deg) scale(1.1); } 75% { transform: rotate(14deg) scale(1.1); } }
+.gapp .garcom__legenda i.levar { background: #3ddc8f; }
+.garcom__mesa-sep { display: inline-flex; align-items: center; gap: 3px; margin: 0 1px; }
+@media (prefers-reduced-motion: reduce) { .gapp .garcom__mesa.pisca, .gapp .garcom__mesa.pisca .garcom__mesa-sino { animation-duration: 2.4s; } }

@@ -3238,3 +3238,20 @@ button.garcom__chamado:active { transform: scale(.985); }
   .mc__acoes { gap: 6px; }
   .mc__pedido { gap: 4px; padding: 0 11px; font-size: .9rem; }
 }
+
+/* Pessoas na mesa: − número + (garçom e sistema) */
+.pessoas-mesa { display: flex; align-items: center; gap: 12px; }
+.pessoas-mesa__rotulo { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; color: var(--acento); }
+.pessoas-mesa__rotulo > span { display: grid; line-height: 1.25; color: var(--text); }
+.pessoas-mesa__rotulo small { color: var(--muted); font-size: .8rem; }
+.pessoas-mesa__passo { flex: none; display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.pessoas-mesa__passo button { width: 42px; height: 40px; display: grid; place-items: center; border: 0; background: none; color: var(--text); cursor: pointer; }
+.pessoas-mesa__passo button:active:not(:disabled) { background: var(--hover); }
+.pessoas-mesa__passo button:disabled { opacity: .3; cursor: default; }
+.pessoas-mesa__passo b { min-width: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.pessoas-mesa__passo b.sem { color: var(--muted-2); }
+.pessoas-mesa--normal { margin-bottom: 12px; padding: 10px 10px 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2, var(--surface)); }
+.pessoas-mesa--compacto .pessoas-mesa__passo { border-radius: 9px; }
+.pessoas-mesa--compacto .pessoas-mesa__passo button { width: 28px; height: 28px; }
+.pessoas-mesa--compacto .pessoas-mesa__passo b { min-width: 40px; font-size: .88rem; color: var(--text); }
+.pessoas-mesa--compacto .pessoas-mesa__passo b svg { color: var(--muted); }

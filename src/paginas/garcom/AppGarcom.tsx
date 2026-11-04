@@ -8,6 +8,7 @@ import { msgErro, supabase } from '../../lib/supabase';
 import { ls } from '../../lib/util';
 import { useAppInstalavel } from '../../lib/manifesto';
 import Garcom from './Garcom';
+import { useEscalaApp } from '../../lib/escalaApp';
 import '../../estilos/garcom-app.css';
 
 interface Info { id: string; nome: string; logo_url: string | null; cor: string }
@@ -43,6 +44,7 @@ const GENERICO: Info = { id: '', nome: 'BasilFiery', logo_url: '/icone-512.png',
 export function AppGarcomGeral() {
   const s = useSessao();
   useManifestoGarcom(s.restaurante?.nome);
+  useEscalaApp();
   const ultimo = ls.ler<string | null>(CHAVE, null);
   const preferido = ultimo ? s.restaurantes.find((r) => r.codigo === ultimo) : undefined;
   // Quem trabalha em mais de um restaurante: abre o último usado
@@ -73,6 +75,7 @@ export function AppGarcomGeral() {
 export default function AppGarcom() {
   const { codigo = '' } = useParams();
   const s = useSessao();
+  useEscalaApp();
   const [info, setInfo] = useState<Info | null | undefined>(undefined);
   // Na tela de início do celular, o atalho abre direto este restaurante (no iPhone o app não vê os dados do Safari)
   useAppInstalavel(info ? { nome: `Garçom · ${info.nome}`, curto: 'Garçom', inicio: `/g/${codigo.toLowerCase()}`, escopo: '/g/' } : null);

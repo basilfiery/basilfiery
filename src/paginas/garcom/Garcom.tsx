@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, Bell, BellOff, Camera, ChefHat, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, ExternalLink, HandPlatter, LayoutDashboard, LayoutGrid, Medal, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Target, Trophy, UserRound, Users, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Camera, ChefHat, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, DoorOpen, ExternalLink, HandPlatter, LayoutDashboard, LayoutGrid, Medal, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Target, Trophy, UserRound, Users, Volume2, VolumeX, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
@@ -12,6 +12,7 @@ import { linkMesa } from '../../lib/linkCurto';
 import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { PedidoCard } from '../../componentes/PedidoCard';
 import { PessoasMesa } from '../../componentes/PessoasMesa';
+import { fecharMesaSemPedido } from '../../componentes/FecharMesa';
 import { useToast } from '../../componentes/Toast';
 import { ativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
@@ -482,6 +483,8 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
           totalDa={totalDa}
           aoFechar={() => setSel(null)}
           aoTrocar={() => { setSel(null); void carregar(); }}
+          ocupada={liberados.some((a) => a.mesa_id === sel.id) || !!sel.cliente_nome || !!sel.cliente_telefone || !!sel.pessoas}
+          aoFecharMesa={() => { setMesas((l) => l && l.map((x) => (x.id === sel.id ? { ...x, pessoas: null, cliente_nome: null, cliente_telefone: null } : x))); setSel(null); void carregar(); }}
           aoPessoas={(n) => { setMesas((l) => l && l.map((x) => (x.id === sel.id ? { ...x, pessoas: n } : x))); setSel((x) => x && { ...x, pessoas: n }); }}
         />
       )}
@@ -490,8 +493,11 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   );
 }
 
-function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar, aoPessoas }: {
+function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar, aoPessoas, ocupada, aoFecharMesa }: {
   aoPessoas: (n: number | null) => void;
+  /** Cliente sentado (celular liberado, nome ou pessoas): sem pedido, dá para fechar a mesa */
+  ocupada: boolean;
+  aoFecharMesa: () => void;
   restaurante: RestauranteComPapel;
   acessos: MesaAcesso[];
   chamados: Chamado[];
@@ -510,6 +516,13 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
   const [trocando, setTrocando] = useState(false);
   const [aba, setAba] = useState<'qr' | 'conta'>('qr');
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
+  const [fechando, setFechando] = useState(false);
+  async function fechar() {
+    setFechando(true);
+    const ok = await fecharMesaSemPedido(mesa, toast);
+    setFechando(false);
+    if (ok) aoFecharMesa();
+  }
 
   // Agrupa itens iguais para a conferência
   const itens = useMemo(() => {
@@ -558,9 +571,15 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
       rodape={
         <>
           <a className="btn btn--contorno" href={`/mesa/${mesa.token}`} target="_blank" rel="noopener"><ExternalLink size={18} /> Lançar pedido</a>
-          <button className="btn btn--primario" onClick={() => void imprimirNoCaixa()} disabled={enviando || pedidos.length === 0}>
-            <Printer size={18} /> {enviando ? 'Enviando…' : 'Imprimir conta no caixa'}
-          </button>
+          {pedidos.length === 0 ? (
+            <button className="btn gmesa__fechar" onClick={() => void fechar()} disabled={!ocupada || fechando}>
+              <DoorOpen size={18} /> {fechando ? 'Fechando…' : 'Fechar mesa'}
+            </button>
+          ) : (
+            <button className="btn btn--primario" onClick={() => void imprimirNoCaixa()} disabled={enviando}>
+              <Printer size={18} /> {enviando ? 'Enviando…' : 'Imprimir conta no caixa'}
+            </button>
+          )}
         </>
       }
     >
@@ -599,7 +618,7 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
       {aba === 'qr' ? (
         <QrMesa restaurante={restaurante} mesa={mesa} mesas={mesas} pendentes={acessos} aoResponder={aoResponderAcesso} />
       ) : pedidos.length === 0 ? (
-        <p className="muted" style={{ margin: 0 }}>Mesa livre: nenhum pedido em aberto.</p>
+        <p className="muted" style={{ margin: 0 }}>{ocupada ? 'Nenhum pedido ainda. Se o cliente foi embora sem pedir, toque em Fechar mesa.' : 'Mesa livre: nenhum pedido em aberto.'}</p>
       ) : (
         <div className="form">
           <ul className="linhas-conta">

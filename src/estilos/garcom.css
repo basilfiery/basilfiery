@@ -242,3 +242,4 @@
 .gapp .garcom__legenda i.levar { background: #3ddc8f; }
 .garcom__mesa-sep { display: inline-flex; align-items: center; gap: 3px; margin: 0 1px; }
 @media (prefers-reduced-motion: reduce) { .gapp .garcom__mesa.pisca, .gapp .garcom__mesa.pisca .garcom__mesa-sino { animation-duration: 2.4s; } }
+.gapp .garcom__mesa-estado { white-space: nowrap; }

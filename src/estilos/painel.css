@@ -3255,3 +3255,15 @@ button.garcom__chamado:active { transform: scale(.985); }
 .pessoas-mesa--compacto .pessoas-mesa__passo button { width: 28px; height: 28px; }
 .pessoas-mesa--compacto .pessoas-mesa__passo b { min-width: 40px; font-size: .88rem; color: var(--text); }
 .pessoas-mesa--compacto .pessoas-mesa__passo b svg { color: var(--muted); }
+
+/* Fechar mesa sem pedido (cliente foi embora) */
+.mc__fechar {
+  height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; margin-top: 3px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line-2)); border-radius: 9px;
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface)); color: var(--danger);
+  font: inherit; font-size: .82rem; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background .15s;
+}
+.mc__fechar:hover { background: color-mix(in srgb, var(--danger) 15%, var(--surface)); }
+.lm-fechar { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line-2)); }
+.gmesa__fechar { background: color-mix(in srgb, var(--danger) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent); color: var(--danger); font-weight: 700; }
+.gmesa__fechar:disabled { opacity: .45; }

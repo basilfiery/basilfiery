@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, ReceiptText, RefreshCw, Search, Smartphone, Tablet, Trash2, UserRound, Users, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, DoorOpen, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, ReceiptText, RefreshCw, Search, Smartphone, Tablet, Trash2, UserRound, Users, Wallet } from 'lucide-react';
 import { mascaraTelefone } from './config/Estabelecimento';
 import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
@@ -9,6 +9,7 @@ import { iconeAparelho, responderAcesso } from '../../componentes/AcessosMesa';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { ModalTrocarMesa } from '../../componentes/TrocarMesa';
 import { PessoasMesa } from '../../componentes/PessoasMesa';
+import { fecharMesaSemPedido } from '../../componentes/FecharMesa';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
@@ -90,7 +91,12 @@ export default function Mesas() {
     return chamadosDa(m.id).some((c) => c.tipo === 'conta') ? 'pagando' : 'ocupada';
   };
 
-  const mudarPessoasLocal = (id: string, n: number | null) => setMesas((l) => l.map((x) => (x.id === id ? { ...x, pessoas: n } : x)));
+  async function fecharVazia(m: Mesa) {
+    if (!(await fecharMesaSemPedido(m, toast))) return;
+    setMesas((l) => l.map((x) => (x.id === m.id ? { ...x, pessoas: null, cliente_nome: null, cliente_telefone: null } : x)));
+    void carregar();
+  }
+  const mudarPessoasLocal =(id: string, n: number | null) => setMesas((l) => l.map((x) => (x.id === id ? { ...x, pessoas: n } : x)));
   async function definirPessoas(m: Mesa, n: number | null) {
     mudarPessoasLocal(m.id, n);
     const { error } = await supabase.rpc('mesa_definir_pessoas', { p_mesa: m.id, p_pessoas: n ?? 0 });
@@ -161,6 +167,7 @@ export default function Mesas() {
                   {comConta && <button className="menu-item" onClick={() => { fechar(); setSelecionada(m); }}><Tablet size={17} /> Ver mesa</button>}
                   {comConta && <button className="menu-item" onClick={() => { fechar(); imprimirConta(m.nome, restaurante.nome, ps); }}><Printer size={17} /> Imprimir conta</button>}
                   {comConta && <button className="menu-item" onClick={() => { fechar(); setTrocandoDe(m); }}><ArrowRightLeft size={17} /> Trocar de mesa</button>}
+                  {!comConta && st === 'ocupada' && <button className="menu-item" onClick={() => { fechar(); void fecharVazia(m); }}><DoorOpen size={17} /> Fechar mesa (saiu sem pedir)</button>}
                   <div className="menu-sep" />
                   <div className="mc-pessoas">
                     <span><Users size={16} /> Pessoas na mesa</span>
@@ -194,7 +201,10 @@ export default function Mesas() {
                 <PessoasMesa mesa={m} variante="compacto" aoMudar={(n) => mudarPessoasLocal(m.id, n)} />
                 <span className="mc__dado"><Clock size={15} /> {duracao(sentadoDesde, agora)}</span>
               </div>
-              <div className="mc__valor"><small>Conta</small><span className="mc__sem">Sem pedido</span></div>
+              <div className="mc__valor">
+                <small>Sem pedido</small>
+                <button className="mc__fechar" onClick={(e) => { e.stopPropagation(); void fecharVazia(m); }} title="O cliente foi embora sem pedir: deixa a mesa livre"><DoorOpen size={15} /> Fechar mesa</button>
+              </div>
             </div>
           ) : null}
           {(cs.length > 0 || pedindo > 0 || novos + preparo + prontos > 0) && (
@@ -299,6 +309,9 @@ export default function Mesas() {
           {ps.length > 0 && <span><Clock size={15} /> {duracao(ps[0].criado_em, agora)}</span>}
           {ps.length > 0 && <span className="lm-conta"><small>Conta</small><b>{brl(total)}</b></span>}
         </div>
+        {ps.length === 0 && st === 'ocupada' && (
+          <button className="btn btn--contorno lm-fechar" onClick={() => void fecharVazia(m).then(() => undefined)} title="O cliente foi embora sem pedir: deixa a mesa livre"><DoorOpen size={18} /> Fechar mesa</button>
+        )}
         <button className="btn btn--contorno lm-ver" onClick={() => setSelecionada(m)}><Receipt size={18} /> Ver mesa</button>
       </header>
     );

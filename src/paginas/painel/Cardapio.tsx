@@ -38,6 +38,14 @@ function useArrastar(aoSoltar: (origem: string, destino: string, depois: boolean
     setArrastando(null);
     setAlvo(null);
   };
+  // O item pode sumir da lista no meio do arrasto (foi solto em outra categoria) e aí o "dragend" dele
+  // nunca chega: limpa por qualquer fim de arrasto na página, para ele não ficar apagado (cinza)
+  useEffect(() => {
+    const fim = () => { if (arrastandoRef.current || alvoRef.current) limpar(); };
+    window.addEventListener('dragend', fim);
+    window.addEventListener('drop', fim);
+    return () => { window.removeEventListener('dragend', fim); window.removeEventListener('drop', fim); };
+  }, []);
   const props = (id: string) => ({
     draggable: true,
     onDragStart: (e: DragEvent<HTMLElement>) => {
@@ -67,7 +75,7 @@ function useArrastar(aoSoltar: (origem: string, destino: string, depois: boolean
   });
   const classe = (id: string) =>
     cx(arrastando === id && 'arrastando', alvo?.id === id && arrastando !== id && (alvo.depois ? 'alvo-depois' : 'alvo-antes'));
-  return { props, classe };
+  return { props, classe, limpar };
 }
 
 /** Nova ordem (1, 2, 3…) depois de mover `origem` para antes/depois de `destino`. */
@@ -274,6 +282,7 @@ export default function Cardapio() {
       const id = e.dataTransfer.getData(TIPO_PRODUTO);
       if (id) {
         e.preventDefault(); e.stopPropagation(); setSoltarEm(null);
+        arrastoItens.limpar(); // o item sai desta lista: o dragend dele não chega
         const p = produtos.find((x) => x.id === id);
         if (p && !p.grupo_id && p.categoria_id !== c.id) void moverParaCategoria(p, c);
         return;

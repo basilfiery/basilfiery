@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, Bell, BellOff, Check, ChevronRight, ExternalLink, LayoutDashboard, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Check, ChevronRight, ExternalLink, LayoutDashboard, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, UserRound, Volume2, VolumeX, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
@@ -315,6 +315,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         return (
           <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando')} onClick={() => setSel(m)}>
             <strong>{m.nome}</strong>
+            {m.cliente_nome && <span className="garcom__mesa-cliente">{m.cliente_nome}</span>}
             {ps.length > 0 ? (
               <>
                 <span className="garcom__mesa-total">{brl(total)}</span>
@@ -421,6 +422,13 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
         </>
       }
     >
+      {(mesa.cliente_nome || mesa.cliente_telefone) && (
+        <div className="gmesa__cliente">
+          <UserRound size={18} />
+          <span><b>{mesa.cliente_nome || 'Cliente'}</b>{mesa.cliente_telefone && <small>{mesa.cliente_telefone.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3')}</small>}</span>
+          {mesa.cliente_telefone && <a className="btn btn--fantasma btn--sm" href={`https://wa.me/55${mesa.cliente_telefone}`} target="_blank" rel="noopener">WhatsApp</a>}
+        </div>
+      )}
       {/* Chamados desta mesa: o garçom marca "Atendido" aqui dentro */}
       {chamados.length > 0 && (
         <div className="gmesa__chamados">

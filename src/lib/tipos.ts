@@ -201,6 +201,9 @@ export interface Mesa {
   pessoas?: number | null;
   /** Comanda: igual a uma mesa (QR, pedidos, conta), mas fica separada (ex.: contas separadas na mesma mesa) */
   tipo?: 'mesa' | 'comanda';
+  /** Cliente da mesa enquanto ela está aberta (zera ao fechar a conta) */
+  cliente_nome?: string | null;
+  cliente_telefone?: string | null;
 }
 
 export interface PedidoItem {

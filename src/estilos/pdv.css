@@ -112,6 +112,30 @@
 .pdv-totais__total span { color: var(--text) !important; font-weight: 700; }
 .pdv-totais__total strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .pdv-cliente { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Observação com botão de salvar (do item e do pedido) */
+.pdv-linha__obs-editar { display: flex; gap: 6px; align-items: center; }
+.pdv-linha__obs-editar .input { flex: 1; min-width: 0; }
+.pdv-linha__obs-ok { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: var(--acento); color: #fff; cursor: pointer; }
+.pdv-obs-editar { display: grid; gap: 8px; }
+.pdv-obs-editar__acoes { display: flex; justify-content: flex-end; gap: 8px; }
+.pdv-obs-editar__acoes .btn { gap: 6px; }
+.pdv-obs-salva { display: flex; align-items: flex-start; gap: 8px; padding: 8px 6px 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--acento) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--acento) 25%, var(--line)); font-size: .84rem; }
+.pdv-obs-salva > svg { flex: none; margin-top: 2px; color: var(--acento); }
+.pdv-obs-salva > span { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.35; }
+.pdv-obs-salva .icone-btn { flex: none; width: 28px; height: 28px; }
+/* Cliente da mesa (salvo na mesa) */
+.pdv-cliente-mesa { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-2); }
+.pdv-cliente-mesa__icone { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--acento) 14%, var(--surface)); color: var(--acento); }
+.pdv-cliente-mesa__dados { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+.pdv-cliente-mesa__dados b { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdv-cliente-mesa__dados small { color: var(--muted); font-size: .78rem; }
+.pdv-cliente-mesa .btn { flex: none; gap: 5px; }
+.pdv-cliente-mesa--editar { display: grid; gap: 8px; background: var(--surface); }
+.pdv-cliente-mesa__tit { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 700; color: var(--muted); }
+.pdv-cliente-mesa__add { display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border: 1px dashed var(--line-2); border-radius: 12px; background: none; color: var(--muted); font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer; }
+.pdv-cliente-mesa__add:hover { border-color: var(--acento); color: var(--acento); }
+.lm-cliente { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: var(--bg-2); color: var(--text); font-size: .85rem; font-weight: 600; }
+.lm-cliente svg { color: var(--acento); }
 .pdv-cliente .input, .pdv-pedido__rodape > .select { height: 40px; font-size: .86rem; }
 .pdv-formas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .pdv-forma {

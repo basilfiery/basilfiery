@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, ReceiptText, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, ReceiptText, RefreshCw, Search, Smartphone, Tablet, Trash2, UserRound, Users, Wallet } from 'lucide-react';
+import { mascaraTelefone } from './config/Estabelecimento';
 import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -139,6 +140,7 @@ export default function Mesas() {
         <header className="mc__topo">
           <div className="mc__nome">
             <strong>{m.nome}</strong>
+            {(m.cliente_nome || m.cliente_telefone) && <span className="mc__cliente"><UserRound size={13} /> {m.cliente_nome || mascaraTelefone(m.cliente_telefone ?? '')}</span>}
             {m.setor && <small>{m.setor}</small>}
           </div>
           <div className="mc__acoes" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -282,6 +284,7 @@ export default function Mesas() {
           <h1>{m.nome}</h1>
           <span className={cx('lm-status', `lm-status--${st}`)}><i aria-hidden="true" /> {ROTULO_SITUACAO[st]}</span>
           {m.setor && <small>{m.setor}</small>}
+          {(m.cliente_nome || m.cliente_telefone) && <span className="lm-cliente"><UserRound size={14} /> {[m.cliente_nome, m.cliente_telefone && mascaraTelefone(m.cliente_telefone)].filter(Boolean).join(' · ')}</span>}
         </div>
         {(cs.length > 0 || pedindo > 0) && (
           <div className="lm-alertas">

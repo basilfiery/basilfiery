@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Check, ChefHat, ChevronUp, LayoutGrid, MessageSquareText, Minus, PencilLine, Plus, Printer, Receipt, Search, ShoppingBasket, Trash2, Wallet, X,
+  Check, ChefHat, ChevronUp, LayoutGrid, MessageSquareText, Minus, PencilLine, Plus, Printer, Receipt, Search, ShoppingBasket, Trash2, UserRound, Wallet, X,
 } from 'lucide-react';
 import { FotoProduto, Switch } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -51,6 +51,60 @@ function lerDesconto(txt: string, subtotal: number) {
  * `mesaFixa`: aberto pela tela de Mesas (clicou na mesa). Lança direto na conta dela,
  * com o cabeçalho da mesa no lugar das abas Balcão/Mesas.
  */
+/** Nome e WhatsApp do cliente salvos na mesa: aparecem no cartão da mesa e no app do garçom. */
+function ClienteMesa({ mesa, aoSalvar }: { mesa: Mesa; aoSalvar: () => void }) {
+  const toast = useToast();
+  const [editando, setEditando] = useState(false);
+  const [nome, setNome] = useState(mesa.cliente_nome ?? '');
+  const [tel, setTel] = useState(mesa.cliente_telefone ?? '');
+  const [salvando, setSalvando] = useState(false);
+  const salvo = { nome: mesa.cliente_nome ?? '', tel: mesa.cliente_telefone ?? '' };
+  const mudou = nome.trim() !== salvo.nome || digitos(tel) !== salvo.tel;
+  const telInvalido = !!tel && digitos(tel).length < 10;
+
+  function abrir() { setNome(salvo.nome); setTel(salvo.tel); setEditando(true); }
+  async function salvar() {
+    if (telInvalido) return toast('WhatsApp com DDD (ex.: 11 99999-9999).', 'erro');
+    setSalvando(true);
+    const { error } = await supabase.rpc('mesa_definir_cliente', { p_mesa: mesa.id, p_nome: nome.trim(), p_telefone: digitos(tel) });
+    setSalvando(false);
+    if (error) return toast(msgErro(error), 'erro');
+    toast(nome.trim() || tel ? `Cliente salvo na ${mesa.nome}.` : 'Cliente removido da mesa.', 'ok');
+    setEditando(false);
+    aoSalvar();
+  }
+
+  if (editando) {
+    return (
+      <div className="pdv-cliente-mesa pdv-cliente-mesa--editar">
+        <span className="pdv-cliente-mesa__tit"><UserRound size={15} /> Cliente da mesa</span>
+        <div className="pdv-cliente">
+          <input className={cx('input', telInvalido && 'input--erro')} inputMode="tel" value={mascaraTelefone(tel)} onChange={(e) => setTel(digitos(e.target.value))} placeholder="WhatsApp (opcional)" aria-label="WhatsApp do cliente" />
+          <input className="input" value={nome} maxLength={80} autoFocus onChange={(e) => setNome(e.target.value)} placeholder="Nome do cliente" aria-label="Nome do cliente"
+            onKeyDown={(e) => { if (e.key === 'Enter') void salvar(); }} />
+        </div>
+        <div className="pdv-obs-editar__acoes">
+          <button type="button" className="btn btn--fantasma btn--sm" onClick={() => setEditando(false)} disabled={salvando}>Cancelar</button>
+          <button type="button" className="btn btn--primario btn--sm" onClick={() => void salvar()} disabled={salvando || !mudou}><Check size={15} /> {salvando ? 'Salvando…' : 'Salvar'}</button>
+        </div>
+      </div>
+    );
+  }
+  if (!salvo.nome && !salvo.tel) {
+    return <button type="button" className="pdv-cliente-mesa__add" onClick={abrir}><UserRound size={16} /> Colocar nome ou WhatsApp do cliente</button>;
+  }
+  return (
+    <div className="pdv-cliente-mesa">
+      <span className="pdv-cliente-mesa__icone"><UserRound size={17} /></span>
+      <span className="pdv-cliente-mesa__dados">
+        <b>{salvo.nome || 'Cliente'}</b>
+        {salvo.tel && <small>{mascaraTelefone(salvo.tel)}</small>}
+      </span>
+      <button type="button" className="btn btn--fantasma btn--sm" onClick={abrir}><PencilLine size={14} /> Editar</button>
+    </div>
+  );
+}
+
 export interface AbaConta { aba: 'pedido' | 'conta'; aoAba: (a: 'pedido' | 'conta') => void; total: number; painel: ReactNode }
 
 export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa?: Mesa; cabecalho?: ReactNode; aoLancar?: () => void; conta?: AbaConta } = {}) {
@@ -67,6 +121,7 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [obsPedido, setObsPedido] = useState('');
   const [verObs, setVerObs] = useState(false);
+  const [rascunhoObs, setRascunhoObs] = useState('');
   const [desconto, setDesconto] = useState('');
   const [verDesconto, setVerDesconto] = useState(false);
   const [cliTel, setCliTel] = useState('');
@@ -185,7 +240,8 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
         modo, mesa_id: modo === 'mesa' ? mesaId : null, forma: modo === 'balcao' ? forma : null,
         recebido: forma === 'dinheiro' && Number.isFinite(valorRecebido) ? String(valorRecebido) : '',
         desconto: valorDesconto > 0 ? String(valorDesconto) : '', cozinha, obs: obsPedido,
-        cliente_nome: cliNome, cliente_telefone: digitos(cliTel),
+        cliente_nome: mesaFixa ? mesaFixa.cliente_nome ?? '' : cliNome,
+        cliente_telefone: mesaFixa ? mesaFixa.cliente_telefone ?? '' : digitos(cliTel),
       },
     });
     setEnviando(false);
@@ -274,15 +330,22 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
                 <strong>{nomeItem(p)}</strong>
                 {l.texto && <small className="pdv-linha__adic">{l.texto}</small>}
                 {editando === l.chave ? (
-                  <input
-                    className="input pdv-linha__obs-input"
-                    autoFocus
-                    maxLength={140}
-                    defaultValue={l.obs}
-                    placeholder="Ex.: sem gelo"
-                    onBlur={(e) => { mudarObs(l.chave, e.target.value.trim()); setEditando(null); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
-                  />
+                  <div className="pdv-linha__obs-editar">
+                    <input
+                      className="input pdv-linha__obs-input"
+                      autoFocus
+                      maxLength={140}
+                      defaultValue={l.obs}
+                      placeholder="Ex.: sem gelo"
+                      onBlur={(e) => { mudarObs(l.chave, e.target.value.trim()); setEditando(null); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
+                    />
+                    {/* Salvar: o campo perde o foco e grava (o mesmo do Enter) */}
+                    <button type="button" className="pdv-linha__obs-ok" onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => (e.currentTarget.previousElementSibling as HTMLInputElement | null)?.blur()} aria-label="Salvar observação">
+                      <Check size={15} strokeWidth={2.8} />
+                    </button>
+                  </div>
                 ) : (
                   <button type="button" className="pdv-linha__obs" onClick={() => setEditando(l.chave)}>
                     <PencilLine size={12} /> {l.obs ? `“${l.obs}”` : 'Observação'}
@@ -297,10 +360,26 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
 
       <div className="pdv-pedido__rodape">
         <div className="pdv-extras">
-          <button type="button" className={cx('pdv-chip', (verObs || obsPedido) && 'ativo')} onClick={() => setVerObs((v) => !v)}><MessageSquareText size={14} /> Observação</button>
+          <button type="button" className={cx('pdv-chip', (verObs || obsPedido) && 'ativo')} onClick={() => { setRascunhoObs(obsPedido); setVerObs((v) => !v); }}><MessageSquareText size={14} /> Observação</button>
           <button type="button" className={cx('pdv-chip', (verDesconto || desconto) && 'ativo')} onClick={() => setVerDesconto((v) => !v)} disabled={!podeBalcao}><Wallet size={14} /> Desconto</button>
         </div>
-        {(verObs || obsPedido) && <textarea className="textarea pdv-obs" rows={2} maxLength={300} value={obsPedido} onChange={(e) => setObsPedido(e.target.value)} placeholder="Observação do pedido" />}
+        {verObs ? (
+          <div className="pdv-obs-editar">
+            <textarea className="textarea pdv-obs" rows={2} maxLength={300} value={rascunhoObs} autoFocus onChange={(e) => setRascunhoObs(e.target.value)} placeholder="Observação do pedido (ex.: trazer as bebidas primeiro)"
+              onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setObsPedido(rascunhoObs.trim()); setVerObs(false); } }} />
+            <div className="pdv-obs-editar__acoes">
+              <button type="button" className="btn btn--fantasma btn--sm" onClick={() => setVerObs(false)}>Cancelar</button>
+              <button type="button" className="btn btn--primario btn--sm" onClick={() => { setObsPedido(rascunhoObs.trim()); setVerObs(false); if (rascunhoObs.trim()) toast('Observação salva no pedido.', 'ok'); }}><Check size={15} /> Salvar</button>
+            </div>
+          </div>
+        ) : obsPedido ? (
+          <div className="pdv-obs-salva">
+            <MessageSquareText size={15} />
+            <span>{obsPedido}</span>
+            <button type="button" className="icone-btn" onClick={() => { setRascunhoObs(obsPedido); setVerObs(true); }} aria-label="Editar observação"><PencilLine size={15} /></button>
+            <button type="button" className="icone-btn" onClick={() => setObsPedido('')} aria-label="Remover observação"><X size={15} /></button>
+          </div>
+        ) : null}
 
         <div className="pdv-totais">
           <div><span>Subtotal</span><span>{brl(subtotal)}</span></div>
@@ -314,10 +393,12 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
           <div className="pdv-totais__total"><span>Total</span><strong>{brl(total)}</strong></div>
         </div>
 
-        <div className="pdv-cliente">
-          <input className="input" inputMode="tel" value={mascaraTelefone(cliTel)} onChange={(e) => setCliTel(digitos(e.target.value))} placeholder="WhatsApp (opcional)" aria-label="WhatsApp do cliente" />
-          <input className="input" value={cliNome} maxLength={80} onChange={(e) => setCliNome(e.target.value)} placeholder="Nome do cliente" aria-label="Nome do cliente" />
-        </div>
+        {mesaFixa ? <ClienteMesa key={mesaFixa.id} mesa={mesaFixa} aoSalvar={() => aoLancar?.()} /> : (
+          <div className="pdv-cliente">
+            <input className="input" inputMode="tel" value={mascaraTelefone(cliTel)} onChange={(e) => setCliTel(digitos(e.target.value))} placeholder="WhatsApp (opcional)" aria-label="WhatsApp do cliente" />
+            <input className="input" value={cliNome} maxLength={80} onChange={(e) => setCliNome(e.target.value)} placeholder="Nome do cliente" aria-label="Nome do cliente" />
+          </div>
+        )}
 
         {mesaFixa ? null : modo === 'mesa' ? (
           <select className="select" value={mesaId} onChange={(e) => setMesaId(e.target.value)} aria-label="Mesa">

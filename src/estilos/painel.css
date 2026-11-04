@@ -2381,6 +2381,13 @@ button.garcom__chamado:active { transform: scale(.985); }
 .mc__nome { min-width: 0; display: grid; gap: 1px; }
 .mc__nome strong { font-size: 1.18rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; } /* nome sempre inteiro: se não couber, quebra a linha */
 .mc__nome small { color: var(--muted); font-size: .76rem; }
+.mc__cliente { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--text); font-size: .82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc__cliente svg { flex: none; color: var(--mc-cor); }
+.garcom__mesa-cliente { display: block; font-size: .74rem; font-weight: 700; opacity: .92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gmesa__cliente { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 10px 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2, var(--surface)); }
+.gmesa__cliente > svg { flex: none; color: var(--acento); }
+.gmesa__cliente > span { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+.gmesa__cliente small { color: var(--muted); font-size: .8rem; }
 .mc__acoes { display: flex; gap: 10px; flex: none; }
 .mc__pedido {
   height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; border: 1px solid var(--line-2); border-radius: 10px;

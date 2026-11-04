@@ -220,7 +220,7 @@ export function ModalGrupoAdicionais({ restauranteId, grupo, usadoEm, nomeSugeri
         </div>
 
         <div className="adic-qtds">
-          <p>Quantas opções o cliente pode escolher?</p>
+          <p>Quantas opções o cliente pode escolher? <small>(padrão; em cada item dá para mudar em “Escolhas no item”)</small></p>
           <div className="adic-qtds__linha">
             <label className="campo"><span>Mínimo</span><Stepper valor={minimo} min={obrigatorio ? 1 : 0} max={obrigatorio ? maximo : 0} aoMudar={setMinimo} /></label>
             <label className="campo"><span>Máximo</span><Stepper valor={maximo} min={Math.max(1, minimo)} max={50} aoMudar={setMaximo} /></label>
@@ -291,7 +291,7 @@ export function ModalGrupoAdicionais({ restauranteId, grupo, usadoEm, nomeSugeri
           <AjustarFoto arquivo={ajustar.arquivo} titulo="Ajustar foto da opção" proporcoes={PROPORCOES_PRODUTO}
             aoConfirmar={enviarAjustada} aoCancelar={() => setAjustar(null)} />
         )}
-        {usadoEm.length > 0 && <p className="adic-dica">Usado em: <b>{usadoEm.join(', ')}</b>. Mudou aqui, muda em todos (a quantidade de escolhas pode ser diferente em cada item, no “Editar item”).</p>}
+        {usadoEm.length > 0 && <p className="adic-dica">Usado em: <b>{usadoEm.join(', ')}</b>. Mudou aqui, muda em todos (a quantidade de escolhas pode ser diferente em cada item).</p>}
       </div>
     </Modal>
   );
@@ -309,6 +309,10 @@ export function AdicionaisDoProduto({ grupos, vinculados, regras, aoMudar, aoReg
   aoEditar: (g: GrupoAdicional) => void;
 }) {
   const [escolhendo, setEscolhendo] = useState(false);
+  // Painéis de "Escolhas no item" abertos
+  const [aberto, setAberto] = useState<Set<string>>(() => new Set());
+  const alternar = (id: string) => setAberto((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const resumoQtd = (r: RegraItem) => (r.minimo === r.maximo ? `${r.maximo}` : r.minimo === 0 ? `até ${r.maximo}` : `${r.minimo} a ${r.maximo}`);
   const ligados = vinculados.map((id) => grupos.find((g) => g.id === id)).filter((g): g is GrupoAdicional => !!g);
   const livres = grupos.filter((g) => !vinculados.includes(g.id));
   const mover = (i: number, d: -1 | 1) => {
@@ -346,23 +350,6 @@ export function AdicionaisDoProduto({ grupos, vinculados, regras, aoMudar, aoReg
                   {g.opcoes.slice(0, 6).map((o) => <em key={o.id}>{o.nome}{Number(o.preco) > 0 ? ` +${brl(Number(o.preco))}` : ''}</em>)}
                   {g.opcoes.length > 6 && <em>+{g.opcoes.length - 6}</em>}
                 </span>
-                {r ? (
-                  <div className="adic-produto__qtd">
-                    <span className="adic-produto__qtd-tit">Neste item, o cliente escolhe</span>
-                    <div className="adic-produto__qtd-linha">
-                      <label><span>Mínimo</span><Stepper valor={r.minimo} min={0} max={r.maximo} aoMudar={(v) => aoRegra(g.id, { ...r, minimo: v })} /></label>
-                      <label><span>Máximo</span><Stepper valor={r.maximo} min={Math.max(1, r.minimo)} max={Math.max(teto, r.maximo)} aoMudar={(v) => aoRegra(g.id, { ...r, maximo: v })} /></label>
-                      <b className="adic-produto__qtd-resumo">{regraGrupo(r)}</b>
-                    </div>
-                    <button type="button" className="adic-produto__qtd-voltar" onClick={() => aoRegra(g.id, null)}>
-                      <Undo2 size={13} /> Voltar para a do grupo ({regraGrupo(g).toLowerCase()})
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" className="adic-produto__ajustar" onClick={() => aoRegra(g.id, { minimo: g.minimo, maximo: g.maximo })}>
-                    <SlidersHorizontal size={14} /> Quantidade diferente só neste item
-                  </button>
-                )}
               </div>
               <div className="adic-produto__acoes">
                 {ligados.length > 1 && (
@@ -371,9 +358,32 @@ export function AdicionaisDoProduto({ grupos, vinculados, regras, aoMudar, aoReg
                     <button type="button" className="icone-btn" disabled={i === ligados.length - 1} onClick={() => mover(i, 1)} aria-label="Descer"><ArrowDown size={16} /></button>
                   </>
                 )}
-                <button type="button" className="btn btn--contorno btn--sm" onClick={() => aoEditar(g)}><Pencil size={15} /> Editar grupo</button>
+                <div className="adic-produto__botoes">
+                  <button type="button" className="btn btn--contorno btn--sm" onClick={() => aoEditar(g)}><Pencil size={15} /> Editar grupo</button>
+                  <button type="button" className={cx('btn btn--contorno btn--sm adic-produto__btn-qtd', aberto.has(g.id) && 'ativo', r && 'proprio')}
+                    aria-expanded={aberto.has(g.id)}
+                    onClick={() => {
+                      if (!r) aoRegra(g.id, { minimo: g.minimo, maximo: g.maximo });
+                      alternar(g.id);
+                    }}>
+                    <SlidersHorizontal size={15} /> {r ? `Escolhas: ${resumoQtd(r)}` : 'Escolhas no item'}
+                  </button>
+                </div>
                 <button type="button" className="icone-btn icone-btn--perigo" onClick={() => aoMudar(vinculados.filter((x) => x !== g.id))} title="Tirar deste item" aria-label="Tirar deste item"><Unlink size={16} /></button>
               </div>
+              {r && aberto.has(g.id) && (
+                <div className="adic-produto__qtd">
+                  <span className="adic-produto__qtd-tit">Quantas opções de “{g.nome}” o cliente escolhe neste item?</span>
+                  <div className="adic-produto__qtd-linha">
+                    <label><span>Mínimo</span><Stepper valor={r.minimo} min={0} max={r.maximo} aoMudar={(v) => aoRegra(g.id, { ...r, minimo: v })} /></label>
+                    <label><span>Máximo</span><Stepper valor={r.maximo} min={Math.max(1, r.minimo)} max={Math.max(teto, r.maximo)} aoMudar={(v) => aoRegra(g.id, { ...r, maximo: v })} /></label>
+                    <b className="adic-produto__qtd-resumo">{regraGrupo(r)}</b>
+                  </div>
+                  <button type="button" className="adic-produto__qtd-voltar" onClick={() => { aoRegra(g.id, null); alternar(g.id); }}>
+                    <Undo2 size={13} /> Usar o padrão do grupo ({regraGrupo(g).toLowerCase()})
+                  </button>
+                </div>
+              )}
             </li>
             );
           })}

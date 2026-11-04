@@ -1775,7 +1775,7 @@
 .adic-produto__cab small { color: var(--muted); font-size: .82rem; }
 .adic-produto__vazio { margin: 0; color: var(--muted); font-size: .86rem; }
 .adic-produto__lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.adic-produto__grupo { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.adic-produto__grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .adic-produto__grupo.esgotado { opacity: .7; }
 .adic-produto__info { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .adic-produto__info strong { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .95rem; }
@@ -1784,10 +1784,12 @@
 .adic-produto__opcoes { display: flex; flex-wrap: wrap; gap: 4px; }
 .adic-produto__opcoes em { padding: 2px 8px; border-radius: 999px; background: var(--bg-2); color: var(--muted); font-size: .74rem; font-style: normal; }
 .adic-produto__acoes { flex: none; display: flex; align-items: center; gap: 4px; }
-/* Quantidade própria do item (ex.: Pizza G até 3 sabores) */
-.adic-produto__ajustar { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 5px 10px; border: 1px dashed color-mix(in srgb, var(--acento) 45%, var(--line)); border-radius: 999px; background: none; color: var(--acento); font-size: .8rem; font-weight: 700; }
-.adic-produto__ajustar:hover { background: color-mix(in srgb, var(--acento) 8%, transparent); border-style: solid; }
-.adic-produto__qtd { display: grid; gap: 8px; margin-top: 6px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--acento) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--acento) 6%, var(--surface)); }
+/* Quantidade própria do item (ex.: Pizza G até 3 sabores): botão embaixo do "Editar grupo" */
+.adic-produto__botoes { display: grid; gap: 6px; width: 146px; }
+.adic-produto__botoes .btn { justify-content: center; white-space: nowrap; }
+.adic-produto__btn-qtd.proprio { border-color: color-mix(in srgb, var(--acento) 55%, var(--line)); color: var(--acento); background: color-mix(in srgb, var(--acento) 7%, var(--surface)); }
+.adic-produto__btn-qtd.ativo { border-color: var(--acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 14%, transparent); }
+.adic-produto__qtd { flex-basis: 100%; display: grid; gap: 8px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--acento) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--acento) 6%, var(--surface)); }
 .adic-produto__qtd-tit { font-size: .8rem; font-weight: 700; color: var(--text); }
 .adic-produto__qtd-linha { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
 .adic-produto__qtd-linha label { display: grid; gap: 4px; }

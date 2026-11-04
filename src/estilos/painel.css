@@ -1784,6 +1784,19 @@
 .adic-produto__opcoes { display: flex; flex-wrap: wrap; gap: 4px; }
 .adic-produto__opcoes em { padding: 2px 8px; border-radius: 999px; background: var(--bg-2); color: var(--muted); font-size: .74rem; font-style: normal; }
 .adic-produto__acoes { flex: none; display: flex; align-items: center; gap: 4px; }
+/* Quantidade própria do item (ex.: Pizza G até 3 sabores) */
+.adic-produto__ajustar { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 5px 10px; border: 1px dashed color-mix(in srgb, var(--acento) 45%, var(--line)); border-radius: 999px; background: none; color: var(--acento); font-size: .8rem; font-weight: 700; }
+.adic-produto__ajustar:hover { background: color-mix(in srgb, var(--acento) 8%, transparent); border-style: solid; }
+.adic-produto__qtd { display: grid; gap: 8px; margin-top: 6px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--acento) 35%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--acento) 6%, var(--surface)); }
+.adic-produto__qtd-tit { font-size: .8rem; font-weight: 700; color: var(--text); }
+.adic-produto__qtd-linha { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; }
+.adic-produto__qtd-linha label { display: grid; gap: 4px; }
+.adic-produto__qtd-linha label > span { font-size: .74rem; font-weight: 600; color: var(--muted); }
+.adic-produto__qtd-linha .stepper { background: var(--surface); }
+.adic-produto__qtd-linha .stepper button { width: 32px; height: 34px; }
+.adic-produto__qtd-resumo { padding-bottom: 8px; color: var(--acento); font-size: .86rem; }
+.adic-produto__qtd-voltar { justify-self: start; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--muted); font-size: .78rem; font-weight: 600; }
+.adic-produto__qtd-voltar:hover { color: var(--text); text-decoration: underline; }
 .adic-produto__escolher { display: grid; gap: 6px; padding: 10px; border: 1px dashed var(--line-2); border-radius: 12px; background: var(--surface); }
 .adic-produto__livre { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); text-align: left; }
 .adic-produto__livre:hover { border-color: var(--acento); }

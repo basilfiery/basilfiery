@@ -13,7 +13,7 @@ import { msgErro, rpcSeguro, supabase } from '../../lib/supabase';
 import { brl, cx, hora, lerPreco, ls, mascaraPreco, useAgora } from '../../lib/util';
 import { CapaCardapio, ModalProduto, capaEmVideo, juntarNoCarrinho, nomeItem, ofertaPara, precoLinha, type AdicionaisEscolhidos, type Linha, type CategoriaMesa, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
 import { juntarBump, soltarBumpsSozinhos, visitaLoja, type BumpCardapio, type ExtraBump, type SugestoesBump } from '../../lib/orderBump';
-import { calcularAdicionais, gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
+import { calcularAdicionais, gruposDoProduto, type GrupoAdicionalMesa, type RegrasProduto } from '../../lib/adicionais';
 import { supabaseCliente, useContaCliente, type ContaCliente } from '../../lib/contaCliente';
 import { ModalConta } from './ContaCliente';
 import { destravarSom, tocarEnviado } from '../../lib/som';
@@ -150,7 +150,7 @@ function rastrear(evento: 'AddToCart' | 'InitiateCheckout' | 'Purchase', valor: 
 }
 interface Dados {
   restaurante: Loja; categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[];
-  adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>;
+  adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>; produto_regras?: RegrasProduto;
   /** A loja escolheu esconder os esgotados (Configurações › Cardápio digital) */
   ocultar_esgotados?: boolean;
   /** Ofertas do Alavancar vendas (order bump) */
@@ -332,7 +332,7 @@ export default function LojaCardapio() {
     for (const i of itens) {
       const p = (i.produto_id && (porId.get(i.produto_id) ?? produtosLoja.find((x) => x.real_id === i.produto_id))) || null;
       if (!p || !p.disponivel) { faltou++; continue; }
-      const grupos = gruposDoProduto(p.real_id ?? p.id, dados?.adicionais_grupos, dados?.produto_grupos);
+      const grupos = gruposDoProduto(p.real_id ?? p.id, dados?.adicionais_grupos, dados?.produto_grupos, dados?.produto_regras);
       const escolhas = (i.adicionais ?? [])
         .filter((e) => grupos.some((g) => g.opcoes.some((o) => o.id === e.id && o.disponivel)))
         .map((e) => ({ id: e.id, qtd: e.qtd }));
@@ -560,7 +560,7 @@ export default function LojaCardapio() {
           aoAdicionar={(qtd, obs, a, extras) => { adicionar(produtoAberto, qtd, obs, a, extras); setProdutoAberto(null); }}
           oferta={ofertaAberta}
           jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
-          grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados.adicionais_grupos, dados.produto_grupos)}
+          grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados.adicionais_grupos, dados.produto_grupos, dados.produto_regras)}
           semObs={loja.obs === false}
         />
       )}

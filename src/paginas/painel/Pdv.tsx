@@ -11,7 +11,7 @@ import { msgErro, supabase, rpcSeguro } from '../../lib/supabase';
 import type { FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
 import { brl, cx, lerPreco, mascaraPreco, podeCaixa, precoParaTexto } from '../../lib/util';
 import { ModalProduto, juntarNoCarrinho, nomeItem, precoLinha, type AdicionaisEscolhidos, type CategoriaMesa, type Linha, type ProdutoMesa, type SaborMesa } from '../mesa/Mesa';
-import { gruposDoProduto, type GrupoAdicionalMesa } from '../../lib/adicionais';
+import { gruposDoProduto, type GrupoAdicionalMesa, type RegrasProduto } from '../../lib/adicionais';
 import { mascaraTelefone } from './config/Estabelecimento';
 import { usePainel } from './Painel';
 import '../../estilos/mesa.css';
@@ -24,7 +24,7 @@ import '../../estilos/pdv.css';
 
 interface Dados {
   categorias: CategoriaMesa[]; produtos: ProdutoMesa[]; sabores?: SaborMesa[]; preparo: string[];
-  adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>;
+  adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>; produto_regras?: RegrasProduto;
 }
 interface SecaoPdv { id: string; nome: string; principal: string; itens: ProdutoMesa[] }
 type Modo = 'balcao' | 'mesa';
@@ -137,7 +137,7 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   const cozinha = cozinhaManual ?? precisaCozinha;
   const qtdNoPedido = (id: string) => linhas.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
 
-  const gruposDe = (p: ProdutoMesa) => gruposDoProduto(p.real_id ?? p.id, dados?.adicionais_grupos, dados?.produto_grupos);
+  const gruposDe = (p: ProdutoMesa) => gruposDoProduto(p.real_id ?? p.id, dados?.adicionais_grupos, dados?.produto_grupos, dados?.produto_regras);
 
   // Um toque já coloca 1; se o item tem adicionais (ex.: sabores), abre a escolha
   function adicionar(p: ProdutoMesa, qtd = 1, obs = '', a?: AdicionaisEscolhidos) {

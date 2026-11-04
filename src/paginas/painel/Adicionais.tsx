@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, Crop, ImagePlus, Link2, ListPlus, Pencil, Plus, Trash2, Unlink, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Crop, ImagePlus, Link2, ListPlus, Pencil, Plus, SlidersHorizontal, Trash2, Undo2, Unlink, X } from 'lucide-react';
 import { Stepper, Switch } from '../../componentes/Basicos';
 import { confirmar } from '../../componentes/Confirmar';
 import { Modal } from '../../componentes/Modal';
@@ -40,14 +40,17 @@ export interface GrupoAdicional {
   opcoes: AdicionalOpcao[];
 }
 
-export interface VinculoAdicional { produto_id: string; grupo_id: string; ordem: number }
+export interface VinculoAdicional { produto_id: string; grupo_id: string; ordem: number; minimo: number | null; maximo: number | null }
+
+/** Quantidade própria de um item num grupo (vazio = a do grupo) */
+export interface RegraItem { minimo: number; maximo: number }
 
 /** Carrega grupos (com as opções) e vínculos do restaurante. */
 export async function carregarAdicionais(restauranteId: string) {
   const [g, a, v] = await Promise.all([
     supabase.from('adicional_grupos').select('*').eq('restaurante_id', restauranteId).order('ordem').order('nome'),
     supabase.from('adicionais').select('*').eq('restaurante_id', restauranteId).order('ordem').order('nome'),
-    supabase.from('produto_adicionais').select('produto_id, grupo_id, ordem').eq('restaurante_id', restauranteId),
+    supabase.from('produto_adicionais').select('produto_id, grupo_id, ordem, minimo, maximo').eq('restaurante_id', restauranteId),
   ]);
   const opcoes = (a.data ?? []) as AdicionalOpcao[];
   const grupos = ((g.data ?? []) as Omit<GrupoAdicional, 'opcoes'>[]).map((x) => ({ ...x, opcoes: opcoes.filter((o) => o.grupo_id === x.id) }));
@@ -288,17 +291,20 @@ export function ModalGrupoAdicionais({ restauranteId, grupo, usadoEm, nomeSugeri
           <AjustarFoto arquivo={ajustar.arquivo} titulo="Ajustar foto da opção" proporcoes={PROPORCOES_PRODUTO}
             aoConfirmar={enviarAjustada} aoCancelar={() => setAjustar(null)} />
         )}
-        {usadoEm.length > 0 && <p className="adic-dica">Usado em: <b>{usadoEm.join(', ')}</b>. Mudou aqui, muda em todos.</p>}
+        {usadoEm.length > 0 && <p className="adic-dica">Usado em: <b>{usadoEm.join(', ')}</b>. Mudou aqui, muda em todos (a quantidade de escolhas pode ser diferente em cada item, no “Editar item”).</p>}
       </div>
     </Modal>
   );
 }
 
 /** Dentro do "Editar produto": grupos ligados ao item, vincular existente ou criar novo. */
-export function AdicionaisDoProduto({ grupos, vinculados, aoMudar, aoCriar, aoEditar }: {
+export function AdicionaisDoProduto({ grupos, vinculados, regras, aoMudar, aoRegra, aoCriar, aoEditar }: {
   grupos: GrupoAdicional[];
   vinculados: string[];
+  /** Quantidade própria deste item em cada grupo */
+  regras: Record<string, RegraItem | undefined>;
   aoMudar: (ids: string[]) => void;
+  aoRegra: (grupoId: string, r: RegraItem | null) => void;
   aoCriar: () => void;
   aoEditar: (g: GrupoAdicional) => void;
 }) {
@@ -326,15 +332,37 @@ export function AdicionaisDoProduto({ grupos, vinculados, aoMudar, aoCriar, aoEd
         <p className="adic-produto__vazio">Nenhum grupo ligado a este item.</p>
       ) : (
         <ul className="adic-produto__lista">
-          {ligados.map((g, i) => (
+          {ligados.map((g, i) => {
+            const r = regras[g.id];
+            const ef = r ?? g;
+            // Sem repetir opção, não dá para escolher mais do que existe
+            const teto = g.opcoes.some((o) => o.repetir) ? 50 : Math.max(1, g.opcoes.length);
+            return (
             <li key={g.id} className={cx('adic-produto__grupo', g.esgotado && 'esgotado')}>
               <div className="adic-produto__info">
-                <strong>{g.nome}{g.minimo > 0 && <span className="adic-produto__obrig">Obrigatório</span>}{g.esgotado && <span className="selo-esgotado">Esgotado</span>}</strong>
-                <small>{regraGrupo(g)} · {g.opcoes.length} {g.opcoes.length === 1 ? 'opção' : 'opções'}{g.maximo > 1 && g.calculo !== 'soma' ? ` · ${g.calculo === 'maior' ? 'cobra o mais caro' : 'cobra a média'}` : ''}</small>
+                <strong>{g.nome}{ef.minimo > 0 && <span className="adic-produto__obrig">Obrigatório</span>}{g.esgotado && <span className="selo-esgotado">Esgotado</span>}</strong>
+                <small>{regraGrupo(ef)}{r ? ' (só neste item)' : ''} · {g.opcoes.length} {g.opcoes.length === 1 ? 'opção' : 'opções'}{ef.maximo > 1 && g.calculo !== 'soma' ? ` · ${g.calculo === 'maior' ? 'cobra o mais caro' : 'cobra a média'}` : ''}</small>
                 <span className="adic-produto__opcoes">
                   {g.opcoes.slice(0, 6).map((o) => <em key={o.id}>{o.nome}{Number(o.preco) > 0 ? ` +${brl(Number(o.preco))}` : ''}</em>)}
                   {g.opcoes.length > 6 && <em>+{g.opcoes.length - 6}</em>}
                 </span>
+                {r ? (
+                  <div className="adic-produto__qtd">
+                    <span className="adic-produto__qtd-tit">Neste item, o cliente escolhe</span>
+                    <div className="adic-produto__qtd-linha">
+                      <label><span>Mínimo</span><Stepper valor={r.minimo} min={0} max={r.maximo} aoMudar={(v) => aoRegra(g.id, { ...r, minimo: v })} /></label>
+                      <label><span>Máximo</span><Stepper valor={r.maximo} min={Math.max(1, r.minimo)} max={Math.max(teto, r.maximo)} aoMudar={(v) => aoRegra(g.id, { ...r, maximo: v })} /></label>
+                      <b className="adic-produto__qtd-resumo">{regraGrupo(r)}</b>
+                    </div>
+                    <button type="button" className="adic-produto__qtd-voltar" onClick={() => aoRegra(g.id, null)}>
+                      <Undo2 size={13} /> Voltar para a do grupo ({regraGrupo(g).toLowerCase()})
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className="adic-produto__ajustar" onClick={() => aoRegra(g.id, { minimo: g.minimo, maximo: g.maximo })}>
+                    <SlidersHorizontal size={14} /> Quantidade diferente só neste item
+                  </button>
+                )}
               </div>
               <div className="adic-produto__acoes">
                 {ligados.length > 1 && (
@@ -347,7 +375,8 @@ export function AdicionaisDoProduto({ grupos, vinculados, aoMudar, aoCriar, aoEd
                 <button type="button" className="icone-btn icone-btn--perigo" onClick={() => aoMudar(vinculados.filter((x) => x !== g.id))} title="Tirar deste item" aria-label="Tirar deste item"><Unlink size={16} /></button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 

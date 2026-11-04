@@ -4,7 +4,7 @@
    O preço com desconto é conferido de novo no servidor (privado.precificar).
    ===================================================================== */
 import type { CategoriaMesa, Linha, ProdutoMesa } from '../paginas/mesa/Mesa';
-import type { GrupoAdicionalMesa } from './adicionais';
+import type { GrupoAdicionalMesa, RegrasProduto } from './adicionais';
 
 export type GatilhoBump = 'todos' | 'categorias' | 'produtos' | 'palavras' | 'automatico';
 export type DescontoBump = 'nenhum' | 'percentual' | 'valor';
@@ -93,6 +93,7 @@ interface Contexto {
   categorias: CategoriaMesa[];
   grupos?: GrupoAdicionalMesa[];
   produtoGrupos?: Record<string, string[]>;
+  produtoRegras?: RegrasProduto;
   canal: CanalBump;
   carrinho: Linha[];
   /** Ofertas que já apareceram nesta visita (não repete) */
@@ -105,7 +106,7 @@ export function escolherBump(x: Contexto): OfertaBump | null {
   if (!bumps.length || !produto.disponivel) return null;
   const cats = new Map(categorias.map((c) => [c.id, c]));
   const porId = new Map(produtos.map((p) => [p.id, p]));
-  const obrigatorios = new Set((x.grupos ?? []).filter((g) => g.minimo > 0).map((g) => g.id));
+  const minimos = new Map((x.grupos ?? []).map((g) => [g.id, g.minimo]));
   const noCarrinho = new Set(x.carrinho.map((l) => l.produto_id));
   const topoDoItem = categoriaTopo(produto.categoria_id, cats);
   const idItem = produto.real_id ?? produto.id;
@@ -113,7 +114,7 @@ export function escolherBump(x: Contexto): OfertaBump | null {
   // Só itens simples entram na oferta: disponíveis e sem escolha obrigatória
   const podeOferecer = (q: ProdutoMesa | undefined): q is ProdutoMesa => !!q && q.disponivel && q.id !== produto.id && q.id !== idItem
     && !q.real_id && !noCarrinho.has(q.id) && Number(q.preco) > 0
-    && !(x.produtoGrupos?.[q.id] ?? []).some((g) => obrigatorios.has(g));
+    && !(x.produtoGrupos?.[q.id] ?? []).some((g) => (x.produtoRegras?.[q.id]?.[g]?.minimo ?? minimos.get(g) ?? 0) > 0);
 
   for (const b of bumps) {
     if (x.jaVistas?.has(b.id)) continue;

@@ -12,7 +12,7 @@ import { sugerirObs } from '../../lib/sugestoes';
 import type { Categoria, Grupo, Produto } from '../../lib/tipos';
 import { brl, cx, lerPreco, mascaraPreco, ordenarNome, precoParaTexto } from '../../lib/util';
 import { usePainel } from './Painel';
-import { AdicionaisDoProduto, ModalGrupoAdicionais, carregarAdicionais, type GrupoAdicional, type VinculoAdicional } from './Adicionais';
+import { AdicionaisDoProduto, ModalGrupoAdicionais, carregarAdicionais, type GrupoAdicional, type RegraItem, type VinculoAdicional } from './Adicionais';
 import { regraGrupo } from '../../lib/adicionais';
 import { confirmar } from '../../componentes/Confirmar';
 import { AjustarFoto, PROPORCOES_PRODUTO, arquivoDaFoto } from '../../componentes/AjustarFoto';
@@ -633,6 +633,7 @@ export default function Cardapio() {
           grupo={editProd === 'novo' ? grupoSel : grupoDe((editProd as Produto).grupo_id)}
           adicionais={adic.grupos}
           vinculosIniciais={editProd === 'novo' ? [] : adic.vinculos.filter((v) => v.produto_id === (editProd as Produto).id).sort((a, b) => a.ordem - b.ordem).map((v) => v.grupo_id)}
+          regrasIniciais={editProd === 'novo' ? {} : Object.fromEntries(adic.vinculos.filter((v) => v.produto_id === (editProd as Produto).id && v.maximo != null).map((v) => [v.grupo_id, { minimo: v.minimo ?? 0, maximo: v.maximo! }]))}
           nomesDoGrupo={(id) => adic.vinculos.filter((v) => v.grupo_id === id).map((v) => produtos.find((x) => x.id === v.produto_id)?.nome).filter((x): x is string => !!x)}
           aoRecarregarAdicionais={async () => { const r = await carregarAdicionais(restaurante.id); setAdic(r); return r.grupos; }}
           aoFechar={() => setEditProd(null)}
@@ -1025,7 +1026,7 @@ function ModalGrupo({ restauranteId, grupo, usadoEm, aoFechar, aoSalvar }: {
   );
 }
 
-function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, grupo, adicionais, vinculosIniciais, nomesDoGrupo, aoRecarregarAdicionais, aoFechar, aoSalvar }: {
+function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, grupo, adicionais, vinculosIniciais, regrasIniciais, nomesDoGrupo, aoRecarregarAdicionais, aoFechar, aoSalvar }: {
   restauranteId: string;
   produto: Produto | null;
   categorias: Categoria[];
@@ -1035,6 +1036,8 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
   /** Grupos de adicionais do restaurante e os ligados a este item */
   adicionais: GrupoAdicional[];
   vinculosIniciais: string[];
+  /** Quantidade própria do item em cada grupo ligado */
+  regrasIniciais: Record<string, RegraItem | undefined>;
   nomesDoGrupo: (grupoId: string) => string[];
   aoRecarregarAdicionais: () => Promise<GrupoAdicional[]>;
   aoFechar: () => void;
@@ -1042,12 +1045,14 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
 }) {
   const toast = useToast();
   const [vinculos, setVinculos] = useState<string[]>(vinculosIniciais);
+  const [regras, setRegras] = useState(regrasIniciais);
+  const chaveRegras = (r: Record<string, RegraItem | undefined>) => JSON.stringify(Object.entries(r).filter(([, v]) => v).sort());
   const [gruposAdic, setGruposAdic] = useState(adicionais);
   const [editAdic, setEditAdic] = useState<GrupoAdicional | 'novo' | null>(null);
 
   /** Liga/desliga os grupos de adicionais deste item (só o que mudou). */
   async function salvarVinculos(produtoId: string) {
-    if (vinculos.join() === vinculosIniciais.join()) return null;
+    if (vinculos.join() === vinculosIniciais.join() && chaveRegras(regras) === chaveRegras(regrasIniciais)) return null;
     const tirar = vinculosIniciais.filter((id) => !vinculos.includes(id));
     if (tirar.length) {
       const { error } = await supabase.from('produto_adicionais').delete().eq('produto_id', produtoId).in('grupo_id', tirar);
@@ -1055,7 +1060,7 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
     }
     if (vinculos.length) {
       const { error } = await supabase.from('produto_adicionais').upsert(
-        vinculos.map((grupo_id, ordem) => ({ produto_id: produtoId, grupo_id, restaurante_id: restauranteId, ordem })),
+        vinculos.map((grupo_id, ordem) => ({ produto_id: produtoId, grupo_id, restaurante_id: restauranteId, ordem, minimo: regras[grupo_id]?.minimo ?? null, maximo: regras[grupo_id]?.maximo ?? null })),
       );
       if (error) return error;
     }
@@ -1386,7 +1391,9 @@ function ModalProduto({ restauranteId, produto, categorias, categoriaPadrao, gru
           <AdicionaisDoProduto
             grupos={gruposAdic}
             vinculados={vinculos}
+            regras={regras}
             aoMudar={setVinculos}
+            aoRegra={(id, r) => setRegras((x) => ({ ...x, [id]: r ?? undefined }))}
             aoCriar={() => setEditAdic('novo')}
             aoEditar={setEditAdic}
           />

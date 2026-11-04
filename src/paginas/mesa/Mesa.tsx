@@ -19,7 +19,7 @@ import { sugerirObs } from '../../lib/sugestoes';
 import { destravarSom, tocarAviso, tocarEnviado } from '../../lib/som';
 import { fraseCancelamento } from '../../lib/cancelamento';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
-import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional } from '../../lib/adicionais';
+import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional, type RegrasProduto } from '../../lib/adicionais';
 import { JogoMemoria } from './JogoMemoria';
 import { telefoneFormatado } from '../loja/ContaCliente';
 import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
@@ -82,6 +82,8 @@ interface DadosMesa {
   sabores?: SaborMesa[];
   adicionais_grupos?: GrupoAdicionalMesa[];
   produto_grupos?: Record<string, string[]>;
+  /** Quantidade própria de cada item num grupo (ex.: Pizza G até 3 sabores) */
+  produto_regras?: RegrasProduto;
   /** A loja escolheu esconder os esgotados (Configurações › Cardápio digital) */
   ocultar_esgotados?: boolean;
   /** Ofertas do Alavancar vendas (order bump) */
@@ -102,12 +104,12 @@ export interface Linha {
 export const precoLinha = (l: Linha, p?: ProdutoMesa) => (p ? (l.preco_bump ?? Number(p.preco)) + (l.extra ?? 0) : 0);
 
 /** Ofertas do order bump para um item (mesa e delivery usam a mesma regra). */
-export function ofertaPara(p: ProdutoMesa, d: { bumps?: BumpCardapio[]; bump_auto?: SugestoesBump; categorias: CategoriaMesa[]; adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]> } | null,
+export function ofertaPara(p: ProdutoMesa, d: { bumps?: BumpCardapio[]; bump_auto?: SugestoesBump; categorias: CategoriaMesa[]; adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>; produto_regras?: RegrasProduto } | null,
   produtos: ProdutoMesa[], carrinho: Linha[], canal: 'mesa' | 'delivery', escopo: EscopoBump): OfertaBump | null {
   if (!d?.bumps?.length) return null;
   const o = escolherBump({
     produto: p, bumps: d.bumps, sugestoes: d.bump_auto, produtos, categorias: d.categorias,
-    grupos: d.adicionais_grupos, produtoGrupos: d.produto_grupos, canal, carrinho, jaVistas: bumpsVistos(escopo),
+    grupos: d.adicionais_grupos, produtoGrupos: d.produto_grupos, produtoRegras: d.produto_regras, canal, carrinho, jaVistas: bumpsVistos(escopo),
   });
   return o && { ...o, escopo };
 }
@@ -732,7 +734,7 @@ export default function Mesa() {
           }}
           oferta={ofertaAberta}
           jaNoCarrinho={qtdDoProduto(produtoAberto.id)}
-          grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados?.adicionais_grupos, dados?.produto_grupos)}
+          grupos={gruposDoProduto(produtoAberto.real_id ?? produtoAberto.id, dados?.adicionais_grupos, dados?.produto_grupos, dados?.produto_regras)}
         />
       )}
 

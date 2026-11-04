@@ -23,14 +23,22 @@ export interface GrupoAdicionalMesa {
 
 export interface Escolha { id: string; qtd: number }
 
-/** Grupos ligados ao produto, na ordem cadastrada. */
+/** Quantidade própria de um item num grupo (ex.: Pizza G até 3 sabores): { produto: { grupo: regra } } */
+export type RegrasProduto = Record<string, Record<string, { minimo: number; maximo: number }>>;
+
+/** Grupos ligados ao produto, na ordem cadastrada (com a quantidade própria do item, se tiver). */
 export function gruposDoProduto(
   produtoId: string,
   grupos: GrupoAdicionalMesa[] | undefined,
   vinculos: Record<string, string[]> | undefined,
+  regras?: RegrasProduto,
 ): GrupoAdicionalMesa[] {
   const ids = vinculos?.[produtoId] ?? [];
-  return ids.map((id) => grupos?.find((g) => g.id === id)).filter((g): g is GrupoAdicionalMesa => !!g);
+  return ids.map((id) => {
+    const g = grupos?.find((x) => x.id === id);
+    const r = regras?.[produtoId]?.[id];
+    return g && r ? { ...g, minimo: r.minimo, maximo: r.maximo } : g;
+  }).filter((g): g is GrupoAdicionalMesa => !!g);
 }
 
 /** Texto curto da regra do grupo: "Escolha 1 opção", "Escolha até 3", "Escolha de 1 a 3". */

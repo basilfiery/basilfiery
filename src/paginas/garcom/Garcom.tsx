@@ -232,6 +232,9 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   const [abertos, setAbertos] = useState<Pedido[]>([]);
   const [sel, setSel] = useState<Mesa | null>(null);
   const [busca, setBusca] = useState('');
+  // Mesas ou comandas (a escolha fica guardada no celular)
+  const [ver, setVerEstado] = useState<'mesa' | 'comanda'>(() => { try { return localStorage.getItem('bf:garcom:ver') === 'comanda' ? 'comanda' : 'mesa'; } catch { return 'mesa'; } });
+  const setVer = (v: 'mesa' | 'comanda') => { setVerEstado(v); try { localStorage.setItem('bf:garcom:ver', v); } catch { /* sem armazenamento */ } };
 
   const carregar = useCallback(async () => {
     const [m, p] = await Promise.all([
@@ -255,12 +258,29 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   const totalDa = (id: string) => pedidosDa(id).reduce((s, p) => s + Number(p.total), 0);
 
   const t = busca.trim().toLowerCase();
-  const visiveis = t ? mesas.filter((m) => m.nome.toLowerCase().includes(t)) : mesas;
+  const daComanda = mesas.filter((m) => m.tipo === 'comanda');
+  const soMesas = mesas.filter((m) => m.tipo !== 'comanda');
+  const tipoVer = daComanda.length ? ver : 'mesa';
+  const doTipo = tipoVer === 'comanda' ? daComanda : soMesas;
+  const visiveis = t ? doTipo.filter((m) => m.nome.toLowerCase().includes(t)) : doTipo;
+  const ocupadasDe = (l: Mesa[]) => l.filter((m) => pedidosDa(m.id).length > 0 || liberados.some((a) => a.mesa_id === m.id)).length;
+  const chamaEm = (l: Mesa[]) => l.some((m) => chamados.some((c) => c.mesa_id === m.id) || acessos.some((a) => a.mesa_id === m.id));
 
   return (
     <>
     <div className="garcom__mesas-barra">
-      <label className="garcom__busca"><Search size={17} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pelo nome da mesa" aria-label="Buscar mesa" /></label>
+      {daComanda.length > 0 && (
+        <div className="garcom__tipos" role="tablist" aria-label="Mesas ou comandas">
+          {([['mesa', 'Mesas', soMesas], ['comanda', 'Comandas', daComanda]] as const).map(([id, rotulo, l]) => (
+            <button key={id} role="tab" aria-selected={tipoVer === id} className={cx(tipoVer === id && 'ativo')} onClick={() => { setVer(id); setBusca(''); }}>
+              {chamaEm(l) && tipoVer !== id && <i className="garcom__tipos-alerta" aria-label="chamando" />}
+              {rotulo}
+              <b>{ocupadasDe(l)}/{l.length}</b>
+            </button>
+          ))}
+        </div>
+      )}
+      <label className="garcom__busca"><Search size={17} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tipoVer === 'comanda' ? 'Buscar pelo nome da comanda' : 'Buscar pelo nome da mesa'} aria-label="Buscar" /></label>
       <div className="garcom__legenda">
         <span><i className="livre" /> Livres</span>
         <span><i className="ocupada" /> Ocupadas</span>
@@ -268,7 +288,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
       </div>
     </div>
     <div className="garcom__mesas">
-      {visiveis.length === 0 && <p className="muted garcom__mesas-vazio">Nenhuma mesa com esse nome.</p>}
+      {visiveis.length === 0 && <p className="muted garcom__mesas-vazio">{tipoVer === 'comanda' ? 'Nenhuma comanda com esse nome.' : 'Nenhuma mesa com esse nome.'}</p>}
       {visiveis.map((m) => {
         const ps = pedidosDa(m.id);
         const total = ps.reduce((s, p) => s + Number(p.total), 0);

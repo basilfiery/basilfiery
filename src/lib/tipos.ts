@@ -199,6 +199,8 @@ export interface Mesa {
   setor?: string | null;
   /** Quantas pessoas estão na mesa agora (zera ao fechar a conta) */
   pessoas?: number | null;
+  /** Comanda: igual a uma mesa (QR, pedidos, conta), mas fica separada (ex.: contas separadas na mesma mesa) */
+  tipo?: 'mesa' | 'comanda';
 }
 
 export interface PedidoItem {

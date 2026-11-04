@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Check, ChevronDown, ClipboardList, Columns3, LayoutList, Clock, ConciergeBell, LayoutGrid, Minus, Plus, Printer, Receipt, ReceiptText, RefreshCw, Search, Smartphone, Tablet, Trash2, Users, Wallet } from 'lucide-react';
 import { Suspenso } from '../../componentes/Suspenso';
 import { Campo, Switch, Vazio } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -41,7 +41,7 @@ export default function Mesas() {
   const [carregado, setCarregado] = useState(false);
   const [selecionada, setSelecionada] = useState<Mesa | null>(null);
   const [trocandoDe, setTrocandoDe] = useState<Mesa | null>(null);
-  const [criando, setCriando] = useState(false);
+  const [criando, setCriando] = useState<'mesa' | 'comanda' | null>(null);
   const [verLinks, setVerLinks] = useState(false);
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [busca, setBusca] = useState('');
@@ -94,7 +94,8 @@ export default function Mesas() {
     if (error) { toast(msgErro(error), 'erro'); void carregar(); }
   }
 
-  const setores = [...new Set(mesas.map((m) => (m.setor ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const ehComanda = (m: Mesa) => m.tipo === 'comanda';
+  const setores = [...new Set(mesas.filter((m) => !ehComanda(m)).map((m) => (m.setor ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const termo = busca.trim().toLowerCase();
   const base = mesas.filter((m) => (!setor || (m.setor ?? '') === setor) && (!termo || m.nome.toLowerCase().includes(termo)));
   const conta = (f: Filtro) => (f === 'todas' ? base.length : base.filter((m) => situacao(m) === f).length);
@@ -103,13 +104,15 @@ export default function Mesas() {
   const [agrupar, setAgruparEstado] = useState(() => ls.ler('bf:mesas:agrupar', true));
   const setAgrupar = (v: boolean) => { setAgruparEstado(v); ls.gravar('bf:mesas:agrupar', v); };
   const [organizando, setOrganizando] = useState(false);
-  const grupos: { nome: string; mesas: Mesa[] }[] = [];
-  for (const m of lista) {
-    const nome = (m.setor ?? '').trim();
+  const grupos: { nome: string; mesas: Mesa[]; comanda?: boolean }[] = [];
+  for (const m of lista.filter((x) => !ehComanda(x))) {
+    const nome = agrupar ? (m.setor ?? '').trim() : '';
     const g = grupos.find((x) => x.nome === nome);
     if (g) g.mesas.push(m); else grupos.push({ nome, mesas: [m] });
   }
   grupos.sort((a, b) => (a.nome ? 0 : 1) - (b.nome ? 0 : 1) || mesas.indexOf(a.mesas[0]) - mesas.indexOf(b.mesas[0]));
+  const comandas = lista.filter(ehComanda);
+  if (comandas.length) grupos.push({ nome: 'Comandas', mesas: comandas, comanda: true });
 
   const cartao = (m: Mesa) => {
     const ps = pedidosDa(m.id);
@@ -237,7 +240,7 @@ export default function Mesas() {
 
       {organizando && (
         <ModalSetores
-          mesas={mesas}
+          mesas={mesas.filter((m) => !ehComanda(m))}
           aoFechar={() => setOrganizando(false)}
           aoMudar={(ids, setorNovo) => setMesas((l) => l.map((x) => (ids.includes(x.id) ? { ...x, setor: setorNovo } : x)))}
         />
@@ -247,13 +250,14 @@ export default function Mesas() {
 
       {criando && (
         <ModalNovaMesa
+          tipo={criando}
           restauranteId={restaurante.id}
-          sugestao={proximoNome(mesas)}
+          sugestao={proximoNome(mesas, criando)}
           nomesUsados={mesas.map((m) => m.nome.trim().toLowerCase())}
           ordem={Math.max(0, ...mesas.map((m) => m.ordem)) + 1}
           setores={setores}
-          aoFechar={() => setCriando(false)}
-          aoCriar={() => { setCriando(false); void carregar(); }}
+          aoFechar={() => setCriando(null)}
+          aoCriar={() => { setCriando(null); void carregar(); }}
         />
       )}
     </>
@@ -306,7 +310,7 @@ export default function Mesas() {
       <div className="mesas-cab">
         <div className="mesas-cab__titulo">
           <h1 className="titulo">Mesas</h1>
-          <p>Acompanhe as mesas do seu estabelecimento em tempo real.</p>
+          <p>Acompanhe as mesas e comandas do seu estabelecimento em tempo real.</p>
         </div>
         <div className="mesas-cab__acoes">
           <label className="mesas-busca">
@@ -326,7 +330,8 @@ export default function Mesas() {
           {gestor && mesas.length > 0 && (
             <button className="mesas-icone mesas-icone--texto" onClick={() => setOrganizando(true)} title="Organizar mesas por setor"><Columns3 size={19} /> Setores</button>
           )}
-          {gestor && <button className="mesas-nova" onClick={() => setCriando(true)}><Plus size={20} /> Nova mesa</button>}
+          {gestor && <button className="mesas-icone mesas-icone--texto" onClick={() => setCriando('comanda')} title="Comanda: conta separada (ex.: duas pessoas na mesma mesa)"><ReceiptText size={19} /> Nova comanda</button>}
+          {gestor && <button className="mesas-nova" onClick={() => setCriando('mesa')}><Plus size={20} /> Nova mesa</button>}
         </div>
       </div>
 
@@ -354,18 +359,18 @@ export default function Mesas() {
       ) : lista.length === 0 && carregado ? (
         <p className="mesas-nada">Nenhuma mesa {filtro === 'livre' ? 'livre' : filtro === 'ocupada' ? 'ocupada' : filtro === 'pagando' ? 'pagando a conta' : 'encontrada'}{termo ? ` com “${busca.trim()}”` : ''}.</p>
       ) : (
-        agrupar && grupos.length > 1 ? (
+        grupos.length > 1 || grupos[0]?.comanda ? (
           <div className="mesas-setores">
             {grupos.map((g) => {
               const livres = g.mesas.filter((m) => situacao(m) === 'livre').length;
               const comConta = g.mesas.filter((m) => situacao(m) === 'ocupada' || situacao(m) === 'pagando');
               const totalSetor = comConta.reduce((s2, m) => s2 + totalDa(m.id), 0);
               return (
-                <section key={g.nome || "sem"} className="mesas-setor-bloco">
+                <section key={g.comanda ? 'comandas' : g.nome || "sem"} className={cx('mesas-setor-bloco', g.comanda && 'mesas-setor-bloco--comandas')}>
                   <header className="mesas-setor-bloco__cab">
-                    <h2>{g.nome || "Sem setor"}</h2>
+                    <h2>{g.comanda && <ReceiptText size={20} />}{g.nome || (agrupar && setores.length ? 'Sem setor' : 'Mesas')}</h2>
                     <span className="mesas-setor-bloco__info">
-                      {g.mesas.length} {g.mesas.length === 1 ? 'mesa' : 'mesas'}
+                      {g.mesas.length} {g.comanda ? (g.mesas.length === 1 ? 'comanda' : 'comandas') : g.mesas.length === 1 ? 'mesa' : 'mesas'}
                       <i className="livre" />{livres} {livres === 1 ? 'livre' : 'livres'}
                       <i className="ocupada" />{comConta.length} {comConta.length === 1 ? 'ocupada' : 'ocupadas'}
                       {totalSetor > 0 && <b>{brl(totalSetor)}</b>}
@@ -596,14 +601,17 @@ function ModalLinks({ mesas, aoFechar }: { mesas: Mesa[]; aoFechar: () => void }
 }
 
 /** Primeiro número livre: se faltar a Mesa 1, sugere ela; senão, a próxima depois da última. */
-function proximoNome(mesas: Mesa[]) {
-  const usados = new Set(mesas.map((m) => /^mesa\s+(\d+)$/i.exec(m.nome.trim())?.[1]).filter(Boolean).map(Number));
+function proximoNome(mesas: Mesa[], tipo: 'mesa' | 'comanda' = 'mesa') {
+  const base = tipo === 'comanda' ? 'Comanda' : 'Mesa';
+  const re = new RegExp(`^${base}\\s+(\\d+)$`, 'i');
+  const usados = new Set(mesas.map((m) => re.exec(m.nome.trim())?.[1]).filter(Boolean).map(Number));
   let n = 1;
   while (usados.has(n)) n++;
-  return `Mesa ${n}`;
+  return `${base} ${n}`;
 }
 
-function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, setores, aoFechar, aoCriar }: {
+function ModalNovaMesa({ tipo, restauranteId, sugestao, nomesUsados, ordem, setores, aoFechar, aoCriar }: {
+  tipo: 'mesa' | 'comanda';
   restauranteId: string;
   setores: string[];
   sugestao: string;
@@ -618,16 +626,19 @@ function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, setores, a
   const [salvando, setSalvando] = useState(false);
 
   const repetido = nomesUsados.includes(nome.trim().toLowerCase());
+  const comanda = tipo === 'comanda';
 
   async function criar() {
-    if (repetido) return toast(`Já existe uma mesa chamada "${nome.trim()}".`, 'erro');
+    if (repetido) return toast(`Já existe ${comanda ? 'uma comanda' : 'uma mesa'} chamada "${nome.trim()}".`, 'erro');
     setSalvando(true);
-    // "Mesa 1" entra na posição 1 da lista (não no fim)
-    const numero = /^mesa\s+(\d+)$/i.exec(nome.trim())?.[1];
-    const { error } = await supabase.from('mesas').insert({ restaurante_id: restauranteId, nome: nome.trim(), ordem: numero ? Number(numero) : ordem, setor: setor.trim() || null });
+    // "Mesa 1" entra na posição 1 da lista (não no fim); comanda vai no fim
+    const numero = comanda ? null : /^mesa\s+(\d+)$/i.exec(nome.trim())?.[1];
+    const { error } = await supabase.from('mesas').insert({
+      restaurante_id: restauranteId, nome: nome.trim(), ordem: numero ? Number(numero) : ordem, setor: comanda ? null : setor.trim() || null, tipo,
+    });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
-    toast('Mesa criada.', 'ok');
+    toast(comanda ? 'Comanda criada. Ela tem QR code e conta próprios.' : 'Mesa criada.', 'ok');
     aoCriar();
   }
 
@@ -635,21 +646,26 @@ function ModalNovaMesa({ restauranteId, sugestao, nomesUsados, ordem, setores, a
     <Modal
       aberto
       aoFechar={aoFechar}
-      titulo="Nova mesa"
+      titulo={comanda ? 'Nova comanda' : 'Nova mesa'}
       rodape={
         <>
           <button className="btn btn--contorno" onClick={aoFechar}>Cancelar</button>
-          <button className="btn btn--primario" disabled={!nome.trim() || salvando} onClick={() => void criar()}>Criar mesa</button>
+          <button className="btn btn--primario" disabled={!nome.trim() || salvando} onClick={() => void criar()}>{comanda ? 'Criar comanda' : 'Criar mesa'}</button>
         </>
       }
     >
-      <Campo rotulo="Nome" dica={repetido ? 'Já existe uma mesa com esse nome.' : 'Ex.: Mesa 12, Varanda 3, Balcão'}>
+      {comanda && (
+        <p className="nova-comanda__dica"><ReceiptText size={18} /> <span>A comanda funciona como uma mesa (QR code, pedidos e conta), mas fica separada. Use quando duas pessoas da mesma mesa quiserem pagar cada uma a sua.</span></p>
+      )}
+      <Campo rotulo="Nome" dica={repetido ? `Já existe ${comanda ? 'uma comanda' : 'uma mesa'} com esse nome.` : comanda ? 'Ex.: Comanda 4, João, Mesa 5 · Maria' : 'Ex.: Mesa 12, Varanda 3, Balcão'}>
         <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={40} autoFocus />
       </Campo>
-      <Campo rotulo="Setor (opcional)" dica="Ex.: Salão, Varanda, Área externa.">
-        <input className="input" list="setores-nova" value={setor} onChange={(e) => setSetor(e.target.value)} maxLength={40} placeholder="Sem setor" />
-        <datalist id="setores-nova">{setores.map((x) => <option key={x} value={x} />)}</datalist>
-      </Campo>
+      {!comanda && (
+        <Campo rotulo="Setor (opcional)" dica="Ex.: Salão, Varanda, Área externa.">
+          <input className="input" list="setores-nova" value={setor} onChange={(e) => setSetor(e.target.value)} maxLength={40} placeholder="Sem setor" />
+          <datalist id="setores-nova">{setores.map((x) => <option key={x} value={x} />)}</datalist>
+        </Campo>
+      )}
     </Modal>
   );
 }

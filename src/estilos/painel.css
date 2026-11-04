@@ -2426,7 +2426,17 @@
 .mesas-setores { display: grid; gap: 30px; margin-top: 12px; }
 .mesas-setor-bloco { display: grid; gap: 12px; }
 .mesas-setor-bloco__cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 2px solid var(--line); }
-.mesas-setor-bloco__cab h2 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -.01em; }
+.mesas-setor-bloco__cab h2 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; }
+.mesas-setor-bloco--comandas .mesas-setor-bloco__cab h2 svg { color: var(--acento); }
+.nova-comanda__dica { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--acento) 8%, var(--surface)); border: 1px solid color-mix(in srgb, var(--acento) 25%, var(--line)); font-size: .88rem; line-height: 1.4; }
+.nova-comanda__dica svg { flex: none; margin-top: 1px; color: var(--acento); }
+/* App do garçom: Mesas | Comandas */
+.garcom__tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.garcom__tipos button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border: 0; border-radius: 10px; background: none; color: var(--muted); font: inherit; font-weight: 700; font-size: .95rem; cursor: pointer; }
+.garcom__tipos button.ativo { background: var(--acento); color: #fff; box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--acento) 80%, transparent); }
+.garcom__tipos b { min-width: 34px; height: 22px; padding: 0 7px; display: inline-grid; place-items: center; border-radius: 999px; background: var(--bg-2); color: var(--muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.garcom__tipos button.ativo b { background: rgba(0, 0, 0, .22); color: #fff; }
+.garcom__tipos-alerta { position: absolute; top: 7px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 30%, transparent); }
 .mesas-setor-bloco__info { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: .9rem; font-weight: 500; }
 .mesas-setor-bloco__info i { width: 9px; height: 9px; margin-left: 8px; border-radius: 50%; }
 .mesas-setor-bloco__info i.livre { background: var(--mc-livre); }

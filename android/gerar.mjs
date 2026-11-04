@@ -7,8 +7,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-const VERSAO = '1.0.1';
-const CODIGO_VERSAO = 2; // aumente a cada APK novo
+const VERSAO = '1.0.2';
+const CODIGO_VERSAO = 3; // aumente a cada APK novo
 
 const HOME = os.homedir();
 const CHAVES = path.join(HOME, 'Documents', 'BasilFiery-chaves');
@@ -40,7 +40,8 @@ const manifesto = new TwaManifest({
   appVersionCode: CODIGO_VERSAO,
   signingKey: { path: KEYSTORE, alias: 'basilfiery-garcom' },
   fallbackType: 'customtabs',
-  enableSiteSettingsShortcut: false,
+  // Precisa ficar ligado: nos Androids novos o app abre esse atalho e, sem ele, fecha na hora
+  enableSiteSettingsShortcut: true,
   minSdkVersion: 24, // Android 7 ou mais novo
   splashScreenFadeOutDuration: 300,
   shortcuts: [],
@@ -52,6 +53,10 @@ const manifesto = new TwaManifest({
 
 fs.rmSync(PROJETO, { recursive: true, force: true });
 await new TwaGenerator().createTwaProject(PROJETO, manifesto, new ConsoleLog('gerar'));
+// Sem minify: o R8 renomeava classes que o Android procura pelo nome e o app fechava ao abrir
+// ("Component class R.u does not exist"). O app é pequeno, não precisa encolher.
+const gradleApp = path.join(PROJETO, 'app', 'build.gradle');
+fs.writeFileSync(gradleApp, fs.readFileSync(gradleApp, 'utf8').replace(/minifyEnabled true/g, 'minifyEnabled false'));
 fs.writeFileSync(path.join(PROJETO, 'local.properties'), `sdk.dir=${SDK.split(path.sep).join('/')}\n`);
 
 const env = { ...process.env, JAVA_HOME, ANDROID_HOME: SDK };

@@ -2943,11 +2943,29 @@
 .gqr__cartao {
   display: grid; justify-items: center; gap: 6px; padding: 14px 14px 12px; border-radius: 20px; text-align: center;
   background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--acento) 14%, var(--surface-2)), var(--surface-2) 70%);
-  border: 1px solid var(--line); color: var(--text);
+  border: 1px solid var(--line); color: var(--text); isolation: isolate;
 }
 .gqr__qr {
+  position: relative; margin: 6px 0 4px;
   width: min(210px, 56vw, 28dvh); aspect-ratio: 1; padding: 10px; border-radius: 16px; background: #fff;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .22), 0 0 0 4px color-mix(in srgb, var(--acento) 22%, transparent);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .22);
+}
+/* Contorno neon girando em volta do QR (o quadro branco fica intacto para a câmera ler) */
+@property --gqr-giro { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.gqr__qr::before, .gqr__qr::after {
+  content: ''; position: absolute; inset: -3px; z-index: -1; border-radius: 19px; pointer-events: none;
+  background: conic-gradient(from var(--gqr-giro),
+    var(--acento), color-mix(in srgb, var(--acento) 35%, #fff) 12%, var(--acento) 25%,
+    color-mix(in srgb, var(--acento) 25%, transparent) 40%, var(--acento) 55%,
+    color-mix(in srgb, var(--acento) 35%, #fff) 70%, var(--acento) 82%,
+    color-mix(in srgb, var(--acento) 25%, transparent) 92%, var(--acento));
+  animation: gqr-neon 4s linear infinite;
+}
+.gqr__qr::after { inset: -6px; border-radius: 22px; filter: blur(12px); opacity: .7; animation: gqr-neon 4s linear infinite, gqr-pulsa 2.4s ease-in-out infinite; }
+@keyframes gqr-neon { to { --gqr-giro: 360deg; } }
+@keyframes gqr-pulsa { 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) {
+  .gqr__qr::before, .gqr__qr::after { animation: none; }
 }
 .gqr__qr img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .gqr__qr-vazio { display: block; width: 100%; height: 100%; border-radius: 8px; background: #f2f2f4; }

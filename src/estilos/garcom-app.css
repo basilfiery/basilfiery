@@ -102,7 +102,7 @@
 }
 
 /* ======================= Entrada com cena 3D ======================= */
-.app-g--3d { justify-content: flex-start; padding-top: max(8px, env(safe-area-inset-top)); }
+.app-g--3d { justify-content: flex-start; padding-top: max(22px, calc(env(safe-area-inset-top) + 12px)); }
 .app-g--3d::before { inset: -20% -30% auto; height: 60%; opacity: 1; }
 
 .g3d {
@@ -128,18 +128,50 @@
   position: absolute; inset: 0; transform-style: preserve-3d;
   transform: rotateX(calc(var(--rx) * .5)) rotateY(calc(var(--ry) * .5));
 }
-/* Esferas brilhantes em profundidades diferentes (mexem mais ou menos com a inclinação) */
-.g3d__orbe {
-  position: absolute; border-radius: 50%;
-  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .95), color-mix(in srgb, var(--acento) 85%, #fff) 18%, var(--acento) 45%, color-mix(in srgb, var(--acento) 45%, #000) 78%);
-  box-shadow: 0 18px 40px -12px color-mix(in srgb, var(--acento) 70%, transparent), inset -6px -8px 18px rgba(0, 0, 0, .35);
+/* Pizza, alvo de metas, refrigerante e lanche: cada um numa profundidade (mexem mais ou menos com a inclinação) */
+.g3d__obj {
+  --z: 0px; --rot: 0deg; --l: 70px;
+  position: absolute; width: var(--l); transform-style: preserve-3d;
+  transform: translateZ(var(--z)) rotateZ(var(--rot)) rotateY(calc(var(--ry) * .9)) rotateX(calc(var(--rx) * .6));
   animation: g3d-flutua 6s ease-in-out infinite;
 }
-.g3d__orbe--1 { width: 46px; height: 46px; left: 9%; top: 22%; transform: translateZ(120px); animation-delay: -1s; }
-.g3d__orbe--2 { width: 22px; height: 22px; left: 22%; top: 70%; transform: translateZ(60px); animation-delay: -3s; opacity: .85; }
-.g3d__orbe--3 { width: 64px; height: 64px; right: 7%; top: 52%; transform: translateZ(-60px); animation-delay: -2s; filter: blur(.4px); }
-.g3d__orbe--4 { width: 14px; height: 14px; right: 24%; top: 14%; transform: translateZ(160px); animation-delay: -4.5s; }
+.g3d__obj svg { display: block; width: 100%; height: auto; overflow: visible; }
+.g3d__obj-camada, .g3d__obj-frente { display: block; }
+.g3d__obj-camada { position: absolute; inset: 0; transform: translateZ(calc(var(--i) * -1.7px)); filter: brightness(.5) saturate(1.2); }
+.g3d__obj-camada:first-child { filter: brightness(.3) drop-shadow(0 16px 14px rgba(0, 0, 0, .55)); }
+.g3d__obj-frente { position: relative; transform: translateZ(.5px); }
+.g3d__obj--pizza { --l: 80px; --z: 70px; --rot: -16deg; left: 4%; top: 7%; animation-delay: -1s; }
+.g3d__obj--alvo { --l: 52px; --z: 90px; --rot: 8deg; right: 11%; top: 6%; animation-delay: -4s; animation-duration: 5s; }
+.g3d__obj--lata { --l: 50px; --z: 40px; --rot: 14deg; right: 5%; top: 33%; animation-delay: -2.5s; animation-duration: 7s; }
+.g3d__obj--lanche { --l: 76px; --z: 20px; --rot: -6deg; left: 5%; top: 56%; animation-delay: -3.2s; animation-duration: 6.5s; }
 @keyframes g3d-flutua { 50% { translate: 0 -12px; } }
+
+/* Brilhos pequenos na cor do restaurante */
+.g3d__faisca { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px 3px var(--acento); animation: g3d-pisca 3s ease-in-out infinite; }
+.g3d__faisca--1 { left: 13%; top: 47%; transform: translateZ(60px); }
+.g3d__faisca--2 { left: 70%; top: 24%; width: 6px; height: 6px; transform: translateZ(110px); animation-delay: -1.2s; }
+.g3d__faisca--3 { left: 26%; top: 86%; width: 5px; height: 5px; transform: translateZ(20px); animation-delay: -2.1s; }
+@keyframes g3d-pisca { 50% { opacity: .2; scale: .6; } }
+
+/* Cartões de vidro: meta do dia e pedido pronto (o dia a dia do garçom) */
+.g3d__chip {
+  position: absolute; display: flex; align-items: center; gap: 8px; padding: 7px 11px 7px 7px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(48, 41, 37, .82), rgba(26, 22, 20, .86));
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 16px 30px -10px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .1);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  animation: g3d-flutua 7s ease-in-out infinite;
+}
+.g3d__chip-icone { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; color: #fff; }
+.g3d__chip-txt { display: grid; gap: 1px; text-align: left; line-height: 1.15; }
+.g3d__chip-txt small { color: #a99c90; font-size: .62rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.g3d__chip-txt b { color: #f6efe8; font-size: .78rem; white-space: nowrap; }
+.g3d__chip-txt i { display: block; height: 4px; margin-top: 3px; border-radius: 99px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.g3d__chip-txt u { display: block; width: 80%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ffcc4d, #ff9a3d); }
+.g3d__chip--meta { right: 6%; bottom: 6%; transform: translateZ(60px) rotateY(calc(var(--ry) * -.4)); animation-delay: -1.8s; }
+.g3d__chip--meta .g3d__chip-icone { background: linear-gradient(145deg, #ffd35c, #e0901a); color: #4a2a00; }
+.g3d__chip--pronto { left: 29%; top: 3%; transform: translateZ(30px) rotateY(calc(var(--ry) * -.4)); animation-delay: -4.6s; animation-duration: 6s; }
+.g3d__chip--pronto .g3d__chip-icone { background: linear-gradient(145deg, #6ee69a, #23a35a); }
 
 /* Anel girando em volta do bloco */
 .g3d__anel {
@@ -216,10 +248,15 @@
 .app-g__dica-ios b { color: #cfc3b8; }
 
 @media (prefers-reduced-motion: reduce) {
-  .g3d__chao, .g3d__orbe, .g3d__anel, .g3d__bloco, .g3d__brilho, .g3d__sombra { animation: none; }
+  .g3d__chao, .g3d__obj, .g3d__chip, .g3d__faisca, .g3d__anel, .g3d__bloco, .g3d__brilho, .g3d__sombra { animation: none; }
 }
 @media (max-height: 700px) {
   .g3d { height: 200px; min-height: 0; }
   .g3d__bloco { --lado: 96px; }
   .g3d__anel { width: 180px; height: 180px; margin: -100px 0 0 -90px; }
+  /* Tela baixa: sem o cartão de pedido pronto e a meta menor no canto, para não cobrir a marca */
+  .g3d__chip--pronto { display: none; }
+  .g3d__chip--meta { right: 1%; bottom: 3%; scale: .84; transform-origin: 100% 100%; }
+  .g3d__obj--lata { top: 24%; }
+  .g3d__obj--pizza, .g3d__obj--lanche { --l: 68px; }
 }

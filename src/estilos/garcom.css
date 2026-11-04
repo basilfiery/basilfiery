@@ -1,0 +1,226 @@
+/* =====================================================================
+   App do garçom (celular): cabeçalho, meta do dia, avisos, mesas e
+   barra de navegação embaixo. Tudo escopado em .gapp (claro e escuro).
+   ===================================================================== */
+.gapp {
+  --gnav-h: 68px;
+  min-height: 100dvh;
+  padding-bottom: calc(var(--gnav-h) + 24px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--acento) 14%, transparent), transparent 60%),
+    var(--bg);
+}
+.gapp__conteudo { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px; padding: 14px 16px 0; max-width: 760px; margin: 0 auto; }
+.gapp__conteudo > * { margin: 0; }
+.gapp .garcom__chamados, .gapp .garcom__lista, .gapp .garcom__mesas-barra, .gapp .gdes, .gapp .gcfg, .gapp .acessos--garcom { padding: 0; margin: 0; }
+
+/* ---------- Cabeçalho ---------- */
+.gtopo {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+.gtopo__btn {
+  position: relative; flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.gtopo__btn:active { transform: scale(.94); background: var(--surface-2); }
+.gtopo__ponto { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--fire); box-shadow: 0 0 0 2px var(--surface); animation: gtopo-ponto 1.4s ease-in-out infinite; }
+@keyframes gtopo-ponto { 50% { box-shadow: 0 0 0 2px var(--surface), 0 0 0 6px color-mix(in srgb, var(--fire) 30%, transparent); } }
+.gtopo__perfil { position: relative; flex: none; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.gtopo__perfil .avatar { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--acento) 55%, transparent); }
+.gtopo__vivo { position: absolute; right: -1px; bottom: -1px; width: 13px; height: 13px; border-radius: 50%; background: var(--warn); border: 2.5px solid var(--bg); }
+.gtopo__vivo.on { background: #34d399; }
+.gtopo__txt { flex: 1; min-width: 0; display: grid; gap: 1px; padding-left: 4px; }
+.gtopo__txt strong { font-size: 1.02rem; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gtopo__status { display: block; color: var(--muted); font-size: .78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gtopo__status::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--warn); vertical-align: 1px; }
+.gtopo__status.on::before { background: #34d399; box-shadow: 0 0 0 3px color-mix(in srgb, #34d399 22%, transparent); }
+
+/* ---------- Avisos compactos ---------- */
+.gaviso {
+  display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 10px 10px 12px; border-radius: 18px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--acento) 16%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--acento) 35%, var(--line));
+}
+.gaviso__icone { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; background: var(--acento); color: #fff; box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--acento) 80%, transparent); }
+.gaviso__txt { flex: 1; min-width: 0; display: grid; gap: 1px; line-height: 1.3; }
+.gaviso__txt b { font-size: .93rem; }
+.gaviso__txt small { color: var(--muted); font-size: .8rem; }
+.gaviso__txt--botao { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.gaviso__btn {
+  flex: none; height: 40px; padding: 0 16px; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--acento); color: #fff; font: inherit; font-size: .9rem; font-weight: 800;
+}
+.gaviso__btn:active { transform: scale(.96); }
+.gaviso__fechar { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
+.gaviso--suave { background: var(--surface); border-color: var(--line); border-style: dashed; }
+.gaviso--suave .gaviso__icone { background: var(--surface-2); color: var(--acento); box-shadow: none; }
+.gaviso--info { background: linear-gradient(135deg, color-mix(in srgb, var(--info) 16%, var(--surface)), var(--surface)); border-color: color-mix(in srgb, var(--info) 40%, var(--line)); }
+.gaviso--info .gaviso__icone, .gaviso--info .gaviso__btn { background: var(--info); color: #06263a; }
+
+/* ---------- Meta do dia ---------- */
+.gturno {
+  position: relative; overflow: hidden; width: 100%;
+  display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 12px; border-radius: 22px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--acento) 30%, var(--line));
+  background:
+    radial-gradient(90% 140% at 0% 0%, color-mix(in srgb, var(--acento) 22%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--surface) 70%, var(--bg)));
+  color: var(--text); font: inherit; text-align: left;
+  box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--acento) 60%, transparent);
+  transition: transform .12s;
+}
+.gturno:active { transform: scale(.985); }
+.gturno::after {
+  content: ''; position: absolute; right: -30px; top: -40px; width: 120px; height: 120px; border-radius: 50%;
+  border: 14px solid color-mix(in srgb, var(--acento) 8%, transparent); pointer-events: none;
+}
+.gturno--esqueleto { height: 84px; cursor: default; animation: gturno-pulsa 1.2s ease-in-out infinite; }
+@keyframes gturno-pulsa { 50% { opacity: .55; } }
+.gturno__anel { position: relative; flex: none; width: 58px; height: 58px; display: grid; place-items: center; }
+.gturno__anel svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.gturno__anel circle { fill: none; stroke-width: 5.5; }
+.gturno__trilho { stroke: color-mix(in srgb, var(--text) 10%, transparent); }
+.gturno__valor { stroke: var(--acento); stroke-linecap: round; transition: stroke-dasharray .6s cubic-bezier(.2, .8, .2, 1); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--acento) 60%, transparent)); }
+.gturno__anel b { position: relative; font-size: .82rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.gturno--feito .gturno__valor { stroke: var(--ok); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ok) 60%, transparent)); }
+.gturno--feito .gturno__anel b { color: var(--ok); }
+.gturno__txt { position: relative; flex: 1; min-width: 0; display: grid; gap: 2px; }
+.gturno__txt small { display: inline-flex; align-items: center; gap: 5px; color: var(--acento); font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.gturno__txt strong { font-size: .98rem; line-height: 1.25; }
+.gturno__linha { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 2px; color: var(--muted); font-size: .8rem; font-weight: 600; }
+.gturno__seta { position: relative; flex: none; color: var(--muted); }
+.gturno__nivel {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 22px; padding: 0 8px; border-radius: 999px; font-size: .7rem; font-weight: 800; color: #fff; white-space: nowrap;
+}
+.gturno__nivel--bronze { background: linear-gradient(145deg, #d08b52, #8a4b1f); }
+.gturno__nivel--prata { background: linear-gradient(145deg, #eef0f3, #9aa0a8); color: #2b2f36; }
+.gturno__nivel--ouro { background: linear-gradient(145deg, #ffd65a, #d49a00); color: #4a3300; }
+.gturno__nivel--lenda { background: linear-gradient(145deg, #ff7a2f, #f01c22); }
+
+/* ---------- Título de seção ---------- */
+.gsecao { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.gsecao h2 { margin: 0; font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; }
+.gsecao__qtd { min-width: 26px; height: 26px; padding: 0 8px; display: inline-grid; place-items: center; border-radius: 999px; background: var(--acento); color: #fff; font-size: .8rem; font-weight: 800; }
+.gsecao__voltar { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); cursor: pointer; }
+
+/* ---------- Lista vazia ---------- */
+.gvazio { display: grid; justify-items: center; gap: 8px; padding: 36px 20px 30px; text-align: center; border-radius: 22px; border: 1px dashed var(--line-2); background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.gvazio__icone {
+  width: 76px; height: 76px; margin-bottom: 6px; display: grid; place-items: center; border-radius: 24px; color: var(--acento);
+  background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--acento) 26%, var(--surface)), color-mix(in srgb, var(--acento) 8%, var(--surface)));
+  box-shadow: 0 16px 30px -16px color-mix(in srgb, var(--acento) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.gvazio strong { font-size: 1.05rem; }
+.gvazio p { max-width: 300px; margin: 0; color: var(--muted); font-size: .88rem; line-height: 1.5; }
+
+/* ---------- Chamados ---------- */
+.gapp .garcom__chamados { gap: 10px; }
+.gapp .garcom__chamado { border-radius: 20px; padding: 14px; gap: 12px; }
+.gapp .garcom__chamado-icone { width: 46px; height: 46px; border-radius: 15px; background: var(--fire); color: #fff; box-shadow: 0 0 0 0 color-mix(in srgb, var(--fire) 50%, transparent); animation: gchamado 1.6s ease-out infinite; }
+.gapp .garcom__chamado--conta .garcom__chamado-icone { background: var(--info); color: #06263a; animation: none; }
+@keyframes gchamado { 70%, 100% { box-shadow: 0 0 0 10px transparent; } }
+.gapp .garcom__chamado-abrir { border-radius: 13px; }
+
+/* ---------- Lista de pedidos ---------- */
+.gapp .garcom__lista { gap: 12px; }
+.gapp .garcom__lista .pedido { border-radius: 20px; }
+
+/* ---------- Mesas ---------- */
+.gapp .garcom__mesas-barra { gap: 12px; }
+.gapp .garcom__tipos { border-radius: 16px; height: 52px; }
+.gapp .garcom__tipos button { height: 42px; border-radius: 12px; }
+.gapp .garcom__busca { height: 48px; border-radius: 15px; }
+.gapp .garcom__legenda { gap: 6px; }
+.gapp .garcom__legenda span { height: 28px; padding: 0 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: .76rem; font-weight: 700; }
+.gapp .garcom__legenda i { width: 8px; height: 8px; }
+.gapp .garcom__mesas { padding: 2px 0 0; gap: 10px; }
+.gapp .garcom__mesa {
+  position: relative; min-height: 104px; padding: 11px 11px 10px; border-radius: 18px; gap: 4px;
+  display: flex; flex-direction: column; align-items: stretch; text-align: left;
+  border: 1.5px solid color-mix(in srgb, #34d399 55%, var(--line)); background: var(--surface);
+  transition: transform .12s;
+}
+.gapp .garcom__mesa:active { transform: scale(.96); }
+.garcom__mesa-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
+.gapp .garcom__mesa strong { font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }
+.garcom__mesa-sino { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 8px; background: rgba(0, 0, 0, .14); }
+.garcom__mesa-rodape { margin-top: auto; display: grid; gap: 1px; }
+.gapp .garcom__mesa-total { font-size: 1.02rem; font-weight: 800; letter-spacing: -.01em; }
+.gapp .garcom__mesa small { font-size: .7rem; font-weight: 600; }
+.garcom__mesa-tempo { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.garcom__mesa-tempo svg { flex: none; }
+.gapp .garcom__mesa-estado { display: inline-flex; align-items: center; gap: 5px; color: color-mix(in srgb, #34d399 75%, var(--text)) !important; font-weight: 800 !important; }
+.gapp .garcom__mesa-estado::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.gapp .garcom__mesa.ocupada .garcom__mesa-estado { color: #fff !important; }
+.gapp .garcom__mesa-chamando { margin-top: 3px; font-size: .66rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.gapp .garcom__mesa.ocupada { border-color: transparent; box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--fire) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22); }
+.gapp .garcom__mesa.chamando { border-color: transparent; }
+
+/* ---------- Metas (desafios) ---------- */
+.gapp .gdes { gap: 12px; }
+.gapp .gdes__nivel {
+  position: relative; overflow: hidden; padding: 18px; border-radius: 24px; border: 0; color: #fff;
+  background: linear-gradient(140deg, color-mix(in srgb, var(--acento) 88%, #fff), var(--acento) 45%, color-mix(in srgb, var(--acento) 60%, #000));
+  box-shadow: 0 18px 36px -18px color-mix(in srgb, var(--acento) 90%, transparent);
+}
+.gapp .gdes__nivel::after { content: ''; position: absolute; right: -40px; bottom: -60px; width: 170px; height: 170px; border-radius: 50%; border: 22px solid rgba(255, 255, 255, .1); }
+.gapp .gdes__nivel small, .gapp .gdes__nivel span:not(.gdes__medalha) { color: rgba(255, 255, 255, .85); }
+.gapp .gdes__nivel strong { font-size: 1.5rem; }
+.gapp .gdes__medalha { box-shadow: 0 8px 18px rgba(0, 0, 0, .25), inset 0 1px 0 rgba(255, 255, 255, .4); }
+.gapp .gdes__pos { position: relative; z-index: 1; color: #fff; font-size: 1.7rem; }
+.gapp .gdes__resumo > div, .gapp .gdes__metas li, .gapp .gdes__ranking li, .gapp .gcfg__bloco { border-radius: 18px; }
+.gapp .gdes__titulo { margin: 8px 0 -2px; font-size: 1.02rem; font-weight: 800; }
+
+/* ---------- Barra de navegação embaixo ---------- */
+.gnav {
+  position: fixed; z-index: 30; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom));
+  max-width: 520px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; height: var(--gnav-h); padding: 6px;
+  border-radius: 24px; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+.gnav__item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: 0; border-radius: 18px; background: none; color: var(--muted); font: inherit; cursor: pointer;
+  transition: color .15s, background .2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.gnav__icone { position: relative; display: grid; place-items: center; width: 50px; height: 30px; border-radius: 999px; transition: background .2s, transform .2s; }
+.gnav__rotulo { font-size: .72rem; font-weight: 700; letter-spacing: .01em; }
+.gnav__item.ativo { color: var(--text); }
+.gnav__item.ativo .gnav__icone { background: var(--acento); color: #fff; box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--acento) 85%, transparent); }
+.gnav__item:active .gnav__icone { transform: scale(.9); }
+.gnav__icone b {
+  position: absolute; top: -5px; right: 2px; min-width: 19px; height: 19px; padding: 0 5px; display: grid; place-items: center;
+  border-radius: 999px; background: var(--surface-3, var(--surface-2)); color: var(--text); font-size: .66rem; font-weight: 800;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.gnav__icone b.alerta { background: var(--fire); color: #fff; }
+.gnav__item.ativo .gnav__icone b { background: #fff; color: var(--acento); }
+
+@media (min-width: 700px) {
+  .gapp .garcom__mesa { min-height: 112px; }
+}
+@media (max-width: 360px) {
+  .gapp__conteudo { padding: 12px 12px 0; }
+  .gnav { left: 8px; right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gtopo__ponto, .gapp .garcom__chamado-icone, .gturno--esqueleto { animation: none; }
+}
+
+/* Amarelo do "chamando" igual nos dois temas (no claro o --warn fica marrom) */
+.gapp .garcom__mesa.chamando { color: #2b1d00; background: linear-gradient(160deg, #ffe48f, #ffbf3a); box-shadow: 0 0 0 3px color-mix(in srgb, #ffbf3a 35%, transparent); }
+.gapp .garcom__mesa.chamando small, .gapp .garcom__mesa.chamando .garcom__mesa-total, .gapp .garcom__mesa.chamando .garcom__mesa-chamando { color: #2b1d00; }
+.gapp .garcom__legenda i.chamando { background: #ffbf3a; }
+:root[data-tema='claro'] .gnav__icone b:not(.alerta) { background: var(--text); color: var(--bg); }
+:root[data-tema='claro'] .gnav { box-shadow: 0 14px 34px -14px rgba(16, 24, 40, .28); }

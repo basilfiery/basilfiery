@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightLeft, Bell, BellOff, Check, ChevronRight, ExternalLink, LayoutDashboard, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, UserRound, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowRightLeft, Bell, BellOff, Camera, ChefHat, Check, ChevronLeft, ChevronRight, Clock, ExternalLink, HandPlatter, LayoutDashboard, LayoutGrid, Medal, Menu, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Smartphone, Target, Trophy, UserRound, Volume2, VolumeX, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { aplicarAtualizacao, useNovaVersao } from '../../lib/versao';
 import { Vazio } from '../../componentes/Basicos';
@@ -20,20 +20,48 @@ import type { Chamado, Mesa, MesaAcesso, Pedido, RestauranteComPapel, StatusPedi
 import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
 import '../../estilos/painel.css';
+import '../../estilos/garcom.css';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
-import { ConfigGarcom, DesafiosGarcom, MenuGarcom, type TelaGarcom } from './MenuGarcom';
+import { ConfigGarcom, DesafiosGarcom, METAS_HOJE, MenuGarcom, nivel, type Numeros, type TelaGarcom } from './MenuGarcom';
 import { useAparencia } from '../../lib/aparencia';
 
-type Aba = 'levar' | 'cozinha' | 'mesas';
+type Aba = 'levar' | 'cozinha' | 'mesas' | 'metas';
+const ABAS: Aba[] = ['levar', 'cozinha', 'mesas', 'metas'];
+const CHAVE_ABA = 'bf:garcom:aba';
+const CHAVE_FOTO = 'bf:garcom:dica-foto';
+const lerLocal = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const gravarLocal = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* sem armazenamento */ } };
+
+function saudacao(agora: number) {
+  const h = new Date(agora).getHours();
+  return h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+}
+
+/** Números do dia/semana do garçom (metas e nível), atualizados a cada minuto e quando um pedido muda. */
+function useMetas(restauranteId: string | undefined, chave: string) {
+  const [d, setD] = useState<{ hoje: Numeros; semana: Numeros } | null>(null);
+  useEffect(() => {
+    if (!restauranteId) return;
+    let vivo = true;
+    const ler = () => void supabase.rpc('garcom_desafios', { p_rest: restauranteId, p_tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo' })
+      .then(({ data }) => { if (vivo && data) setD(data as { hoje: Numeros; semana: Numeros }); });
+    const t = setTimeout(ler, 400);
+    const i = setInterval(ler, 60000);
+    return () => { vivo = false; clearTimeout(t); clearInterval(i); };
+  }, [restauranteId, chave]);
+  return d;
+}
 
 export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
   const s = useSessao();
   const toast = useToast();
   const r = s.restaurante;
   const agora = useAgora(20000);
-  const [aba, setAba] = useState<Aba>('levar');
+  const [aba, setAbaEstado] = useState<Aba>(() => { const v = lerLocal(CHAVE_ABA) as Aba | null; return v && ABAS.includes(v) ? v : 'mesas'; });
+  const setAba = (a: Aba) => { setAbaEstado(a); gravarLocal(CHAVE_ABA, a); window.scrollTo({ top: 0 }); };
   const [som, setSom] = useState(somLigado());
   const [push, setPush] = useState<EstadoPush | null>(null);
+  const [semDicaFoto, setSemDicaFoto] = useState(() => lerLocal(CHAVE_FOTO) === '1');
   const novaVersao = useNovaVersao();
 
   const vivo = usePedidosAoVivo(r?.id, {
@@ -42,6 +70,8 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
     aoNovoChamado: (c) => { tocarChamadoUmaVez(`chamado-${c.id}`, r?.som_chamado); toast(`${c.mesa_nome}: ${descreverChamado(c)}`, 'info'); },
     aoNovoAcesso: (a) => { tocarChamadoUmaVez(`acesso-${a.id}`, r?.som_chamado); toast(`${a.mesa_nome} quer fazer pedidos. Libere a mesa.`, 'info'); },
   });
+  const chaveMetas = useMemo(() => vivo.pedidos.filter((p) => p.status === 'entregue').length + ':' + vivo.chamados.length, [vivo.pedidos, vivo.chamados]);
+  const metas = useMetas(r?.id, chaveMetas);
 
   // Chamado é obrigatório: o toque repete a cada 30 s até alguém marcar "Atendido"
   const somRef = useRef(r?.som_chamado);
@@ -101,122 +131,186 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
 
   const prontos = vivo.pedidos.filter((p) => p.status === 'pronto');
   const cozinha = vivo.pedidos.filter((p) => p.status === 'novo' || p.status === 'preparando');
-  const abas: { id: Aba; rotulo: string; qtd?: number }[] = [
-    { id: 'levar', rotulo: 'Para levar', qtd: prontos.length },
-    { id: 'cozinha', rotulo: 'Na cozinha', qtd: cozinha.length },
-    { id: 'mesas', rotulo: 'Mesas' },
+  const alertasMesa = vivo.chamados.length + vivo.acessos.length;
+  const abas: { id: Aba; rotulo: string; icone: ReactNode; qtd?: number; alerta?: boolean }[] = [
+    { id: 'mesas', rotulo: 'Mesas', icone: <LayoutGrid size={22} />, qtd: alertasMesa, alerta: true },
+    { id: 'levar', rotulo: 'Levar', icone: <HandPlatter size={22} />, qtd: prontos.length, alerta: true },
+    { id: 'cozinha', rotulo: 'Cozinha', icone: <ChefHat size={22} />, qtd: cozinha.length },
+    { id: 'metas', rotulo: 'Metas', icone: <Trophy size={22} /> },
   ];
   const lista = aba === 'levar' ? prontos : cozinha;
+  const principal = tela === 'principal';
+  const primeiroNome = (s.nome || 'Garçom').trim().split(/\s+/)[0];
+  const irPara = (t: TelaGarcom) => { if (t === 'desafios') { setTela('principal'); setAba('metas'); } else { setTela(t); window.scrollTo({ top: 0 }); } };
 
   return (
-    <div className="garcom" style={{ '--acento': r.cor } as CSSProperties}>
-      <header className="garcom__topo">
-        <button className="icone-btn garcom__menu" onClick={() => setMenu(true)} aria-label="Abrir menu">
-          <Menu size={21} />{haChamados && <i className="garcom__menu-ponto" />}
+    <div className="garcom gapp" style={{ '--acento': r.cor } as CSSProperties}>
+      <header className="gtopo">
+        <button className="gtopo__btn" onClick={() => setMenu(true)} aria-label="Abrir menu">
+          <Menu size={21} />{haChamados && <i className="gtopo__ponto" />}
         </button>
-        <button className="garcom__perfil" onClick={() => setPerfilAberto(true)} aria-label="Meu perfil" title="Meu perfil">
-          <Avatar nome={s.nome || 'Garçom'} foto={s.foto} tamanho={40} />
+        <button className="gtopo__perfil" onClick={() => setPerfilAberto(true)} aria-label="Meu perfil" title="Meu perfil">
+          <Avatar nome={s.nome || 'Garçom'} foto={s.foto} tamanho={42} />
+          <i className={cx('gtopo__vivo', vivo.conectado && 'on')} />
         </button>
-        <div>
-          <strong>{s.nome || r.nome}</strong>
-          <small className="garcom__rest">{r.nome}</small>
-          <span className={cx('ao-vivo', vivo.conectado && 'on')}>{vivo.conectado ? 'Ao vivo' : 'Reconectando…'}</span>
+        <div className="gtopo__txt">
+          <strong>{saudacao(agora)}, {primeiroNome}</strong>
+          <span className={cx('gtopo__status', vivo.conectado && 'on')}>{vivo.conectado ? 'Ao vivo' : 'Reconectando…'} · {r.nome}</span>
         </div>
-        <button className="icone-btn" onClick={() => { const v = !som; setSom(v); definirSom(v); if (v) tocarAlerta('pronto'); }} aria-label={som ? 'Desligar som' : 'Ligar som'}>
+        <button className="gtopo__btn" onClick={() => { const v = !som; setSom(v); definirSom(v); if (v) tocarAlerta('pronto'); }} aria-label={som ? 'Desligar som' : 'Ligar som'}>
           {som ? <Volume2 size={20} /> : <VolumeX size={20} />}
         </button>
-        {!modoApp && r.papel !== 'garcom' && <Link to="/painel" className="icone-btn" aria-label="Abrir painel"><LayoutDashboard size={20} /></Link>}
+        {!modoApp && r.papel !== 'garcom' && <Link to="/painel" className="gtopo__btn" aria-label="Abrir painel"><LayoutDashboard size={20} /></Link>}
       </header>
       <MenuGarcom
         aberto={menu}
-        tela={tela}
+        tela={principal && aba === 'metas' ? 'desafios' : tela}
         nomeRest={r.nome}
         logo={r.logo_url}
-        aoIr={setTela}
+        aoIr={irPara}
         aoPerfil={() => setPerfilAberto(true)}
         aoSair={() => void s.sair()}
         aoFechar={() => setMenu(false)}
       />
       {perfilAberto && <ModalPerfil aoFechar={() => setPerfilAberto(false)} />}
-      {tela !== 'principal' && (
-        <div className="garcom__subtopo">
-          <button className="btn btn--fantasma btn--sm" onClick={() => setTela('principal')}>← Mesas e pedidos</button>
-          <strong>{tela === 'desafios' ? 'Desafios do garçom' : 'Configurações'}</strong>
-        </div>
-      )}
-      {tela === 'principal' && !s.foto && (
-        <button className="garcom__dica-foto" onClick={() => setPerfilAberto(true)}>
-          Coloque sua foto e confira seu nome em <b>Meu perfil</b>
-        </button>
-      )}
 
-      {novaVersao && (
-        <div className="garcom__aviso garcom__aviso--versao">
-          <p><RefreshCw size={16} style={{ verticalAlign: '-3px' }} /> <b>Nova atualização disponível.</b> Leva poucos segundos.</p>
-          <button className="btn btn--primario" onClick={aplicarAtualizacao}>Atualizar agora</button>
-        </div>
-      )}
+      <main className="gapp__conteudo">
+        {novaVersao && (
+          <div className="gaviso gaviso--info">
+            <span className="gaviso__icone"><RefreshCw size={18} /></span>
+            <div className="gaviso__txt"><b>Nova atualização</b><small>Leva poucos segundos</small></div>
+            <button className="gaviso__btn" onClick={aplicarAtualizacao}>Atualizar</button>
+          </div>
+        )}
 
-      {tela === 'principal' && push && push !== 'ativo' && (
-        <div className="garcom__aviso">
-          <p><BellOff size={16} style={{ verticalAlign: '-3px' }} /> <b>Ative as notificações</b> para receber os pedidos mesmo com a tela bloqueada.</p>
-          {push === 'precisa-instalar' ? (
-            <p className="muted">No iPhone: toque em <b>Compartilhar</b> → <b>Adicionar à Tela de Início</b>, abra o BasilFiery pelo ícone e volte aqui.</p>
-          ) : push === 'bloqueado' ? (
-            <p className="muted">As notificações estão bloqueadas. Toque no cadeado ao lado do endereço → Permissões → Notificações → Permitir.</p>
-          ) : (
-            <button className="btn btn--primario" onClick={() => void ativarNotificacoes()} disabled={push === 'indisponivel'}>
-              <Bell size={18} /> Ativar notificações
+        {/* Mesas pedindo para abrir: o cliente só pede depois que o garçom libera */}
+        <AcessosPendentes acessos={vivo.acessos} agora={agora} variante="garcom" aoResponder={vivo.removerAcesso} />
+        {/* Chamados ficam fixos no topo até alguém marcar "Atendido" */}
+        {vivo.chamados.length > 0 && (
+          <section className="garcom__chamados" aria-label="Mesas chamando">
+            {vivo.chamados.map((c) => (
+              <button key={c.id} type="button" className={cx('garcom__chamado', c.tipo === 'conta' && 'garcom__chamado--conta')}
+                onClick={() => { setTela('principal'); setAba('mesas'); setAbrirMesa(c.mesa_id); }}>
+                <span className="garcom__chamado-icone">{c.tipo === 'conta' ? <Receipt size={22} /> : <Bell size={22} />}</span>
+                <div>
+                  <strong>{c.mesa_nome}</strong>
+                  <span className="garcom__chamado-motivo">{descreverChamado(c)}</span>
+                  <small>{tempoDesde(c.criado_em, agora) === 'agora' ? 'agora' : `há ${tempoDesde(c.criado_em, agora)}`} · toque para abrir</small>
+                </div>
+                <span className="garcom__chamado-abrir" aria-hidden="true"><ChevronRight size={22} /></span>
+              </button>
+            ))}
+          </section>
+        )}
+
+        {principal && push && (push === 'inativo' || push === 'bloqueado' || push === 'precisa-instalar') && (
+          <div className="gaviso">
+            <span className="gaviso__icone"><BellOff size={18} /></span>
+            <div className="gaviso__txt">
+              <b>Ative as notificações</b>
+              <small>{push === 'precisa-instalar' ? 'No iPhone: Compartilhar › Adicionar à Tela de Início e abra pelo ícone'
+                : push === 'bloqueado' ? 'Bloqueadas: libere em Permissões › Notificações' : 'Receba os pedidos com a tela bloqueada'}</small>
+            </div>
+            {push === 'inativo' && <button className="gaviso__btn" onClick={() => void ativarNotificacoes()}>Ativar</button>}
+          </div>
+        )}
+        {principal && !s.foto && !semDicaFoto && (
+          <div className="gaviso gaviso--suave">
+            <span className="gaviso__icone"><Camera size={18} /></span>
+            <button className="gaviso__txt gaviso__txt--botao" onClick={() => setPerfilAberto(true)}>
+              <b>Coloque sua foto</b><small>A equipe vê quem atendeu cada mesa</small>
             </button>
-          )}
-        </div>
-      )}
+            <button className="gaviso__fechar" onClick={() => { setSemDicaFoto(true); gravarLocal(CHAVE_FOTO, '1'); }} aria-label="Dispensar"><X size={16} /></button>
+          </div>
+        )}
 
-      {/* Mesas pedindo para abrir: o cliente só pede depois que o garçom libera */}
-      <AcessosPendentes acessos={vivo.acessos} agora={agora} variante="garcom" aoResponder={vivo.removerAcesso} />
-      {/* Chamados ficam fixos no topo até alguém marcar "Atendido" */}
-      {vivo.chamados.length > 0 && (
-        <section className="garcom__chamados" aria-label="Mesas chamando">
-          {vivo.chamados.map((c) => (
-            <button key={c.id} type="button" className={cx('garcom__chamado', c.tipo === 'conta' && 'garcom__chamado--conta')}
-              onClick={() => { setTela('principal'); setAba('mesas'); setAbrirMesa(c.mesa_id); }}>
-              <span className="garcom__chamado-icone">{c.tipo === 'conta' ? <Receipt size={22} /> : <Bell size={22} />}</span>
-              <div>
-                <strong>{c.mesa_nome}</strong>
-                <span className="garcom__chamado-motivo">{descreverChamado(c)}</span>
-                <small>{tempoDesde(c.criado_em, agora) === 'agora' ? 'agora' : `há ${tempoDesde(c.criado_em, agora)}`} · toque para abrir a mesa</small>
-              </div>
-              <span className="garcom__chamado-abrir" aria-hidden="true"><ChevronRight size={22} /></span>
+        {tela === 'config' ? (
+          <>
+            <div className="gsecao">
+              <button className="gsecao__voltar" onClick={() => setTela('principal')} aria-label="Voltar"><ChevronLeft size={20} /></button>
+              <h2>Configurações</h2>
+            </div>
+            <ConfigGarcom restauranteId={r.id} />
+          </>
+        ) : aba === 'metas' ? (
+          <>
+            <div className="gsecao"><h2>Metas e desafios</h2></div>
+            <DesafiosGarcom restauranteId={r.id} />
+          </>
+        ) : (
+          <>
+            <CartaoMeta d={metas} aoAbrir={() => setAba('metas')} />
+            {aba === 'mesas' ? (
+              vivo.carregando ? <Carregando /> : (
+                <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} liberados={vivo.liberados} aoResponderAcesso={vivo.removerAcesso} agora={agora}
+                  abrirMesa={abrirMesa} aoAbrir={() => setAbrirMesa(null)} aoAtender={(c) => void atender(c)} />
+              )
+            ) : (
+              <>
+                <div className="gsecao">
+                  <h2>{aba === 'levar' ? 'Prontos para levar' : 'Na cozinha'}</h2>
+                  {lista.length > 0 && <span className="gsecao__qtd">{lista.length}</span>}
+                </div>
+                {vivo.carregando ? <Carregando /> : lista.length === 0 ? (
+                  <div className="gvazio">
+                    <span className="gvazio__icone">{aba === 'levar' ? <HandPlatter size={34} /> : <ChefHat size={34} />}</span>
+                    <strong>{aba === 'levar' ? 'Nada pronto para levar' : 'Nenhum pedido na cozinha'}</strong>
+                    <p>{aba === 'levar' ? 'Quando a cozinha marcar um pedido como pronto, ele aparece aqui e o celular avisa.' : 'Os pedidos novos das mesas aparecem aqui enquanto são preparados.'}</p>
+                  </div>
+                ) : (
+                  <div className="garcom__lista">
+                    {lista.map((p) => <PedidoCard key={p.id} pedido={p} agora={agora} aoMudar={(st) => void mudar(p, st)} compacto />)}
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </main>
+
+      <nav className="gnav" aria-label="Seções do app">
+        {abas.map((a) => {
+          const ativa = principal && aba === a.id;
+          return (
+            <button key={a.id} className={cx('gnav__item', ativa && 'ativo')} aria-current={ativa ? 'page' : undefined} onClick={() => { setTela('principal'); setAba(a.id); }}>
+              <span className="gnav__icone">{a.icone}{!!a.qtd && <b className={cx(a.alerta && 'alerta')}>{a.qtd > 99 ? '99+' : a.qtd}</b>}</span>
+              <span className="gnav__rotulo">{a.rotulo}</span>
             </button>
-          ))}
-        </section>
-      )}
-
-      {tela === 'desafios' ? <DesafiosGarcom restauranteId={r.id} /> : tela === 'config' ? <ConfigGarcom restauranteId={r.id} /> : (<>
-      <nav className="garcom__abas">
-        {abas.map((a) => (
-          <button key={a.id} className={cx('garcom__aba', aba === a.id && 'ativo')} onClick={() => setAba(a.id)}>
-            {a.rotulo} {a.qtd !== undefined && <b>{a.qtd}</b>}
-          </button>
-        ))}
+          );
+        })}
       </nav>
-
-      {vivo.carregando ? <Carregando /> : aba === 'mesas' ? (
-        <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} liberados={vivo.liberados} aoResponderAcesso={vivo.removerAcesso} agora={agora}
-          abrirMesa={abrirMesa} aoAbrir={() => setAbrirMesa(null)} aoAtender={(c) => void atender(c)} />
-      ) : (
-        <div className="garcom__lista">
-          {lista.length === 0 ? (
-            <Vazio titulo={aba === 'levar' ? 'Nada pronto para levar' : 'Nenhum pedido na cozinha'}>
-              {aba === 'levar' ? 'Quando a cozinha marcar um pedido como pronto, ele aparece aqui.' : 'Os pedidos novos das mesas aparecem aqui.'}
-            </Vazio>
-          ) : (
-            lista.map((p) => <PedidoCard key={p.id} pedido={p} agora={agora} aoMudar={(st) => void mudar(p, st)} compacto />)
-          )}
-        </div>
-      )}
-      </>)}
     </div>
+  );
+}
+
+/** Meta do dia no topo: anel de progresso, a próxima meta e o nível da semana. */
+function CartaoMeta({ d, aoAbrir }: { d: { hoje: Numeros; semana: Numeros } | null; aoAbrir: () => void }) {
+  if (!d) return <div className="gturno gturno--esqueleto" aria-hidden="true" />;
+  const meta = METAS_HOJE.find((m) => Number(d.hoje[m.chave]) < m.meta);
+  const feitas = METAS_HOJE.filter((m) => Number(d.hoje[m.chave]) >= m.meta).length;
+  const valor = meta ? Number(d.hoje[meta.chave]) : 1;
+  const alvo = meta?.meta ?? 1;
+  const nv = nivel(d.semana.pontos);
+  const C = 2 * Math.PI * 21;
+  return (
+    <button className={cx('gturno', !meta && 'gturno--feito')} onClick={aoAbrir}>
+      <span className="gturno__anel">
+        <svg viewBox="0 0 52 52" aria-hidden="true">
+          <circle cx="26" cy="26" r="21" className="gturno__trilho" />
+          <circle cx="26" cy="26" r="21" className="gturno__valor" strokeDasharray={`${Math.min(1, valor / alvo) * C} ${C}`} />
+        </svg>
+        <b>{meta ? `${valor}/${alvo}` : <Check size={20} strokeWidth={3} />}</b>
+      </span>
+      <span className="gturno__txt">
+        <small><Target size={13} /> Meta do dia · {feitas} de {METAS_HOJE.length}</small>
+        <strong>{meta ? meta.titulo : 'Todas as metas de hoje batidas!'}</strong>
+        <span className="gturno__linha">
+          {meta ? `Faltam ${alvo - valor}` : 'Mandou bem'}
+          <span className={cx('gturno__nivel', `gturno__nivel--${nv.classe}`)}><Medal size={12} /> {nv.nome.split(' ')[0]} · {d.semana.pontos} pts</span>
+        </span>
+      </span>
+      <ChevronRight size={20} className="gturno__seta" />
+    </button>
   );
 }
 
@@ -314,16 +408,20 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         const sentado = liberados.some((a) => a.mesa_id === m.id);
         return (
           <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando')} onClick={() => setSel(m)}>
-            <strong>{m.nome}</strong>
+            <span className="garcom__mesa-topo">
+              <strong>{m.nome}</strong>
+              {(chamando || pedindo) && <span className="garcom__mesa-sino">{chamando ? <Bell size={13} strokeWidth={2.6} /> : <Smartphone size={13} strokeWidth={2.6} />}</span>}
+            </span>
             {m.cliente_nome && <span className="garcom__mesa-cliente">{m.cliente_nome}</span>}
-            {ps.length > 0 ? (
-              <>
-                <span className="garcom__mesa-total">{brl(total)}</span>
-                <small>{ps.length} {ps.length === 1 ? 'pedido' : 'pedidos'} · {hora(ps[0].criado_em)}</small>
-              </>
-            ) : sentado ? <small>Ocupada · sem pedido</small> : <small>Livre</small>}
-            {chamando && <span className="garcom__mesa-chamando"><Bell size={12} /> chamando</span>}
-            {pedindo && !chamando && <span className="garcom__mesa-chamando"><Smartphone size={12} /> liberar</span>}
+            <span className="garcom__mesa-rodape">
+              {ps.length > 0 ? (
+                <>
+                  <span className="garcom__mesa-total">{brl(total)}</span>
+                  <small className="garcom__mesa-tempo"><Clock size={11} strokeWidth={2.6} /> {tempoDesde(ps[0].criado_em, agora)}{ps.length > 1 ? ` · ${ps.length} ped.` : ''}</small>
+                </>
+              ) : <small className="garcom__mesa-estado">{sentado ? 'Sem pedido' : 'Livre'}</small>}
+              {chamando ? <span className="garcom__mesa-chamando">Chamando</span> : pedindo && <span className="garcom__mesa-chamando">Liberar</span>}
+            </span>
           </button>
         );
       })}

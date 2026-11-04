@@ -123,10 +123,10 @@ export function MenuGarcom({ aberto, tela, nomeRest, logo, aoIr, aoPerfil, aoSai
 }
 
 /* ---------- Desafios do garçom ---------- */
-interface Numeros { entregues: number; lancados: number; vendas: number; chamados: number; liberadas: number; pontos: number }
+export interface Numeros { entregues: number; lancados: number; vendas: number; chamados: number; liberadas: number; pontos: number }
 interface Desafios { hoje: Numeros; semana: Numeros; ranking: { user_id: string; nome: string; foto: string | null; eu: boolean; pontos: number }[] }
 
-const METAS_HOJE: { chave: keyof Numeros; meta: number; titulo: string }[] = [
+export const METAS_HOJE: { chave: keyof Numeros; meta: number; titulo: string }[] = [
   { chave: 'entregues', meta: 15, titulo: 'Entregue 15 pedidos' },
   { chave: 'lancados', meta: 10, titulo: 'Lance 10 pedidos pelo celular' },
   { chave: 'chamados', meta: 8, titulo: 'Atenda 8 chamados de mesa' },
@@ -137,7 +137,7 @@ const METAS_SEMANA: { chave: keyof Numeros; meta: number; titulo: string }[] = [
   { chave: 'chamados', meta: 40, titulo: 'Atenda 40 chamados na semana' },
   { chave: 'pontos', meta: 250, titulo: 'Faça 250 pontos na semana' },
 ];
-function nivel(pontos: number) {
+export function nivel(pontos: number) {
   if (pontos >= 400) return { nome: 'Lenda do salão', classe: 'lenda', proximo: null };
   if (pontos >= 200) return { nome: 'Ouro', classe: 'ouro', proximo: 400 };
   if (pontos >= 80) return { nome: 'Prata', classe: 'prata', proximo: 200 };

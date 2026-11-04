@@ -1143,6 +1143,14 @@
 }
 .item-linha.alvo-antes::before, .sub-linha.alvo-antes::before { top: -6px; }
 .item-linha.alvo-depois::after, .sub-linha.alvo-depois::after { bottom: -6px; }
+/* Item arrastado em cima de uma (sub)categoria: "solte aqui para mover" */
+.sub-linha.alvo-soltar, .cat-item.alvo-soltar, .cat-painel__trilha button.alvo-soltar {
+  outline: 2px dashed var(--acento, #ff5a1f); outline-offset: -2px;
+  background: color-mix(in srgb, var(--acento, #ff5a1f) 10%, var(--surface)); color: var(--text);
+}
+.sub-linha.alvo-soltar { transform: scale(1.01); box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--acento, #ff5a1f) 70%, transparent); }
+.sub-linha { transition: transform .12s, box-shadow .12s, background .12s; }
+.cat-painel__dica { margin: 12px 2px 0; flex-wrap: wrap; }
 
 @media (max-width: 1100px) {
   .cardapio { grid-template-columns: minmax(0, 1fr); }
@@ -2378,6 +2386,11 @@
 }
 .mc--livre .mc__status { color: var(--text); }
 .mc__status i { width: 12px; height: 12px; border-radius: 50%; background: var(--mc-cor); }
+/* Ocupada / pagando: faixa preenchida na cor da situação e cartão levemente tingido */
+.mc--ocupada, .mc--pagando { border-color: color-mix(in srgb, var(--mc-cor) 55%, var(--line)); background: color-mix(in srgb, var(--mc-cor) 6%, var(--surface)); }
+.mc--ocupada .mc__status, .mc--pagando .mc__status { background: var(--mc-cor); color: #fff; }
+.mc--ocupada .mc__status i, .mc--pagando .mc__status i { background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .28); }
+.mc__total--sem { font-size: .95rem; font-weight: 700; color: var(--muted); }
 .mc-pessoas { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; font-size: .9rem; }
 .mc-pessoas > span { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
 .mc-pessoas > div { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; }
@@ -2824,6 +2837,16 @@
 .garcom__mesa-chamando { color: var(--warn); font-size: .7rem; }
 @keyframes mesa-chama { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--warn) 18%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .garcom__mesa.chamando { animation: none; } }
+/* Ocupada: cartão preenchido em vermelho; chamando: preenchido em amarelo (livre segue só com a borda verde) */
+.garcom__mesa.ocupada {
+  border-color: var(--fire); color: #fff;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--fire) 92%, #fff), color-mix(in srgb, var(--fire) 78%, #000));
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--fire) 70%, transparent);
+}
+.garcom__mesa.ocupada small { color: rgba(255, 255, 255, .86); }
+.garcom__mesa.ocupada .garcom__mesa-total { color: #fff; }
+.garcom__mesa.chamando { color: #1f1500; background: linear-gradient(160deg, color-mix(in srgb, var(--warn) 88%, #fff), var(--warn)); }
+.garcom__mesa.chamando small, .garcom__mesa.chamando .garcom__mesa-total, .garcom__mesa.chamando .garcom__mesa-chamando { color: #2b1d00; }
 
 .gdes, .gcfg { display: grid; gap: 14px; padding: 14px 16px 24px; }
 .gdes__nivel { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); }

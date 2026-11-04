@@ -32,7 +32,7 @@ function duracao(desde: string, agora: number) {
 }
 
 export default function Mesas() {
-  const { restaurante, papel, pedidos: aoVivo, chamados, acessos } = usePainel();
+  const { restaurante, papel, pedidos: aoVivo, chamados, acessos, liberados } = usePainel();
   const toast = useToast();
   const navegar = useNavigate();
   const agora = useAgora(30000);
@@ -83,7 +83,8 @@ export default function Mesas() {
   const chamadosDa = (mesaId: string) => chamados.filter((c) => c.mesa_id === mesaId);
   const situacao = (m: Mesa): Situacao => {
     if (!m.ativo) return 'inativa';
-    if (!pedidosDa(m.id).length) return 'livre';
+    // Liberada pelo garçom (cliente já no cardápio) também conta como ocupada
+    if (!pedidosDa(m.id).length) return liberados.some((a) => a.mesa_id === m.id) ? 'ocupada' : 'livre';
     return chamadosDa(m.id).some((c) => c.tipo === 'conta') ? 'pagando' : 'ocupada';
   };
 
@@ -116,7 +117,8 @@ export default function Mesas() {
     const st = situacao(m);
     const cs = chamadosDa(m.id).filter((c) => c.tipo !== 'conta');
     const pedindo = acessos.filter((a) => a.mesa_id === m.id).length;
-    const comConta = st === 'ocupada' || st === 'pagando';
+    const comConta = ps.length > 0;
+    const sentadoDesde = liberados.filter((a) => a.mesa_id === m.id).map((a) => a.respondido_em ?? a.criado_em).sort()[0];
     // Situação dos pedidos da mesa (o que falta a equipe fazer)
     const novos = ps.filter((p) => p.status === 'novo').length;
     const preparo = ps.filter((p) => p.status === 'preparando').length;
@@ -173,8 +175,14 @@ export default function Mesas() {
           {comConta ? (
             <>
               <span className="mc__dado"><Users size={16} /> {m.pessoas ? `${m.pessoas} ${m.pessoas === 1 ? 'pessoa' : 'pessoas'}` : <em>— pessoas</em>}</span>
-              <span className="mc__dado"><Clock size={16} /> {duracao(ps[0].criado_em, agora)}</span>
+              <span className="mc__dado"><Clock size={16} /> {duracao(sentadoDesde && sentadoDesde < ps[0].criado_em ? sentadoDesde : ps[0].criado_em, agora)}</span>
               <strong className="mc__total">{brl(total)}</strong>
+            </>
+          ) : st === 'ocupada' && sentadoDesde ? (
+            <>
+              <span className="mc__dado"><Smartphone size={16} /> Cliente no cardápio</span>
+              <span className="mc__dado"><Clock size={16} /> {duracao(sentadoDesde, agora)}</span>
+              <strong className="mc__total mc__total--sem">Sem pedido</strong>
             </>
           ) : null}
           {(cs.length > 0 || pedindo > 0 || novos + preparo + prontos > 0) && (

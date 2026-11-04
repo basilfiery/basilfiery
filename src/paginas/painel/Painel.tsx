@@ -36,6 +36,8 @@ export interface ContextoPainel {
   pedidos: Pedido[];
   chamados: Chamado[];
   acessos: MesaAcesso[];
+  /** Celulares já liberados nas mesas (cliente sentado, mesmo sem pedido) */
+  liberados: MesaAcesso[];
   conectado: boolean;
   carregando: boolean;
   recarregar: () => Promise<void>;
@@ -498,6 +500,7 @@ export default function Painel() {
     pedidos: vivo.pedidos,
     chamados: vivo.chamados,
     acessos: vivo.acessos,
+    liberados: vivo.liberados,
     conectado: vivo.conectado,
     carregando: vivo.carregando,
     recarregar: vivo.recarregar,

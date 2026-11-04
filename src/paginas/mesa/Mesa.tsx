@@ -89,6 +89,8 @@ interface DadosMesa {
   /** Ofertas do Alavancar vendas (order bump) */
   bumps?: BumpCardapio[];
   bump_auto?: SugestoesBump;
+  /** false = caixa e loja fechados: dá para ver o cardápio e chamar o garçom, mas não enviar pedido */
+  recebendo?: boolean;
 }
 
 /** Linha do carrinho. Com adicionais, guarda a escolha, o acréscimo e o texto para mostrar. */
@@ -589,7 +591,10 @@ export default function Mesa() {
       )}
       <div className="carrinho__rodape">
         <div className="carrinho__total"><span>Total</span><strong>{brl(total)}</strong></div>
-        <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length} onClick={() => exigirMesaAberta(() => setConfirmar(true))}>
+        {dados?.recebendo === false && (
+          <p className="carrinho__fechada"><Lock size={16} /> <span><b>A casa está fechada agora.</b> Você pode montar o pedido; ele poderá ser enviado assim que abrir.</span></p>
+        )}
+        <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length || dados?.recebendo === false} onClick={() => exigirMesaAberta(() => setConfirmar(true))}>
           {podePedir ? 'Enviar pedido' : <><Lock size={18} /> Enviar pedido</>}
         </button>
         {carrinho.length > 0 && (

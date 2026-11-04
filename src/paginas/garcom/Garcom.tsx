@@ -199,7 +199,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
       </nav>
 
       {vivo.carregando ? <Carregando /> : aba === 'mesas' ? (
-        <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} aoResponderAcesso={vivo.removerAcesso} agora={agora} />
+        <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} liberados={vivo.liberados} aoResponderAcesso={vivo.removerAcesso} agora={agora} />
       ) : (
         <div className="garcom__lista">
           {lista.length === 0 ? (
@@ -217,11 +217,12 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
 }
 
 /* ---------------- Aba Mesas: conta de cada mesa + imprimir no caixa ---------------- */
-function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, aoResponderAcesso, agora }: {
+function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados, aoResponderAcesso, agora }: {
   restaurante: RestauranteComPapel;
   pedidosAoVivo: Pedido[];
   chamados: Chamado[];
   acessos: MesaAcesso[];
+  liberados: MesaAcesso[];
   aoResponderAcesso: (id: string) => void;
   agora: number;
 }) {
@@ -273,15 +274,17 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, aoResponde
         const total = ps.reduce((s, p) => s + Number(p.total), 0);
         const chamando = chamados.some((c) => c.mesa_id === m.id);
         const pedindo = acessos.some((a) => a.mesa_id === m.id);
+        // Liberada pelo garçom (cliente já no cardápio) também é mesa ocupada
+        const sentado = liberados.some((a) => a.mesa_id === m.id);
         return (
-          <button key={m.id} className={cx('garcom__mesa', ps.length > 0 && 'ocupada', (chamando || pedindo) && 'chamando')} onClick={() => setSel(m)}>
+          <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando')} onClick={() => setSel(m)}>
             <strong>{m.nome}</strong>
             {ps.length > 0 ? (
               <>
                 <span className="garcom__mesa-total">{brl(total)}</span>
                 <small>{ps.length} {ps.length === 1 ? 'pedido' : 'pedidos'} · {hora(ps[0].criado_em)}</small>
               </>
-            ) : <small>Livre</small>}
+            ) : sentado ? <small>Ocupada · sem pedido</small> : <small>Livre</small>}
             {chamando && <span className="garcom__mesa-chamando"><Bell size={12} /> chamando</span>}
             {pedindo && !chamando && <span className="garcom__mesa-chamando"><Smartphone size={12} /> liberar</span>}
           </button>

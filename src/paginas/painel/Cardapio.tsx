@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import {
-  Check, ChevronRight, Copy, Crop, ListChecks, Eye, EyeOff, Film, FolderInput, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
+  Check, ChevronRight, CornerLeftUp, Copy, Crop, ListChecks, Eye, EyeOff, Film, FolderInput, GripVertical, ImagePlus, Layers, MoreVertical, Pencil, Plus, Search, Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
 import { Campo, FotoProduto, ImagemComida, Switch, Vazio } from '../../componentes/Basicos';
@@ -23,7 +23,10 @@ type Alvo = { id: string; depois: boolean } | null;
  * Arrastar para mudar a ordem de uma lista (categorias, subcategorias ou itens).
  * Cada lista tem o seu: não dá para soltar um item numa lista diferente.
  */
-function useArrastar(aoSoltar: (origem: string, destino: string, depois: boolean) => void) {
+/** Tipo do arrasto de um item: dá para soltar o produto em cima de uma (sub)categoria para mudá-lo de lugar */
+const TIPO_PRODUTO = 'application/x-bf-produto';
+
+function useArrastar(aoSoltar: (origem: string, destino: string, depois: boolean) => void, tipo?: string) {
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [alvo, setAlvo] = useState<Alvo>(null);
   // A ref já vale no evento seguinte, mesmo num arrasto rápido
@@ -43,6 +46,7 @@ function useArrastar(aoSoltar: (origem: string, destino: string, depois: boolean
       setArrastando(id);
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', id);
+      if (tipo) e.dataTransfer.setData(tipo, id);
     },
     onDragOver: (e: DragEvent<HTMLElement>) => {
       if (!arrastandoRef.current) return;
@@ -246,7 +250,37 @@ export default function Cardapio() {
 
   const arrastoCats = useArrastar(moverCategoria);
   const arrastoSubs = useArrastar(moverCategoria);
-  const arrastoItens = useArrastar(moverProduto);
+  const arrastoItens = useArrastar(moverProduto, TIPO_PRODUTO);
+
+  // Soltar um item em cima de uma subcategoria (ou categoria) move ele para lá, com tudo junto
+  const [soltarEm, setSoltarEm] = useState<string | null>(null);
+  useEffect(() => {
+    const limpar = () => setSoltarEm(null);
+    window.addEventListener('dragend', limpar);
+    window.addEventListener('drop', limpar);
+    return () => { window.removeEventListener('dragend', limpar); window.removeEventListener('drop', limpar); };
+  }, []);
+  const ehProduto = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].includes(TIPO_PRODUTO);
+  const recebeProduto = (c: Categoria, base?: ReturnType<typeof arrastoCats.props>) => ({
+    ...base,
+    onDragOver: (e: DragEvent<HTMLElement>) => {
+      if (ehProduto(e)) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; if (soltarEm !== c.id) setSoltarEm(c.id); return; }
+      base?.onDragOver(e);
+    },
+    onDragLeave: (e: DragEvent<HTMLElement>) => {
+      if (soltarEm === c.id && !e.currentTarget.contains(e.relatedTarget as Node | null)) setSoltarEm(null);
+    },
+    onDrop: (e: DragEvent<HTMLElement>) => {
+      const id = e.dataTransfer.getData(TIPO_PRODUTO);
+      if (id) {
+        e.preventDefault(); e.stopPropagation(); setSoltarEm(null);
+        const p = produtos.find((x) => x.id === id);
+        if (p && !p.grupo_id && p.categoria_id !== c.id) void moverParaCategoria(p, c);
+        return;
+      }
+      base?.onDrop(e);
+    },
+  });
 
   // Árvore: principais na ordem, cada uma seguida das suas subcategorias
   const principais = categorias.filter((c) => !c.pai_id || !categorias.some((x) => x.id === c.pai_id));
@@ -332,6 +366,11 @@ export default function Cardapio() {
             <>
               <button className="menu-item" onClick={() => { fechar(); setEditProd(p); }}><Pencil size={17} /> Editar</button>
               <button className="menu-item" onClick={() => { fechar(); void duplicarProduto(p); }}><Copy size={17} /> Duplicar</button>
+              {(() => {
+                const atual = categorias.find((c) => c.id === p.categoria_id);
+                const mae = atual?.pai_id ? categorias.find((c) => c.id === atual.pai_id) : null;
+                return mae && <button className="menu-item" onClick={() => { fechar(); void moverParaCategoria(p, mae); }}><CornerLeftUp size={17} /> Tirar da subcategoria (voltar para {mae.nome})</button>;
+              })()}
               {p.categoria_id && <button className="menu-item" onClick={() => { fechar(); setMover(p); }}><FolderInput size={17} /> Mover para…</button>}
               <button className="menu-item" onClick={() => { fechar(); void alternarAtivo(p, !p.ativo); }}>
                 {p.ativo ? <><EyeOff size={17} /> Tirar do tablet</> : <><Eye size={17} /> Mostrar no tablet</>}
@@ -393,13 +432,13 @@ export default function Cardapio() {
             {principais.map((c) => (
               <div key={c.id} className="cats-grupo">
                 <div
-                  className={cx('cat-item', principalAberta?.id === c.id && 'ativo', !c.ativo && 'cat-item--inativa', arrastoCats.classe(c.id))}
+                  className={cx('cat-item', principalAberta?.id === c.id && 'ativo', !c.ativo && 'cat-item--inativa', arrastoCats.classe(c.id), soltarEm === c.id && 'alvo-soltar')}
                   role="button"
                   tabIndex={0}
                   onClick={() => abrir(c.id)}
                   onKeyDown={(e) => e.key === 'Enter' && abrir(c.id)}
                   title="Arraste para mudar a ordem"
-                  {...arrastoCats.props(c.id)}
+                  {...recebeProduto(c, arrastoCats.props(c.id))}
                 >
                   <GripVertical size={16} className="cat-item__alca" aria-hidden="true" />
                   <span>{c.emoji} {c.nome}</span>
@@ -499,7 +538,7 @@ export default function Cardapio() {
               <div className="cat-painel__titulo">
                 {pai && (
                   <nav className="cat-painel__trilha" aria-label="Caminho">
-                    <button onClick={() => abrir(pai.id)}>{pai.emoji} {pai.nome}</button>
+                    <button onClick={() => abrir(pai.id)} className={cx(soltarEm === pai.id && 'alvo-soltar')} title="Solte um item aqui para tirá-lo da subcategoria" {...recebeProduto(pai)}>{pai.emoji} {pai.nome}</button>
                     <ChevronRight size={15} />
                   </nav>
                 )}
@@ -559,8 +598,8 @@ export default function Cardapio() {
                   return (
                     <li
                       key={f.id}
-                      className={cx('item-linha sub-linha', !f.ativo && 'item-linha--oculto', f.esgotado && 'item-linha--esgotado', arrastoSubs.classe(f.id))}
-                      {...arrastoSubs.props(f.id)}
+                      className={cx('item-linha sub-linha', !f.ativo && 'item-linha--oculto', f.esgotado && 'item-linha--esgotado', arrastoSubs.classe(f.id), soltarEm === f.id && 'alvo-soltar')}
+                      {...recebeProduto(f, arrastoSubs.props(f.id))}
                     >
                       <GripVertical size={18} className="item-linha__alca" aria-hidden="true" />
                       <span className={cx('sub-linha__icone', !foto && !f.emoji && 'sub-linha__icone--vazia')}>
@@ -608,6 +647,12 @@ export default function Cardapio() {
                 {grupo && !termo && saboresDe(cat.grupo_id).map((p) => linhaItem(p, false))}
                 {itens.map((p) => linhaItem(p, !termo))}
               </ul>
+            )}
+            {!termo && subs.length > 0 && itens.length > 0 && (
+              <p className="cats-dica cat-painel__dica"><GripVertical size={13} /> Arraste um item para cima de uma subcategoria para colocá-lo nela. Para tirar, use ⋮ › Tirar da subcategoria.</p>
+            )}
+            {!termo && pai && itens.length > 0 && (
+              <p className="cats-dica cat-painel__dica"><CornerLeftUp size={13} /> Para tirar um item daqui, arraste até “{pai.nome}” no topo ou use ⋮ › Tirar da subcategoria.</p>
             )}
           </section>
           );

@@ -21,6 +21,8 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [chamados, setChamados] = useState<Chamado[]>([]);
   const [acessos, setAcessos] = useState<MesaAcesso[]>([]);
+  // Celulares já liberados (cliente na mesa, mesmo sem pedido ainda): a mesa conta como ocupada
+  const [liberados, setLiberados] = useState<MesaAcesso[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [conectado, setConectado] = useState(false);
 
@@ -44,7 +46,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
   const carregar = useCallback(async () => {
     if (!restauranteId) return;
     const desde = new Date(Date.now() - 16 * 3600e3).toISOString();
-    const [p, c, a] = await Promise.all([
+    const [p, c, a, l] = await Promise.all([
       supabase.from('pedidos').select(SELECT_PEDIDO)
         .eq('restaurante_id', restauranteId)
         .or(`criado_em.gte.${desde},status.in.(novo,preparando,pronto)`)
@@ -57,6 +59,10 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
         .eq('restaurante_id', restauranteId)
         .eq('status', 'pendente')
         .order('criado_em', { ascending: true }),
+      supabase.from('mesa_acessos').select('*')
+        .eq('restaurante_id', restauranteId)
+        .eq('status', 'liberado').eq('fixo', false)
+        .gte('respondido_em', desde),
     ]);
     if (p.data) {
       const lista = p.data as Pedido[];
@@ -79,6 +85,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
       }
       setAcessos(lista);
     }
+    if (l.data) setLiberados(l.data as MesaAcesso[]);
     semeado.current = true;
     setCarregando(false);
   }, [restauranteId, registrar]);
@@ -144,6 +151,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mesa_acessos', filter: filtro }, (payload) => {
         const a = payload.new as MesaAcesso;
         if (a.status !== 'pendente') setAcessos((lista) => lista.filter((x) => x.id !== a.id));
+        setLiberados((lista) => (a.status === 'liberado' && !a.fixo ? [...lista.filter((x) => x.id !== a.id), a] : lista.filter((x) => x.id !== a.id)));
       })
       .subscribe((status) => {
         setConectado(status === 'SUBSCRIBED');
@@ -178,5 +186,5 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
     setAcessos((lista) => lista.filter((a) => a.id !== id));
   }, []);
 
-  return { pedidos, chamados, acessos, carregando, conectado, recarregar: carregar, atualizarPedido, removerChamado, removerAcesso };
+  return { pedidos, chamados, acessos, liberados, carregando, conectado, recarregar: carregar, atualizarPedido, removerChamado, removerAcesso };
 }

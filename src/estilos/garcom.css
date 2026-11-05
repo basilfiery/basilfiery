@@ -243,3 +243,23 @@
 .garcom__mesa-sep { display: inline-flex; align-items: center; gap: 3px; margin: 0 1px; }
 @media (prefers-reduced-motion: reduce) { .gapp .garcom__mesa.pisca, .gapp .garcom__mesa.pisca .garcom__mesa-sino { animation-duration: 2.4s; } }
 .gapp .garcom__mesa-estado { white-space: nowrap; }
+
+/* Piscar em vermelho (pedido pronto, pedido novo ou chamando): anel e brilho vermelhos bem visíveis */
+.gapp .garcom__mesa.pisca, .gapp .garcom__mesa.levar.pisca, .gapp .garcom__mesa.chamando.pisca, .gapp .garcom__mesa.novo.pisca { --pisca: #ff2d3d; animation: gmesa-pisca-vermelho 1s ease-in-out infinite; }
+@keyframes gmesa-pisca-vermelho {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; filter: none; }
+  50% { box-shadow: 0 0 0 3px #ff2d3d, 0 0 0 6px rgba(255, 45, 61, .35), 0 0 26px 6px rgba(255, 45, 61, .6); filter: brightness(1.12) saturate(1.15); }
+}
+.gapp .garcom__mesa.pisca .garcom__mesa-chamando { animation: gmesa-rotulo 1s ease-in-out infinite; }
+@keyframes gmesa-rotulo { 50% { color: #ff2d3d; } }
+.gapp .garcom__mesa.levar.pisca .garcom__mesa-chamando, .gapp .garcom__mesa.novo.pisca .garcom__mesa-chamando { animation-name: gmesa-rotulo-claro; }
+@keyframes gmesa-rotulo-claro { 50% { color: #fff; text-shadow: 0 0 8px #ff2d3d, 0 0 2px #ff2d3d; } }
+
+/* Dentro da mesa: pedido pronto e pedido novo com botão Atendido */
+.modal.gmesa .gmesa__chamado--levar { border-color: color-mix(in srgb, var(--ok) 60%, transparent); background: color-mix(in srgb, var(--ok) 9%, transparent); }
+.modal.gmesa .gmesa__chamado--levar strong { color: var(--ok); }
+.modal.gmesa .gmesa__chamado--levar .gmesa__chamado-icone { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.modal.gmesa .gmesa__chamado--novo { border-color: color-mix(in srgb, var(--danger) 60%, transparent); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.modal.gmesa .gmesa__chamado--novo strong { color: var(--danger); }
+.modal.gmesa .gmesa__chamado--novo .gmesa__chamado-icone { background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
+.modal.gmesa .gmesa__chamado small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

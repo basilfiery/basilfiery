@@ -386,7 +386,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   }, [restauranteId, toast]);
 
   // Atualiza junto com os pedidos ao vivo
-  const assinatura = useMemo(() => pedidosAoVivo.map((p) => `${p.id}:${p.status}:${p.pago_em ?? ''}`).join('|'), [pedidosAoVivo]);
+  const assinatura = useMemo(() => pedidosAoVivo.map((p) => `${p.id}:${p.status}:${p.pago_em ?? ''}:${p.garcom_atendido_em ?? ''}`).join('|'), [pedidosAoVivo]);
   useEffect(() => { void carregar(); }, [carregar, assinatura]);
 
   // Chegou pelo chamado: abre a mesa (e mostra mesas ou comandas, conforme o caso)
@@ -445,7 +445,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         const sentado = liberados.some((a) => a.mesa_id === m.id);
         // Pisca: pedido pronto para levar, pedido novo do cliente ou mesa chamando
         const levar = ps.some((p) => p.status === 'pronto');
-        const novo = ps.some((p) => p.status === 'novo');
+        const novo = ps.some((p) => p.status === 'novo' && !p.garcom_atendido_em);
         const alerta = chamando ? 'Chamando' : pedindo ? 'Liberar' : levar ? 'Levar pedido' : novo ? 'Pedido novo' : null;
         return (
           <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando', !(chamando || pedindo) && levar && 'levar', !(chamando || pedindo) && !levar && novo && 'novo', alerta && 'pisca')} onClick={() => setSel(m)}>
@@ -462,7 +462,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
                   <span className="garcom__mesa-total">{brl(total)}</span>
                   <small className="garcom__mesa-tempo"><Clock size={11} strokeWidth={2.6} /> {tempoDesde(ps[0].criado_em, agora)}{m.pessoas ? <><span className="garcom__mesa-sep">·</span><Users size={11} strokeWidth={2.6} /> {m.pessoas}</> : ps.length > 1 ? ` · ${ps.length} ped.` : ''}</small>
                 </>
-              ) : <small className="garcom__mesa-estado">{sentado ? 'Sem pedido' : 'Livre'}{m.pessoas ? <span className="garcom__mesa-sep">· <Users size={11} strokeWidth={2.6} /> {m.pessoas}</span> : null}</small>}
+              ) : (chamando || pedindo) && !sentado ? null : <small className="garcom__mesa-estado">{sentado ? 'Sem pedido' : 'Livre'}{m.pessoas ? <span className="garcom__mesa-sep">· <Users size={11} strokeWidth={2.6} /> {m.pessoas}</span> : null}</small>}
               {alerta && <span className="garcom__mesa-chamando">{alerta}</span>}
             </span>
           </button>
@@ -485,6 +485,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
           aoTrocar={() => { setSel(null); void carregar(); }}
           ocupada={liberados.some((a) => a.mesa_id === sel.id) || !!sel.cliente_nome || !!sel.cliente_telefone || !!sel.pessoas}
           aoFecharMesa={() => { setMesas((l) => l && l.map((x) => (x.id === sel.id ? { ...x, pessoas: null, cliente_nome: null, cliente_telefone: null } : x))); setSel(null); void carregar(); }}
+          aoAtualizarPedidos={() => void carregar()}
           aoPessoas={(n) => { setMesas((l) => l && l.map((x) => (x.id === sel.id ? { ...x, pessoas: n } : x))); setSel((x) => x && { ...x, pessoas: n }); }}
         />
       )}
@@ -493,7 +494,8 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
   );
 }
 
-function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar, aoPessoas, ocupada, aoFecharMesa }: {
+function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar, aoPessoas, ocupada, aoFecharMesa, aoAtualizarPedidos }: {
+  aoAtualizarPedidos: () => void;
   aoPessoas: (n: number | null) => void;
   /** Cliente sentado (celular liberado, nome ou pessoas): sem pedido, dá para fechar a mesa */
   ocupada: boolean;
@@ -517,6 +519,23 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
   const [aba, setAba] = useState<'qr' | 'conta'>('qr');
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
   const [fechando, setFechando] = useState(false);
+  // Pedidos que pedem atenção do garçom: pronto (levar) e novo ainda não visto
+  const [feitos, setFeitos] = useState<string[]>([]);
+  const paraLevar = pedidos.filter((p) => p.status === 'pronto' && !feitos.includes(p.id));
+  const novosSemVer = pedidos.filter((p) => p.status === 'novo' && !p.garcom_atendido_em && !feitos.includes(p.id));
+  async function atenderPedido(p: Pedido) {
+    setFeitos((l) => [...l, p.id]);
+    const { error } = p.status === 'pronto'
+      ? await supabase.rpc('pedido_mudar_status', { p_pedido: p.id, p_status: 'entregue' })
+      : await supabase.rpc('pedido_garcom_atendido', { p_pedido: p.id });
+    if (error) {
+      setFeitos((l) => l.filter((x) => x !== p.id));
+      toast(msgErro(error), 'erro');
+      return;
+    }
+    toast(p.status === 'pronto' ? `Pedido #${p.numero} entregue na ${mesa.nome}.` : `Pedido #${p.numero} atendido.`, 'ok');
+    aoAtualizarPedidos();
+  }
   async function fechar() {
     setFechando(true);
     const ok = await fecharMesaSemPedido(mesa, toast);
@@ -592,8 +611,28 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
       )}
       <PessoasMesa mesa={mesa} aoMudar={aoPessoas} />
       {/* Chamados desta mesa: o garçom marca "Atendido" aqui dentro */}
-      {chamados.length > 0 && (
+      {(chamados.length > 0 || paraLevar.length > 0 || novosSemVer.length > 0) && (
         <div className="gmesa__chamados">
+          {paraLevar.map((p) => (
+            <div key={p.id} className="gmesa__chamado gmesa__chamado--levar">
+              <span className="gmesa__chamado-icone"><HandPlatter size={20} /></span>
+              <div>
+                <strong>Pedido #{p.numero} pronto para levar</strong>
+                <small>{p.pedido_itens?.length ? p.pedido_itens.map((i) => `${i.qtd}× ${i.nome}`).join(', ') : `Feito há ${tempoDesde(p.criado_em, agora)}`}</small>
+              </div>
+              <button className="btn btn--sucesso" onClick={() => void atenderPedido(p)}><Check size={18} strokeWidth={2.6} /> Atendido</button>
+            </div>
+          ))}
+          {novosSemVer.map((p) => (
+            <div key={p.id} className="gmesa__chamado gmesa__chamado--novo">
+              <span className="gmesa__chamado-icone"><ClipboardList size={20} /></span>
+              <div>
+                <strong>Pedido novo #{p.numero}</strong>
+                <small>{tempoDesde(p.criado_em, agora) === 'agora' ? 'Feito agora' : `Feito há ${tempoDesde(p.criado_em, agora)}`} · {brl(Number(p.total))}</small>
+              </div>
+              <button className="btn btn--sucesso" onClick={() => void atenderPedido(p)}><Check size={18} strokeWidth={2.6} /> Atendido</button>
+            </div>
+          ))}
           {chamados.map((c) => (
             <div key={c.id} className={cx('gmesa__chamado', c.tipo === 'conta' && 'gmesa__chamado--conta')}>
               <span className="gmesa__chamado-icone">{c.tipo === 'conta' ? <Receipt size={20} /> : <Bell size={20} />}</span>

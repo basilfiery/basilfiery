@@ -233,6 +233,8 @@ export interface Pedido {
   atualizado_em: string;
   impresso_em: string | null;
   pago_em: string | null;
+  /** Garçom marcou "Atendido" no pedido novo (a mesa para de piscar no app dele) */
+  garcom_atendido_em?: string | null;
   /** false = só itens prontos (bebidas): ao aceitar vai direto para "Prontos" */
   precisa_preparo: boolean;
   /** mesa | delivery | retirada | balcao (PDV) */

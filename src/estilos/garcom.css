@@ -255,6 +255,32 @@
 .gapp .garcom__mesa.levar.pisca .garcom__mesa-chamando, .gapp .garcom__mesa.novo.pisca .garcom__mesa-chamando { animation-name: gmesa-rotulo-claro; }
 @keyframes gmesa-rotulo-claro { 50% { color: #fff; text-shadow: 0 0 8px #ff2d3d, 0 0 2px #ff2d3d; } }
 
+/* Pediu a conta: mesa verde piscando verde */
+.gapp .garcom__chamado.garcom__chamado--conta { border-color: rgba(34, 224, 127, .75); background: rgba(34, 224, 127, .1); animation: gchamado-verde 1.2s ease-in-out infinite; }
+.gapp .garcom__chamado--conta .garcom__chamado-motivo { color: #2ee88a; }
+.gapp .garcom__chamado--conta .garcom__chamado-icone { background: #22c876; color: #fff; }
+.gapp .garcom__chamado--conta .garcom__chamado-abrir { background: rgba(34, 224, 127, .16); color: #2ee88a; }
+@keyframes gchamado-verde { 50% { box-shadow: 0 0 0 3px rgba(34, 224, 127, .45), 0 0 22px rgba(34, 224, 127, .35); } }
+.modal.gmesa .gmesa__chamado--conta { border-color: rgba(34, 224, 127, .65); background: rgba(34, 224, 127, .08); }
+.modal.gmesa .gmesa__chamado--conta strong { color: #1fbf6e; }
+.modal.gmesa .gmesa__chamado--conta .gmesa__chamado-icone { background: rgba(34, 224, 127, .18); color: #1fbf6e; }
+:root[data-tema='claro'] .gapp .garcom__chamado--conta .garcom__chamado-motivo, :root[data-tema='claro'] .gapp .garcom__chamado--conta .garcom__chamado-abrir { color: #0f8f55; }
+@media (prefers-reduced-motion: reduce) { .gapp .garcom__chamado.garcom__chamado--conta { animation-duration: 2.4s; } }
+.gapp .garcom__mesa.chamando.conta { color: #fff; background: linear-gradient(160deg, #34d98a, #0f8f55); box-shadow: 0 10px 22px -12px rgba(15, 143, 85, .9); }
+.gapp .garcom__mesa.chamando.conta small, .gapp .garcom__mesa.chamando.conta .garcom__mesa-total, .gapp .garcom__mesa.chamando.conta .garcom__mesa-chamando { color: #fff; }
+.gapp .garcom__mesa.chamando.conta.pisca { --pisca: #22e07f; animation: gmesa-pisca-verde 1s ease-in-out infinite; }
+@keyframes gmesa-pisca-verde {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; filter: none; }
+  50% { box-shadow: 0 0 0 3px #22e07f, 0 0 0 6px rgba(34, 224, 127, .35), 0 0 26px 6px rgba(34, 224, 127, .6); filter: brightness(1.12) saturate(1.15); }
+}
+.gapp .garcom__mesa.chamando.conta.pisca .garcom__mesa-chamando { animation-name: gmesa-rotulo-verde; }
+@keyframes gmesa-rotulo-verde { 50% { color: #fff; text-shadow: 0 0 8px #0b6b3f, 0 0 2px #0b6b3f; } }
+.gapp .garcom__legenda i.conta { background: #22c876; box-shadow: 0 0 0 3px rgba(34, 200, 118, .3), 0 0 8px rgba(34, 224, 127, .8); }
+/* Legenda numa linha só (desliza para o lado no celular estreito) */
+.gapp .garcom__legenda { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -2px; padding: 2px; }
+.gapp .garcom__legenda::-webkit-scrollbar { display: none; }
+.gapp .garcom__legenda span { flex: none; padding: 0 9px; gap: 5px; }
+
 /* Dentro da mesa: pedido pronto e pedido novo com botão Atendido */
 .modal.gmesa .gmesa__chamado--levar { border-color: color-mix(in srgb, var(--ok) 60%, transparent); background: color-mix(in srgb, var(--ok) 9%, transparent); }
 .modal.gmesa .gmesa__chamado--levar strong { color: var(--ok); }

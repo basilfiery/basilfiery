@@ -432,6 +432,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         <span><i className="ocupada" /> Ocupadas</span>
         <span><i className="levar" /> Levar</span>
         <span><i className="chamando" /> Chamando</span>
+        <span><i className="conta" /> Conta</span>
       </div>
     </div>
     <div className="garcom__mesas">
@@ -440,19 +441,21 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         const ps = pedidosDa(m.id);
         const total = ps.reduce((s, p) => s + Number(p.total), 0);
         const chamando = chamados.some((c) => c.mesa_id === m.id);
+        // Pediu a conta: mesa verde piscando verde
+        const conta = chamados.some((c) => c.mesa_id === m.id && c.tipo === 'conta');
         const pedindo = acessos.some((a) => a.mesa_id === m.id);
         // Liberada pelo garçom (cliente já no cardápio) também é mesa ocupada
         const sentado = liberados.some((a) => a.mesa_id === m.id);
         // Pisca: pedido pronto para levar, pedido novo do cliente ou mesa chamando
         const levar = ps.some((p) => p.status === 'pronto');
         const novo = ps.some((p) => p.status === 'novo' && !p.garcom_atendido_em);
-        const alerta = chamando ? 'Chamando' : pedindo ? 'Liberar' : levar ? 'Levar pedido' : novo ? 'Pedido novo' : null;
+        const alerta = conta ? 'Conta' : chamando ? 'Chamando' : pedindo ? 'Liberar' : levar ? 'Levar pedido' : novo ? 'Pedido novo' : null;
         return (
-          <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando', !(chamando || pedindo) && levar && 'levar', !(chamando || pedindo) && !levar && novo && 'novo', alerta && 'pisca')} onClick={() => setSel(m)}>
+          <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando', conta && 'conta', !(chamando || pedindo) && levar && 'levar', !(chamando || pedindo) && !levar && novo && 'novo', alerta && 'pisca')} onClick={() => setSel(m)}>
             <span className="garcom__mesa-topo">
               <strong>{m.nome}</strong>
               {(chamando || pedindo || levar || novo) && (
-                <span className="garcom__mesa-sino">{chamando ? <Bell size={13} strokeWidth={2.6} /> : pedindo ? <Smartphone size={13} strokeWidth={2.6} /> : levar ? <HandPlatter size={13} strokeWidth={2.4} /> : <ClipboardList size={13} strokeWidth={2.4} />}</span>
+                <span className="garcom__mesa-sino">{conta ? <Receipt size={13} strokeWidth={2.6} /> : chamando ? <Bell size={13} strokeWidth={2.6} /> : pedindo ? <Smartphone size={13} strokeWidth={2.6} /> : levar ? <HandPlatter size={13} strokeWidth={2.4} /> : <ClipboardList size={13} strokeWidth={2.4} />}</span>
               )}
             </span>
             {m.cliente_nome && <span className="garcom__mesa-cliente">{m.cliente_nome}</span>}
@@ -589,7 +592,7 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
       classe="gmesa"
       rodape={
         <>
-          <a className="btn btn--contorno" href={`/mesa/${mesa.token}`} target="_blank" rel="noopener"><ExternalLink size={18} /> Lançar pedido</a>
+          <a className="btn btn--contorno" href={`/mesa/${mesa.token}?equipe=1`} target="_blank" rel="noopener"><ExternalLink size={18} /> Lançar pedido</a>
           {pedidos.length === 0 ? (
             <button className="btn gmesa__fechar" onClick={() => void fechar()} disabled={!ocupada || fechando}>
               <DoorOpen size={18} /> {fechando ? 'Fechando…' : 'Fechar mesa'}

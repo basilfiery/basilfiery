@@ -162,6 +162,20 @@ export default function Mesa() {
   const navegar = useNavigate();
   const toast = useToast();
   const dispositivo = useMemo(idDispositivo, []);
+  // Modo equipe só quando aberto pelo "Lançar pedido" (app do garçom/painel). Pelo QR Code é sempre cliente,
+  // mesmo num celular logado como equipe (o app do garçom divide a sessão com o Chrome).
+  const modoEquipe = useMemo(() => {
+    const chave = `bf:mesa-equipe:${token}`;
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('equipe') === '1') {
+        sessionStorage.setItem(chave, '1');
+        url.searchParams.delete('equipe');
+        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+      }
+      return sessionStorage.getItem(chave) === '1';
+    } catch { return false; }
+  }, [token]);
   const [dados, setDados] = useState<DadosMesa | null>(null);
   const [erro, setErro] = useState('');
   const [carrinho, setCarrinho] = useState<Linha[]>(() => ls.ler(`bf:carrinho:${token}`, []));
@@ -218,7 +232,7 @@ export default function Mesa() {
   /* ---------- Liberação da mesa ---------- */
   const acessoRef = useRef<Acesso>('carregando');
   const consultarAcesso = useCallback(async () => {
-    const { data, error } = await supabase.rpc('mesa_acesso_status', { p_token: token, p_dispositivo: dispositivo });
+    const { data, error } = await supabase.rpc('mesa_acesso_status', { p_token: token, p_dispositivo: dispositivo, p_equipe: modoEquipe });
     if (error) return;
     // A equipe trocou o cliente de mesa: o cardápio (e o pedido em montagem) seguem para a mesa nova
     if (typeof data === 'string' && data.startsWith('movido:')) {
@@ -248,7 +262,7 @@ export default function Mesa() {
       acao?.();
     }
     if (antes === 'liberado' && semAcesso(novo)) toast('A conta desta mesa foi fechada. Obrigado pela visita!', 'info');
-  }, [token, dispositivo, toast, navegar]);
+  }, [token, dispositivo, toast, navegar, modoEquipe]);
 
   useEffect(() => {
     void consultarAcesso();
@@ -269,7 +283,7 @@ export default function Mesa() {
     if (cliente) ls.gravar('bf:cliente-mesa', cliente);
     const { data, error } = await supabase.rpc('mesa_acesso_pedir', {
       p_token: token, p_dispositivo: dispositivo, p_aparelho: descreverAparelho(),
-      p_nome: quem.nome.trim() || null, p_telefone: quem.telefone.replace(/\D/g, '') || null,
+      p_nome: quem.nome.trim() || null, p_telefone: quem.telefone.replace(/\D/g, '') || null, p_equipe: modoEquipe,
     });
     setPedindoAcesso(false);
     if (error) return toast(msgErro(error), 'erro');

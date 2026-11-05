@@ -581,7 +581,7 @@ function ModalNovoPedido({ restauranteId, aoFechar }: { restauranteId: string; a
       ) : (
         <div className="novo-pedido__mesas">
           {mesas.map((m) => (
-            <a key={m.id} className="novo-pedido__mesa" href={`/mesa/${m.token}`} target="_blank" rel="noopener" onClick={aoFechar}>
+            <a key={m.id} className="novo-pedido__mesa" href={`/mesa/${m.token}?equipe=1`} target="_blank" rel="noopener" onClick={aoFechar}>
               <UtensilsCrossed size={18} /> {m.nome} <ExternalLink size={14} />
             </a>
           ))}

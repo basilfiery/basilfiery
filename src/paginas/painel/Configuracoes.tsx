@@ -66,7 +66,7 @@ export default function Configuracoes() {
         ))}
       </div>
       <p className="muted" style={{ fontSize: '.8rem', margin: 0 }}>
-        Versão do sistema: <b>{VERSAO_CURTA}</b> · as atualizações são verificadas a cada minuto.
+        Versão <b>{VERSAO_CURTA}</b> · o sistema se atualiza sozinho.
       </p>
     </div>
   );

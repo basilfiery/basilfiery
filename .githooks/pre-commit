@@ -1,0 +1,3 @@
+#!/bin/sh
+# Ligar uma vez: git config core.hooksPath .githooks
+node .githooks/subir-versao.mjs

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Check, ChefHat, ChevronUp, LayoutGrid, MessageSquareText, Minus, PencilLine, Plus, Printer, Receipt, Search, ShoppingBasket, Trash2, UserRound, Wallet, X,
+  Check, ChefHat, ChevronUp, LayoutGrid, MessageSquareText, Minus, Pencil, PencilLine, Plus, Printer, Receipt, Search, ShoppingBasket, Trash2, UserRound, Wallet, X,
 } from 'lucide-react';
 import { FotoProduto, Switch } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -135,6 +135,7 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   const [concluida, setConcluida] = useState<{ id: string; numero: number; total: number; troco: number | null; forma: FormaPagamento | null } | null>(null);
   const [folhaAberta, setFolhaAberta] = useState(false);
   const [escolhendo, setEscolhendo] = useState<ProdutoMesa | null>(null);
+  const [editandoItem, setEditandoItem] = useState<Linha | null>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
   const listaRef = useRef<HTMLDivElement>(null);
 
@@ -205,6 +206,18 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   }
   const mudarQtd = (chave: string, qtd: number) =>
     setLinhas((l) => (qtd <= 0 ? l.filter((x) => x.chave !== chave) : l.map((x) => (x.chave === chave ? { ...x, qtd: Math.min(qtd, 99) } : x))));
+  // Editar um item do pedido: troca a linha no mesmo lugar (se ficar igual a outra, soma nela)
+  function salvarEdicao(antiga: Linha, p: ProdutoMesa, qtd: number, obs: string, a?: AdicionaisEscolhidos) {
+    setLinhas((l) => {
+      const i = l.findIndex((x) => x.chave === antiga.chave);
+      const sem = l.filter((x) => x.chave !== antiga.chave);
+      const junto = juntarNoCarrinho(sem, p, qtd, obs, a);
+      if (junto.length === sem.length || i < 0) return junto; // somou numa linha igual
+      const nova = junto[junto.length - 1];
+      return [...sem.slice(0, i), nova, ...sem.slice(i)];
+    });
+    toast(`${nomeItem(p)} atualizado.`, 'ok');
+  }
   const mudarObs = (chave: string, obs: string) =>
     setLinhas((l) => l.map((x) => (x.chave === chave ? { ...x, obs, chave: `${x.produto_id}|${obs}|${x.chave.split('|')[2] ?? ''}` } : x)));
 
@@ -347,9 +360,15 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
                     </button>
                   </div>
                 ) : (
-                  <button type="button" className="pdv-linha__obs" onClick={() => setEditando(l.chave)}>
-                    <PencilLine size={12} /> {l.obs ? `“${l.obs}”` : 'Observação'}
-                  </button>
+                  <div className="pdv-linha__acoes">
+                    <button type="button" className="pdv-linha__editar" onClick={() => setEditandoItem(l)}
+                      title={gruposDe(p).length ? 'Trocar sabores, adicionais, quantidade ou observação' : 'Trocar quantidade ou observação'}>
+                      <Pencil size={12} /> Editar
+                    </button>
+                    <button type="button" className="pdv-linha__obs" onClick={() => setEditando(l.chave)}>
+                      <PencilLine size={12} /> {l.obs ? `“${l.obs}”` : 'Observação'}
+                    </button>
+                  </div>
                 )}
               </div>
               <span className="pdv-linha__preco">{brl(precoLinha(l, p) * l.qtd)}</span>
@@ -565,6 +584,21 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
           grupos={gruposDe(escolhendo)}
         />
       )}
+
+      {editandoItem && porId.get(editandoItem.produto_id) && (() => {
+        const p = porId.get(editandoItem.produto_id)!;
+        return (
+          <ModalProduto
+            key={`editar-${editandoItem.chave}`}
+            p={p}
+            edicao={{ qtd: editandoItem.qtd, obs: editandoItem.obs, escolhas: editandoItem.adicionais ?? [] }}
+            aoFechar={() => setEditandoItem(null)}
+            aoAdicionar={(qtd, obs, a) => { salvarEdicao(editandoItem, p, qtd, obs, a); setEditandoItem(null); }}
+            jaNoCarrinho={qtdNoPedido(p.id) - editandoItem.qtd}
+            grupos={gruposDe(p)}
+          />
+        );
+      })()}
 
       {concluida && (
         <Modal aberto aoFechar={() => setConcluida(null)} largura={400} classe="pdv-ok">

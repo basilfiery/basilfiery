@@ -986,8 +986,10 @@ function ModalAbrirMesa({ acesso, mesa, restaurante, enviando, aoPedir, aoFechar
   );
 }
 
-export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, grupos = [], oferta }: {
+export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, grupos = [], oferta, edicao }: {
   p: ProdutoMesa;
+  /** Editar um item que já está no pedido: abre com a quantidade, a observação e os adicionais dele */
+  edicao?: { qtd: number; obs: string; escolhas: Escolha[] };
   aoFechar: () => void;
   aoAdicionar: (qtd: number, obs: string, adicionais?: AdicionaisEscolhidos, extras?: ExtraBump[]) => void;
   jaNoCarrinho: number;
@@ -1000,9 +1002,9 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
 }) {
   const [naOferta, setNaOferta] = useState(false);
   const [extras, setExtras] = useState<Record<string, number>>({});
-  const [qtd, setQtd] = useState(1);
-  const [obs, setObs] = useState('');
-  const [escolhas, setEscolhas] = useState<Escolha[]>([]);
+  const [qtd, setQtd] = useState(edicao?.qtd ?? 1);
+  const [obs, setObs] = useState(edicao?.obs ?? '');
+  const [escolhas, setEscolhas] = useState<Escolha[]>(edicao?.escolhas ?? []);
   const [tentou, setTentou] = useState(false);
   const max = p.estoque_max !== null ? Math.max(0, p.estoque_max - jaNoCarrinho) : 50;
   const calc = calcularAdicionais(grupos, escolhas);
@@ -1046,7 +1048,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
       return;
     }
     // Order bump: antes de ir para o carrinho, mostra a oferta (uma vez por visita)
-    if (oferta && !naOferta) {
+    if (oferta && !naOferta && !edicao) {
       setNaOferta(true);
       if (oferta.escopo) marcarBumpVisto(oferta.bump.id, oferta.escopo);
       void supabase.rpc('bump_exibido', { p_bump: oferta.bump.id }).then(() => undefined);
@@ -1165,7 +1167,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
             <>
               <Stepper valor={qtd} min={1} max={Math.max(1, max)} aoMudar={setQtd} grande />
               <button className={cx('btn btn--primario btn--lg', calc.faltando && 'btn--esperando')} disabled={max < 1} onClick={confirmar}>
-                {max < 1 ? 'Sem mais unidades' : `Adicionar · ${brl(unitario * qtd)}`}
+                {max < 1 ? 'Sem mais unidades' : `${edicao ? 'Salvar' : 'Adicionar'} · ${brl(unitario * qtd)}`}
               </button>
             </>
           )}
@@ -1206,7 +1208,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
         <ol className="funil-passos" aria-label="Etapas">
           {grupos.map((g, i) => (
             <li key={g.id} className={cx(i < etapa && 'feito', i === etapa && 'atual')}>
-              <button type="button" disabled={i > etapa} onClick={() => irPara(i)} aria-current={i === etapa ? 'step' : undefined}>
+              <button type="button" disabled={i > etapa && !edicao} onClick={() => irPara(i)} aria-current={i === etapa ? 'step' : undefined}>
                 <span>{i < etapa ? <Check size={12} strokeWidth={3} /> : i + 1}</span><em className="funil-passos__nome">{g.nome}</em>
               </button>
             </li>

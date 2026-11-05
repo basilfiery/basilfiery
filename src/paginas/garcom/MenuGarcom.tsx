@@ -96,7 +96,7 @@ export function MenuGarcom({ aberto, tela, nomeRest, logo, aoIr, aoPerfil, aoSai
             <b>{nomeRest}</b>
           </div>
           <button className="btn btn--contorno btn--bloco" onClick={aoSair}><LogOut size={17} /> Sair</button>
-          <small className="gmenu__versao">BasilFiery · versão {VERSAO_CURTA}</small>
+          <small className="gmenu__versao">BasilFiery · Versão {VERSAO_CURTA}</small>
         </div>
       </aside>
 
@@ -268,7 +268,7 @@ export function ConfigGarcom({ restauranteId }: { restauranteId: string }) {
           {push === 'ativo' ? <CheckCircle2 size={22} className="gcfg__ok" /> : (push === 'inativo') && <button className="btn btn--primario btn--sm" onClick={() => void ativar()}>Ativar</button>}
         </div>
       </section>
-      <p className="gcfg__versao">BasilFiery · versão {VERSAO_CURTA}</p>
+      <p className="gcfg__versao">BasilFiery · Versão {VERSAO_CURTA}</p>
     </div>
   );
 }

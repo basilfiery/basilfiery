@@ -25,6 +25,8 @@ function versaoDoConteudo(): string {
   return h.digest('hex');
 }
 const VERSAO = versaoDoConteudo();
+/** Número da versão para mostrar (1.3.5 = 135ª atualização); sobe sozinho a cada commit (.githooks). */
+const VERSAO_NOME: string = JSON.parse(readFileSync('package.json', 'utf8')).version;
 
 /** Publica /versao.json para quem está com o sistema aberto descobrir que saiu atualização. */
 function arquivoVersao(): Plugin {
@@ -32,13 +34,13 @@ function arquivoVersao(): Plugin {
     name: 'arquivo-versao',
     apply: 'build',
     generateBundle() {
-      this.emitFile({ type: 'asset', fileName: 'versao.json', source: JSON.stringify({ versao: VERSAO }) });
+      this.emitFile({ type: 'asset', fileName: 'versao.json', source: JSON.stringify({ versao: VERSAO, nome: VERSAO_NOME }) });
     },
   };
 }
 
 export default defineConfig({
   plugins: [react(), arquivoVersao()],
-  define: { __VERSAO__: JSON.stringify(VERSAO) },
+  define: { __VERSAO__: JSON.stringify(VERSAO), __VERSAO_NOME__: JSON.stringify(VERSAO_NOME) },
   server: { port: 5173, host: true },
 });

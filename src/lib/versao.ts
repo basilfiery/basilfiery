@@ -3,8 +3,8 @@ import { ls } from './util';
 import { recarregarLimpo } from './carregamento';
 
 export const VERSAO_ATUAL = __VERSAO__;
-/** Versão curta para mostrar na tela (ex.: 3768cb7). */
-export const VERSAO_CURTA = VERSAO_ATUAL.startsWith('local-') ? 'local' : VERSAO_ATUAL.slice(0, 7);
+/** Versão para mostrar na tela (ex.: 1.3.5 = 135ª atualização do sistema). */
+export const VERSAO_CURTA = __VERSAO_NOME__;
 const CHAVE_ADIADA = 'bf:atualizacao-adiada';
 
 /**

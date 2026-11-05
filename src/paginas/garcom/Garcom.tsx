@@ -576,7 +576,7 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
       })
       .subscribe();
     setTimeout(() => {
-      if (!impresso) toast('Nenhum computador imprimiu ainda. Confira se o caixa está aberto com “Imprimir automaticamente” ligado.', 'erro');
+      if (!impresso) toast('Nenhum computador imprimiu ainda. Deixe o painel do BasilFiery aberto no computador do caixa.', 'erro');
       void supabase.removeChannel(canal);
     }, 25000);
   }

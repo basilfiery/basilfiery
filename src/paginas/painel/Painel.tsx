@@ -303,8 +303,16 @@ export default function Painel() {
     if (!r?.id) return;
     const rest = r.id;
     const atender = async (item: { id: string; mesa_id: string | null; criado_em: string }) => {
-      if (!cfgImpRef.current.auto || !item.mesa_id) return; // só o computador que imprime
+      if (!item.mesa_id) return;
       if (Date.now() - new Date(item.criado_em).getTime() > 15 * 60000) return;
+      // Qualquer painel aberto imprime a conta pedida pelo garçom. Preferência: programa do Windows
+      // com impressão automática, depois programa, depois navegador com automática, depois navegador.
+      const espera = (programaDesktop() ? 0 : 2500) + (cfgImpRef.current.auto ? 0 : 1500);
+      if (espera) {
+        await new Promise((ok) => setTimeout(ok, espera));
+        const { data: f } = await supabase.from('fila_impressao').select('impresso_em').eq('id', item.id).maybeSingle();
+        if (!f || f.impresso_em) return; // outro computador já pegou
+      }
       const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id });
       if (!pegou) return; // outro computador já imprimiu
       const [{ data: mesa }, { data: peds }] = await Promise.all([
@@ -324,7 +332,7 @@ export default function Painel() {
         (payload) => void atender(payload.new as { id: string; mesa_id: string | null; criado_em: string }))
       .subscribe();
     return () => { void supabase.removeChannel(canal); };
-  }, [r?.id, cfgImp.auto]);
+  }, [r?.id]);
 
   /* ---------- Lista de compras: contador e aviso de quem pediu acesso ---------- */
   const [compras, setCompras] = useState({ itens: 0, pessoas: 0 });

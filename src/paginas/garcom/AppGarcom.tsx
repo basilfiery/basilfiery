@@ -10,6 +10,7 @@ import { useAppInstalavel } from '../../lib/manifesto';
 import Garcom from './Garcom';
 import { useEscalaApp } from '../../lib/escalaApp';
 import '../../estilos/garcom-app.css';
+import { imgTam } from '../../lib/imagem';
 
 interface Info { id: string; nome: string; logo_url: string | null; cor: string }
 
@@ -131,7 +132,7 @@ function Marca({ info }: { info: Info }) {
   return (
     <div className="app-g__marca">
       {info.logo_url
-        ? <img src={info.logo_url} alt="" />
+        ? <img src={imgTam(info.logo_url, 300)} alt="" />
         : <span>{info.nome.trim().charAt(0).toUpperCase()}</span>}
     </div>
   );
@@ -186,7 +187,7 @@ function EntrarGarcom({ info }: { info: Info }) {
   return (
     <div className="app-g app-g--3d" style={{ '--acento': info.cor } as CSSProperties}>
       <Cena3D>
-        {info.logo_url ? <img src={info.logo_url} alt="" /> : <ConciergeBell size={46} strokeWidth={1.8} />}
+        {info.logo_url ? <img src={imgTam(info.logo_url, 300)} alt="" /> : <ConciergeBell size={46} strokeWidth={1.8} />}
       </Cena3D>
       <main className="app-g__cartao app-g__cartao--3d">
         <span className="app-g__selo"><ConciergeBell size={15} /> App do garçom</span>

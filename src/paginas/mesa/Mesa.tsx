@@ -18,6 +18,7 @@ import { useAppInstalavel } from '../../lib/manifesto';
 import { sugerirObs } from '../../lib/sugestoes';
 import { destravarSom, tocarAviso, tocarEnviado } from '../../lib/som';
 import { fraseCancelamento } from '../../lib/cancelamento';
+import { imgTam, TAM, usePreCarregarFotos } from '../../lib/imagem';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional, type RegrasProduto } from '../../lib/adicionais';
 import { JogoMemoria } from './JogoMemoria';
@@ -342,6 +343,7 @@ export default function Mesa() {
     ...produtosMesa.map((p) => [p.id, p] as const),
     ...[...saboresPorCategoria.values()].flat().map((p) => [p.id, p] as const),
   ]), [produtosMesa, saboresPorCategoria]);
+  usePreCarregarFotos(useMemo(() => [...porId.values()], [porId]));
 
   // Tira do carrinho o que esgotou ou saiu do cardápio
   const carrinhoRef = useRef(carrinho);
@@ -627,7 +629,7 @@ export default function Mesa() {
       <header className="mesa__topo">
         <div className="mesa__marca">
           {restaurante.logo_url
-            ? <img src={restaurante.logo_url} alt="" className="mesa__logo" />
+            ? <img src={imgTam(restaurante.logo_url, 300)} alt="" className="mesa__logo" />
             : <span className="mesa__logo mesa__logo--letra">{restaurante.nome.charAt(0)}</span>}
           <div>
             <strong>{restaurante.nome}</strong>
@@ -1108,7 +1110,7 @@ export function ModalProduto({ p, aoFechar, aoAdicionar, jaNoCarrinho, semObs, g
                   disabled={bloqueada && n === 0}
                   onClick={() => (unico ? mudar(g, o, n ? 0 : 1) : o.repetir ? (!cheio && mudar(g, o, n + 1)) : mudar(g, o, n ? 0 : 1))}
                 >
-                  {o.imagem_url && <img src={o.imagem_url} alt="" className="adic-opcao__foto" />}
+                  {o.imagem_url && <img src={imgTam(o.imagem_url, TAM.mini)} alt="" className="adic-opcao__foto" loading="lazy" decoding="async" />}
                   <span className="adic-opcao__texto">
                     <strong>{o.nome}</strong>
                     {o.descricao && <small>{o.descricao}</small>}
@@ -1251,8 +1253,8 @@ export function CapaCardapio({ imagem, video }: { imagem?: string | null; video?
   return (
     <div className="capa-cardapio" aria-hidden="true">
       {video
-        ? <video src={video} poster={imagem ?? undefined} autoPlay muted loop playsInline ref={(v) => { if (v) { v.muted = true; v.setAttribute('muted', ''); } }} />
-        : <img src={imagem!} alt="" />}
+        ? <video src={video} poster={imagem ? imgTam(imagem, 1600) : undefined} autoPlay muted loop playsInline ref={(v) => { if (v) { v.muted = true; v.setAttribute('muted', ''); } }} />
+        : <img src={imgTam(imagem, 1600)} alt="" fetchPriority="high" />}
     </div>
   );
 }
@@ -1292,7 +1294,7 @@ function useCorDeFundo(url: string | null) {
 }
 
 function SlideGaleria({ item, ativo, p }: { item: { tipo: 'imagem' | 'video'; url: string }; ativo: boolean; p: ProdutoMesa }) {
-  const cor = useCorDeFundo(item.tipo === 'imagem' ? item.url : p.imagem_url);
+  const cor = useCorDeFundo(imgTam(item.tipo === 'imagem' ? item.url : p.imagem_url, TAM.card) || null);
   const ref = useRef<HTMLVideoElement>(null);
   const [larga, setLarga] = useState(() => midiasLargas.get(item.url) ?? false);
   const medir = (w: number, h: number) => {
@@ -1308,8 +1310,8 @@ function SlideGaleria({ item, ativo, p }: { item: { tipo: 'imagem' | 'video'; ur
   return (
     <div className={cx('galeria__item', larga && 'larga')} style={{ background: item.tipo === 'video' ? '#000' : cor }}>
       {item.tipo === 'video'
-        ? <video ref={ref} src={item.url} poster={p.imagem_url ?? undefined} muted loop playsInline controls autoPlay={ativo} onLoadedMetadata={(e) => medir(e.currentTarget.videoWidth, e.currentTarget.videoHeight)} />
-        : <img src={item.url} alt={p.nome} draggable={false} onLoad={(e) => medir(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} />}
+        ? <video ref={ref} src={item.url} poster={p.imagem_url ? imgTam(p.imagem_url, TAM.grande) : undefined} muted loop playsInline controls autoPlay={ativo} onLoadedMetadata={(e) => medir(e.currentTarget.videoWidth, e.currentTarget.videoHeight)} />
+        : <img src={imgTam(item.url, TAM.grande)} alt={p.nome} draggable={false} decoding="async" onError={(e) => { if (e.currentTarget.src !== item.url) e.currentTarget.src = item.url; }} onLoad={(e) => medir(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} />}
     </div>
   );
 }
@@ -1328,7 +1330,7 @@ function GaleriaProduto({ p }: { p: ProdutoMesa }) {
   }, [p]);
   const [atual, setAtual] = useState(0);
   const trilho = useRef<HTMLDivElement>(null);
-  if (!itens.length) return <FotoProduto p={p} classe="modal-produto__foto" />;
+  if (!itens.length) return <FotoProduto p={p} classe="modal-produto__foto" largura={TAM.grande} agora />;
   const ir = (i: number) => trilho.current?.scrollTo({ left: i * trilho.current.clientWidth, behavior: 'smooth' });
   return (
     <div className="galeria">

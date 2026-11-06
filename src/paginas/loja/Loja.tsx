@@ -23,6 +23,7 @@ import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaR
 import '../../estilos/mesa.css';
 import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
 import '../../estilos/loja.css';
+import { imgTam, usePreCarregarFotos } from '../../lib/imagem';
 
 /* =====================================================================
    Cardápio digital para DELIVERY: /loja/<codigo>
@@ -281,6 +282,7 @@ export default function LojaCardapio() {
     ...produtosLoja.map((p) => [p.id, p] as const),
     ...[...saboresPorCategoria.values()].flat().map((p) => [p.id, p] as const),
   ]), [produtosLoja, saboresPorCategoria]);
+  usePreCarregarFotos(useMemo(() => [...porId.values()], [porId]));
 
   if (erro && !dados) {
     return (
@@ -427,7 +429,7 @@ export default function LojaCardapio() {
     <div className={cx('mesa loja', qtdItens > 0 && 'mesa--com-carrinho')} style={{ '--acento': loja.cor } as CSSProperties}>
       <header className="mesa__topo">
         <div className="mesa__marca">
-          {loja.logo_url ? <img src={loja.logo_url} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
+          {loja.logo_url ? <img src={imgTam(loja.logo_url, 300)} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
           <div>
             <strong>{loja.nome}</strong>
             <StatusLoja loja={loja} />
@@ -528,7 +530,7 @@ export default function LojaCardapio() {
       {verSobre && <ModalSobreLoja loja={loja} aoFechar={() => setVerSobre(false)} />}
       {(verConta || precisaLogin || (conta.novaSenha && !!conta.usuario)) && (
         <ModalConta
-          conta={conta} nomeLoja={loja.nome} logo={loja.logo_url} cor={loja.cor} obrigatorio={precisaLogin}
+          conta={conta} nomeLoja={loja.nome} logo={loja.logo_url ? imgTam(loja.logo_url, 300) : null} cor={loja.cor} obrigatorio={precisaLogin}
           aoFechar={() => setVerConta(false)} aoVerPedidos={() => irAba('pedidos')}
         />
       )}
@@ -626,7 +628,7 @@ function AbaFidelidade({ codigo, loja }: { codigo: string; loja: Loja }) {
     <section className="fid">
       <div className="fid__cartao">
         <div className="fid__topo">
-          {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="fid__letra">{loja.nome.charAt(0)}</span>}
+          {loja.logo_url ? <img src={imgTam(loja.logo_url, 300)} alt="" /> : <span className="fid__letra">{loja.nome.charAt(0)}</span>}
           <div><small>Cartão fidelidade</small><strong>{loja.nome}</strong></div>
         </div>
         <p className="fid__regra">A cada <b>{f.meta} pedidos</b>{Number(f.minimo) > 0 ? ` acima de ${brl(Number(f.minimo))}` : ''}, você ganha:</p>
@@ -721,7 +723,7 @@ function AbaPedidos({ codigo, loja, conta, aoEntrar, aoPedirDeNovo }: {
           return (
             <li key={p.acompanhar} className="meu-pedido">
               <div className="meu-pedido__topo">
-                {loja.logo_url ? <img src={loja.logo_url} alt="" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
+                {loja.logo_url ? <img src={imgTam(loja.logo_url, 300)} alt="" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
                 <div>
                   <strong>{loja.nome}</strong>
                   <small>{new Date(p.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
@@ -1022,7 +1024,7 @@ export function LojaPedido() {
   return (
     <div className="loja-pedido" style={{ '--acento': p.loja.cor } as CSSProperties}>
       <header className="loja-pedido__topo">
-        {p.loja.logo_url ? <img src={p.loja.logo_url} alt="" /> : <span className="mesa__logo mesa__logo--letra">{p.loja.nome.charAt(0)}</span>}
+        {p.loja.logo_url ? <img src={imgTam(p.loja.logo_url, 300)} alt="" /> : <span className="mesa__logo mesa__logo--letra">{p.loja.nome.charAt(0)}</span>}
         <div><strong>{p.loja.nome}</strong><small>Pedido #{p.numero} · {hora(p.criado_em)}</small></div>
       </header>
 
@@ -1082,7 +1084,7 @@ function ModalSobreLoja({ loja, aoFechar }: { loja: Loja; aoFechar: () => void }
   return (
     <Modal aberto aoFechar={aoFechar} largura={460} classe="mesa-modal sobre-loja">
       <div className="sobre-loja__topo">
-        {loja.logo_url ? <img src={loja.logo_url} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
+        {loja.logo_url ? <img src={imgTam(loja.logo_url, 300)} alt="" className="mesa__logo" /> : <span className="mesa__logo mesa__logo--letra">{loja.nome.charAt(0)}</span>}
         <div>
           <strong>{loja.nome}</strong>
           <StatusLoja loja={loja} />

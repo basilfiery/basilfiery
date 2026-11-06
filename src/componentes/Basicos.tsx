@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Flame, Leaf, Minus, Plus, Star } from 'lucide-react';
 import { cx } from '../lib/util';
+import { imgTam, TAM } from '../lib/imagem';
 
 export function Logo({ tamanho = 'md' }: { tamanho?: 'sm' | 'md' | 'lg' }) {
   return (
@@ -116,7 +117,7 @@ export function VideoCapa({ p, classe }: { p: { video_url: string; imagem_url: s
       <video
         ref={ref}
         src={p.video_url}
-        poster={p.imagem_url ?? undefined}
+        poster={p.imagem_url ? imgTam(p.imagem_url, TAM.card) : undefined}
         muted
         loop
         playsInline
@@ -143,10 +144,13 @@ export function ImagemComida({ className }: { className?: string }) {
   );
 }
 
-export function FotoProduto({ p, classe }: { p: { imagem_url: string | null; emoji: string | null; nome: string }; classe?: string }) {
+export function FotoProduto({ p, classe, largura = TAM.card, agora }: { p: { imagem_url: string | null; emoji: string | null; nome: string }; classe?: string; largura?: number; agora?: boolean }) {
   return (
     <div className={cx('foto', classe)}>
-      {p.imagem_url ? <img src={p.imagem_url} alt={p.nome} loading="lazy" /> : <span aria-hidden="true">{p.emoji || <ImagemComida className="foto__padrao" />}</span>}
+      {p.imagem_url
+        ? <img src={imgTam(p.imagem_url, largura)} alt={p.nome} loading={agora ? 'eager' : 'lazy'} decoding="async"
+            onError={(e) => { if (e.currentTarget.src !== p.imagem_url) e.currentTarget.src = p.imagem_url!; }} />
+        : <span aria-hidden="true">{p.emoji || <ImagemComida className="foto__padrao" />}</span>}
     </div>
   );
 }

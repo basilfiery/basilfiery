@@ -91,7 +91,7 @@
 }
 .sv-hero__ruido { position: absolute; inset: 0; opacity: .06; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 .sv-hero__texto { display: grid; justify-items: start; gap: 22px; animation: sv-entra .9s cubic-bezier(.2, .8, .2, 1) both; }
-.sv-hero h1 { font-size: clamp(2.6rem, 5.6vw, 4.6rem); }
+.sv-hero h1, .sv-hero__titulo { font-size: clamp(2.6rem, 5.6vw, 4.6rem); }
 .sv-hero__texto > p { max-width: 540px; color: var(--sv-fraco); font-size: 1.12rem; line-height: 1.6; }
 .sv-hero__ctas { display: flex; flex-wrap: wrap; gap: 12px; }
 .sv-checks { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--sv-fraco); font-size: .88rem; }
@@ -492,7 +492,7 @@
   .sv-hero { padding: 96px 18px 24px; gap: 10px; }
   .sv-hero__descer { display: none; }
   /* Celular: composição plana e centrada (sem 3D, que no iPhone aumenta e corta os aparelhos) */
-  .sv-hero h1 { font-size: clamp(2.15rem, 9.6vw, 2.6rem); }
+  .sv-hero h1, .sv-hero__titulo { font-size: clamp(2.15rem, 9.6vw, 2.6rem); }
   .sv-hero__texto { gap: 18px; }
   .sv-hero__texto > p { font-size: 1rem; line-height: 1.55; }
   .sv-hero .sv-btn--grande { height: 50px; padding: 0 14px; font-size: .95rem; }

@@ -8,6 +8,7 @@ import {
 import { SITE, linkWhatsVendas, noProgramaWindows } from '../../config/site';
 import { Cupom, Notificacao, TelaCardapio, TelaDono, TelaGarcom, TelaPainel } from './Mockups';
 import { useInclinar, useOrbita, useProgresso, useRevelar } from './efeitos';
+import { Cinema } from './Cinema';
 import '../../estilos/site.css';
 
 const SEGMENTOS = ['🍕 Pizzarias', '🍔 Hamburguerias', '🍽️ Restaurantes', '🍺 Bares', '🍣 Comida japonesa', '🥩 Churrascarias', '🍨 Açaí e sorvetes', '☕ Cafeterias', '🥐 Padarias', '🍱 Marmitarias', '🥟 Pastelarias', '🍰 Docerias'];
@@ -127,12 +128,15 @@ export default function Site() {
       </header>
 
       <main>
+        {/* ================= Abertura cinematográfica ================= */}
+        <Cinema />
+
         {/* ================= Hero ================= */}
         <section className="sv-hero">
           <div className="sv-hero__fundo" aria-hidden="true"><div className="sv-hero__chao" /><div className="sv-hero__luz" /><div className="sv-hero__ruido" /></div>
           <div className="sv-hero__texto">
             <a href="#sistema" className="sv-novidade"><b>Novo</b> Order bump e suporte com IA <ArrowRight size={14} /></a>
-            <h1>Do QR code na mesa à <em>venda</em> no seu celular.</h1>
+            <h2 className="sv-hero__titulo">Do QR code na mesa à <em>venda</em> no seu celular.</h2>
             <p>Cardápio digital, delivery, PDV, pedidos ao vivo, impressão automática, app do garçom e app do dono. Tudo conectado, em tempo real, num só sistema.</p>
             <div className="sv-hero__ctas">
               <a href="#planos" className="sv-btn sv-btn--vermelho sv-btn--grande">Ver planos <ArrowRight size={18} /></a>

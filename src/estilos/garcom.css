@@ -289,3 +289,31 @@
 .modal.gmesa .gmesa__chamado--novo strong { color: var(--danger); }
 .modal.gmesa .gmesa__chamado--novo .gmesa__chamado-icone { background: color-mix(in srgb, var(--danger) 20%, transparent); color: var(--danger); }
 .modal.gmesa .gmesa__chamado small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Pedido dentro da mesa: itens listados para o garçom anotar */
+.modal.gmesa .gmesa__chamado.gmesa__pedido { flex-wrap: wrap; }
+.modal.gmesa .gmesa__pedido > .gped-itens { flex: 1 1 100%; }
+.gped-itens { list-style: none; margin: 0; padding: 10px 12px; display: grid; gap: 9px; border-radius: 12px; background: rgba(0, 0, 0, .22); border: 1px solid var(--line); }
+:root[data-tema='claro'] .gped-itens { background: rgba(255, 255, 255, .7); }
+.gped-itens li { display: flex; align-items: baseline; gap: 10px; color: var(--text); font-size: 1rem; font-weight: 700; line-height: 1.3; }
+.gped-itens li > b { flex: none; min-width: 30px; color: var(--fire-2); font-weight: 800; font-variant-numeric: tabular-nums; }
+.gped-itens li > span { flex: 1; min-width: 0; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.modal.gmesa .gped-itens small, .gped-itens small { display: block; white-space: normal; overflow: visible; color: var(--muted); font-size: .84rem; font-weight: 600; }
+.gped-itens em { font-style: normal; color: #ffb547; font-size: .86rem; font-weight: 700; }
+:root[data-tema='claro'] .gped-itens em { color: #b45f00; }
+.gped-itens li > i { flex: none; font-style: normal; color: var(--muted); font-size: .88rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gped-itens__obs { padding-top: 8px; border-top: 1px dashed var(--line); }
+
+/* Conta da mesa separada por pedido; o que ainda não foi atendido fica em destaque */
+.gconta { display: grid; gap: 10px; }
+.gconta__pedido { display: grid; gap: 10px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255, 255, 255, .03); }
+.gconta__pedido header { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gconta__pedido header b { font-size: 1.02rem; }
+.gconta__pedido header small { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.gconta__pedido header strong { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gconta__pedido header .badge { white-space: nowrap; }
+.gconta__pedido .gped-itens { background: transparent; border: 0; padding: 0; }
+.gconta__pedido.pendente { border: 2px solid color-mix(in srgb, var(--danger) 70%, transparent); background: color-mix(in srgb, var(--danger) 9%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 12%, transparent); }
+.gconta__pedido.pendente header b { color: var(--danger); }
+.gconta__pedido.pendente .badge { background: var(--danger); color: #fff; }
+.gconta__pedido.pendente .btn { min-height: 46px; }

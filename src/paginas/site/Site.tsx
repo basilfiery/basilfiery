@@ -8,7 +8,7 @@ import {
 import { SITE, linkWhatsVendas, noProgramaWindows } from '../../config/site';
 import { Cupom, Notificacao, TelaCardapio, TelaDono, TelaGarcom, TelaPainel } from './Mockups';
 import { useInclinar, useOrbita, useProgresso, useRevelar } from './efeitos';
-import { Cinema } from './Cinema';
+import { Experiencia } from './Experiencia';
 import '../../estilos/site.css';
 
 const SEGMENTOS = ['🍕 Pizzarias', '🍔 Hamburguerias', '🍽️ Restaurantes', '🍺 Bares', '🍣 Comida japonesa', '🥩 Churrascarias', '🍨 Açaí e sorvetes', '☕ Cafeterias', '🥐 Padarias', '🍱 Marmitarias', '🥟 Pastelarias', '🍰 Docerias'];
@@ -85,7 +85,6 @@ export default function Site() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [rolou, setRolou] = useState(false);
   const programa = noProgramaWindows();
-  const cena = useInclinar<HTMLDivElement>(9, 'janela');
   const orbita = useOrbita<HTMLDivElement>();
   const [fluxoRef, fluxo] = useProgresso<HTMLDivElement>();
   useRevelar();
@@ -128,40 +127,8 @@ export default function Site() {
       </header>
 
       <main>
-        {/* ================= Abertura cinematográfica ================= */}
-        <Cinema />
-
-        {/* ================= Hero ================= */}
-        <section className="sv-hero">
-          <div className="sv-hero__fundo" aria-hidden="true"><div className="sv-hero__chao" /><div className="sv-hero__luz" /><div className="sv-hero__ruido" /></div>
-          <div className="sv-hero__texto">
-            <a href="#sistema" className="sv-novidade"><b>Novo</b> Order bump e suporte com IA <ArrowRight size={14} /></a>
-            <h2 className="sv-hero__titulo">Do QR code na mesa à <em>venda</em> no seu celular.</h2>
-            <p>Cardápio digital, delivery, PDV, pedidos ao vivo, impressão automática, app do garçom e app do dono. Tudo conectado, em tempo real, num só sistema.</p>
-            <div className="sv-hero__ctas">
-              <a href="#planos" className="sv-btn sv-btn--vermelho sv-btn--grande">Ver planos <ArrowRight size={18} /></a>
-              <a href="#tour" className="sv-btn sv-btn--vidro sv-btn--grande">Ver na prática</a>
-            </div>
-            <ul className="sv-checks">
-              <li><Check size={15} /> Sem fidelidade</li>
-              <li><Check size={15} /> Implantação inclusa</li>
-              <li><Check size={15} /> Funciona no que você já tem</li>
-            </ul>
-          </div>
-
-          {/* Cena 3D: inclina com o mouse */}
-          <div className="sv-cena" ref={cena} aria-hidden="true">
-            <div className="sv-cena__grupo">
-              <div className="sv-cena__tablet sv-device sv-device--tablet"><TelaCardapio comOferta /></div>
-              <div className="sv-cena__celular sv-device sv-device--celular"><TelaDono /></div>
-              <div className="sv-cena__notif"><Notificacao titulo="Nova venda! R$ 127,80" texto="Mesa 7 · conta paga" /></div>
-              <div className="sv-cena__cupom"><Cupom /></div>
-              <div className="sv-cena__chip"><QrCode size={14} /> Mesa 4 liberada</div>
-              <div className="sv-cena__sombra" />
-            </div>
-          </div>
-          <a href="#sistema" className="sv-hero__descer" aria-label="Ver mais"><ChevronDown size={20} /></a>
-        </section>
+        {/* ================= Abertura interativa ================= */}
+        <Experiencia />
 
         {/* ================= Segmentos ================= */}
         <section className="sv-faixa" aria-label="Para quem é">

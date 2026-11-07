@@ -1,0 +1,158 @@
+/* ===== Abertura interativa (pizza atravessando as cenas) ===== */
+.xp { position: relative; --mx: 0; --my: 0; }
+.xp__palco { position: relative; height: 100vh; height: 100svh; overflow: hidden; isolation: isolate; --S: min(44vw, 74vh); }
+
+.xp__fundo { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+.xp__fundo i {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(42% 58% at 70% 48%, rgba(255, 45, 61, .2), transparent 70%),
+    radial-gradient(34% 44% at 12% 16%, rgba(255, 106, 60, .08), transparent 70%),
+    radial-gradient(70% 50% at 50% 115%, rgba(255, 45, 61, .14), transparent 70%),
+    linear-gradient(180deg, #060506, #0d0809 55%, #060506);
+}
+.xp__fundo b {
+  position: absolute; inset: 0; opacity: .07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.xp__letreiro {
+  position: absolute; z-index: -1; left: 0; top: 50%; translate: 0 -50%; white-space: nowrap; pointer-events: none; user-select: none;
+  font-family: 'Anton', var(--fonte); font-size: clamp(9rem, 26vw, 24rem); line-height: 1; letter-spacing: .01em; text-transform: uppercase;
+  color: transparent; -webkit-text-stroke: 1.5px rgba(255, 255, 255, .045);
+}
+
+/* ---------- Tipografia ---------- */
+.xp__titulo {
+  font-family: 'Anton', var(--fonte); font-weight: 400 !important; text-transform: uppercase; letter-spacing: .005em !important; line-height: .94 !important;
+  font-size: clamp(3.2rem, 6.6vw, 6.4rem);
+}
+.xp__titulo em { font-style: normal; background: linear-gradient(100deg, #ff6a4f, var(--sv-vermelho) 50%, #ff8a5c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.xp__etiqueta { display: inline-flex; align-items: center; gap: 12px; color: #ff7b7b; font-size: .78rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.xp__etiqueta::before { content: ''; width: 34px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--sv-vermelho), transparent); }
+.xp p { max-width: 440px; color: var(--sv-fraco); font-size: 1.08rem; line-height: 1.6; }
+.xp__ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.xp__checks { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--sv-fraco); font-size: .86rem; }
+.xp__checks li { display: inline-flex; align-items: center; gap: 6px; }
+.xp__checks svg { color: var(--sv-vermelho); }
+
+/* Blocos de texto de cada cena */
+.xp__t1, .xp__t3, .xp__t5 {
+  position: absolute; z-index: 3; left: max(24px, calc(50% - 600px)); top: 50%; translate: 0 -46%; width: min(560px, 46vw);
+  display: grid; justify-items: start; gap: 20px;
+}
+.xp__t2 { position: absolute; z-index: 1; inset: 0; display: grid; place-content: center; justify-items: center; gap: 26px; pointer-events: none; text-align: center; }
+.xp__gigante { font-family: 'Anton', var(--fonte); text-transform: uppercase; line-height: .9; font-size: clamp(4.5rem, 10.5vw, 10rem); color: #fff; }
+.xp__gigante { display: grid; row-gap: calc(var(--S) * .5); }
+.xp__gigante > div { overflow: hidden; padding: 0 .04em; }
+.xp__gigante span { display: block; }
+.xp__gigante em { font-style: normal; color: transparent; -webkit-text-stroke: 2px var(--sv-vermelho); }
+.xp__legenda {
+  display: inline-flex !important; align-items: center; gap: 10px; max-width: none !important; margin-top: 0;
+  padding: 10px 16px; border-radius: 999px; background: rgba(12, 12, 16, .7); border: 1px solid var(--sv-linha-2); backdrop-filter: blur(12px);
+  font-size: .92rem !important; color: #d7d7de !important;
+}
+.xp__legenda svg { color: var(--sv-vermelho); flex: none; }
+.xp__t5 { width: min(520px, 42vw); }
+
+/* ---------- A pizza e os ingredientes ---------- */
+.xp__obj { position: absolute; z-index: 5; left: 50%; top: 50%; width: var(--S); height: var(--S); margin: calc(var(--S) / -2) 0 0 calc(var(--S) / -2); pointer-events: none; will-change: transform; }
+.xp__pizza { position: absolute; inset: 0; filter: drop-shadow(0 40px 60px rgba(0, 0, 0, .75)) drop-shadow(0 0 60px rgba(255, 60, 40, .12)); }
+.xp__giro { position: absolute; inset: 0; animation: xp-gira 80s linear infinite; }
+@keyframes xp-gira { to { transform: rotate(360deg); } }
+.xp__fatia { position: absolute; inset: 0; background: url('/sabor/pizza.webp') center / contain no-repeat; will-change: transform; }
+.xp__anel { position: absolute; inset: 0; }
+.xp__ing { position: absolute; left: 50%; top: 50%; width: calc(var(--S) * var(--s)); aspect-ratio: 1; margin: calc(var(--S) * var(--s) / -2) 0 0 calc(var(--S) * var(--s) / -2); will-change: transform; }
+.xp__ing img {
+  width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 18px 22px rgba(0, 0, 0, .6));
+  translate: calc(var(--mx) * var(--d) * -14px) calc(var(--my) * var(--d) * -14px);
+  animation: xp-boia 6s var(--atraso) ease-in-out infinite; transition: translate .5s cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes xp-boia { 50% { transform: translateY(-10px) rotate(6deg); } }
+
+/* ---------- Painel claro (cozinha) ---------- */
+.xp__painel {
+  position: absolute; z-index: 2; inset: 0; background: #f3ebe0; color: #1b1210; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, .55fr); align-items: center; gap: 48px;
+  padding: 110px max(72px, calc(50% - 600px)) 60px max(24px, calc(50% - 600px));
+}
+.xp__painel::before { content: ''; position: absolute; inset: 0; background: radial-gradient(50% 60% at 80% 40%, rgba(255, 45, 61, .1), transparent 70%); pointer-events: none; }
+.xp__t4 { position: relative; display: grid; justify-items: start; gap: 20px; max-width: 560px; }
+.xp__t4 .xp__titulo { color: #1b1210; }
+.xp__t4 p { color: #5a4a44; }
+.xp__t4 .xp__etiqueta { color: #c8202f; }
+.xp__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: #3d2f2a; font-weight: 600; font-size: .95rem; }
+.xp__lista li { display: flex; align-items: center; gap: 10px; }
+.xp__lista svg { color: #e0102a; flex: none; }
+.xp__numero {
+  position: absolute; right: -2vw; bottom: -6vw; font-family: 'Anton', var(--fonte); font-size: 34vw; line-height: 1; color: transparent;
+  -webkit-text-stroke: 2px rgba(27, 18, 16, .07); pointer-events: none;
+}
+.xp__impressora { position: relative; width: 260px; justify-self: center; align-self: start; margin-top: 2vh; }
+.xp__fenda { position: relative; z-index: 2; height: 34px; border-radius: 14px; background: linear-gradient(180deg, #2a2224, #110d0e); box-shadow: 0 20px 40px -18px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .12); }
+.xp__fenda::after { content: ''; position: absolute; left: 22px; right: 22px; bottom: 9px; height: 4px; border-radius: 4px; background: #050304; }
+.xp__papel { position: relative; margin: -12px 34px 0; height: min(440px, 52vh); overflow: hidden; }
+.xp__cupom { filter: drop-shadow(0 16px 20px rgba(0, 0, 0, .18)); }
+.xp__cupom .sv-cupom, .xp__cupom > * { width: 100%; }
+
+/* ---------- Celular do dono ---------- */
+.xp__cel { position: absolute; z-index: 3; right: max(48px, calc(50% - 560px)); top: 50%; margin-top: -280px; width: 280px; height: 570px; }
+.xp__aparelho { width: 280px; height: 570px; font-size: 13.5px; box-shadow: 0 60px 120px -40px rgba(255, 45, 61, .45), 0 40px 80px -30px rgba(0, 0, 0, .9), 0 0 0 1px rgba(255, 255, 255, .08); }
+.xp__vendas {
+  position: absolute; left: -200px; top: 34px; padding: 14px 18px; border-radius: 18px; background: linear-gradient(180deg, #ff4150, #c80f24); color: #fff;
+  box-shadow: 0 24px 50px -16px rgba(255, 45, 61, .6);
+}
+.xp__vendas small { display: block; font-size: .75rem; opacity: .85; font-weight: 600; }
+.xp__vendas strong { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.xp__notifs { position: absolute; left: -210px; bottom: 60px; display: grid; gap: 10px; width: 270px; }
+.xp__notif { will-change: transform; }
+
+/* ---------- Navegação da história ---------- */
+.xp__pontos { position: absolute; z-index: 8; right: 22px; top: 50%; translate: 0 -50%; display: grid; gap: 10px; }
+.xp__pontos button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 99px; cursor: pointer; background: rgba(160, 160, 170, .45); transition: height .4s cubic-bezier(.2, .8, .2, 1), background .3s; }
+.xp__pontos button.ativo { height: 28px; background: var(--sv-vermelho); box-shadow: 0 0 14px var(--sv-brilho); }
+.xp__dica {
+  position: absolute; z-index: 8; left: 50%; bottom: 22px; translate: -50% 0; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px;
+  color: var(--sv-fraco); font-size: .8rem; font-weight: 600; border: 1px solid var(--sv-linha-2); background: rgba(10, 10, 14, .55); backdrop-filter: blur(10px); transition: opacity .4s;
+}
+.xp__dica span { width: 14px; height: 22px; border-radius: 8px; border: 1.5px solid currentColor; position: relative; }
+.xp__dica span::after { content: ''; position: absolute; left: 50%; top: 4px; width: 2px; height: 5px; margin-left: -1px; border-radius: 2px; background: currentColor; animation: xp-rolo 1.6s ease-in-out infinite; }
+@keyframes xp-rolo { 50% { transform: translateY(6px); opacity: .3; } }
+.xp__dica.some { opacity: 0; pointer-events: none; }
+
+/* ---------- Celular e tablet em pé ---------- */
+@media (max-width: 860px) {
+  .xp__palco { --S: min(84vw, 44vh); }
+  .xp__fatia { background-image: url('/sabor/pizza-m.webp'); }
+  .xp__t1, .xp__t3, .xp__t5 { z-index: 6; left: 20px; right: 20px; width: auto; top: auto; bottom: calc(28px + env(safe-area-inset-bottom)); translate: none; gap: 14px; }
+  .xp__titulo { font-size: clamp(2.6rem, 12.5vw, 3.6rem); }
+  .xp p { font-size: .98rem; color: #c4c4cc; }
+  .xp__t1 .xp__checks { display: none; }
+  .xp__ctas { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .xp .sv-btn--grande { height: 50px; padding: 0 12px; font-size: .94rem; }
+  .xp__t1::before, .xp__t3::before, .xp__t5::before { content: ''; position: absolute; z-index: -1; inset: -60px -20px -40px; background: linear-gradient(180deg, transparent, rgba(6, 5, 6, .88) 30%, #060506); }
+  .xp__gigante { font-size: clamp(3.2rem, 17vw, 5.2rem); }
+  .xp__t2 { place-content: center; translate: 0 calc(-8vh + 38px); }
+  .xp__gigante { row-gap: calc(var(--S) * .9); }
+  .xp__legenda { margin-top: 0; font-size: .82rem !important; white-space: normal; text-align: left; max-width: calc(100vw - 40px) !important; }
+  .xp__painel { grid-template-columns: 1fr; align-content: start; gap: 20px; padding: 96px 20px 24px; }
+  .xp__impressora { width: 250px; margin-top: 0; justify-self: end; }
+  .xp__papel { height: 32vh; margin: -12px 18px 0; }
+  .xp__lista { display: none; }
+  .xp__numero { font-size: 60vw; }
+  .xp__cel { right: auto; left: 50%; top: 92px; margin: 0 0 0 -105px; width: 210px; height: 428px; }
+  .xp__aparelho { width: 210px; height: 428px; font-size: 10px; }
+  .xp__vendas { left: auto; right: -14px; top: auto; bottom: 120px; padding: 10px 14px; }
+  .xp__vendas strong { font-size: 1.15rem; }
+  .xp__notifs { display: none; }
+  .xp__t5 { bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .xp__t5 p { display: none; }
+  .xp__pontos { right: 10px; }
+  .xp__dica { display: none; }
+}
+@media (max-width: 860px) and (max-height: 700px) {
+  .xp__t1 p, .xp__t3 p { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xp__giro, .xp__ing img { animation: none; }
+}

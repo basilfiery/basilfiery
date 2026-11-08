@@ -17,8 +17,9 @@ import { BalaoSuporte, useCaixaSuporte } from '../../componentes/ChatSuporte';
 import { linkAssinar } from '../../config/site';
 import { dataBR, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { useToast } from '../../componentes/Toast';
+import { descreverAparelho } from '../../lib/dispositivo';
 import {
-  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirConta, imprimirPedido, imprimirTeste,
+  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirContaConfirmada, imprimirPedido, imprimirTeste,
   lerConfigImpressao, programaDesktop,
 } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
@@ -305,37 +306,75 @@ export default function Painel() {
   useEffect(() => {
     if (!r?.id) return;
     const rest = r.id;
-    const atender = async (item: { id: string; mesa_id: string | null; criado_em: string }) => {
-      if (!item.mesa_id) return;
-      if (Date.now() - new Date(item.criado_em).getTime() > 15 * 60000) return;
-      // Qualquer painel aberto imprime a conta pedida pelo garçom. Preferência: programa do Windows
-      // com impressão automática, depois programa, depois navegador com automática, depois navegador.
-      const espera = (programaDesktop() ? 0 : 2500) + (cfgImpRef.current.auto ? 0 : 1500);
-      if (espera) {
-        await new Promise((ok) => setTimeout(ok, espera));
-        const { data: f } = await supabase.from('fila_impressao').select('impresso_em').eq('id', item.id).maybeSingle();
-        if (!f || f.impresso_em) return; // outro computador já pegou
+    // Celular e tablet não pegam a conta do garçom: só abririam a janela de impressão, sem impressora,
+    // e a conta ficaria "impressa" sem sair no papel
+    const aparelho = descreverAparelho();
+    const desktop = !!programaDesktop();
+    if (!desktop && /iPhone|iPad|Android/.test(aparelho)) return;
+    const nomeAparelho = desktop ? 'Programa do caixa (Windows)' : `${aparelho} (navegador)`;
+    type Item = { id: string; mesa_id: string | null; criado_em: string; pego_em?: string | null };
+    const emAndamento = new Set<string>();
+    const atender = async (item: Item) => {
+      if (!item.mesa_id || emAndamento.has(item.id)) return;
+      if (Date.now() - new Date(item.criado_em).getTime() > 5 * 60000) return;
+      emAndamento.add(item.id);
+      try {
+        // Qualquer painel aberto no computador imprime a conta pedida pelo garçom. Preferência: programa do Windows
+        // com impressão automática, depois programa, depois navegador com automática, depois navegador.
+        const espera = (desktop ? 0 : 2500) + (cfgImpRef.current.auto ? 0 : 1500);
+        if (espera) {
+          await new Promise((ok) => setTimeout(ok, espera));
+          const { data: f } = await supabase.from('fila_impressao').select('impresso_em, pego_em, erro').eq('id', item.id).maybeSingle();
+          if (!f || f.impresso_em || f.erro || (f.pego_em && Date.now() - new Date(f.pego_em).getTime() < 40000)) return; // outro computador já pegou
+        }
+        const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id, p_aparelho: nomeAparelho });
+        if (!pegou) return; // outro computador já pegou
+        const [{ data: mesa }, { data: peds }] = await Promise.all([
+          supabase.from('mesas').select('nome').eq('id', item.mesa_id).single(),
+          supabase.from('pedidos').select('*, pedido_itens(*)').eq('mesa_id', item.mesa_id)
+            .is('pago_em', null).neq('status', 'cancelado').order('criado_em'),
+        ]);
+        let erro: string | null;
+        try {
+          erro = !mesa ? 'Mesa não encontrada'
+            : !peds?.length ? 'A mesa não tem pedido em aberto'
+              : await imprimirContaConfirmada(mesa.nome, restRef.current?.nome ?? '', peds as Pedido[]);
+        } catch (e) {
+          erro = e instanceof Error ? e.message : 'Erro ao imprimir';
+        }
+        // Só agora conta como impressa (ou o erro volta para o garçom ver na hora)
+        await supabase.rpc('impressao_concluir', { p_id: item.id, p_erro: erro });
+        if (erro) toast(`A conta da ${mesa?.nome ?? 'mesa'} não imprimiu: ${erro}`, 'erro');
+      } finally {
+        emAndamento.delete(item.id);
       }
-      const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id });
-      if (!pegou) return; // outro computador já imprimiu
-      const [{ data: mesa }, { data: peds }] = await Promise.all([
-        supabase.from('mesas').select('nome').eq('id', item.mesa_id).single(),
-        supabase.from('pedidos').select('*, pedido_itens(*)').eq('mesa_id', item.mesa_id)
-          .is('pago_em', null).neq('status', 'cancelado').order('criado_em'),
-      ]);
-      const nomeRest = restRef.current?.nome ?? '';
-      if (mesa && peds?.length) imprimirConta(mesa.nome, nomeRest, peds as Pedido[]);
     };
-    // Pendentes de antes deste computador abrir
-    void supabase.from('fila_impressao').select('id, mesa_id, criado_em').eq('restaurante_id', rest).is('impresso_em', null)
-      .then(({ data }) => (data ?? []).forEach((i) => void atender(i)));
+    // Pendentes (também cobre o aviso em tempo real que se perdeu: aba parada, internet que caiu)
+    const conferir = () => {
+      void supabase.from('fila_impressao').select('id, mesa_id, criado_em, pego_em').eq('restaurante_id', rest)
+        .is('impresso_em', null).is('erro', null).gte('criado_em', new Date(Date.now() - 5 * 60000).toISOString())
+        .then(({ data }) => ((data ?? []) as Item[]).forEach((i) => {
+          if (i.pego_em && Date.now() - new Date(i.pego_em).getTime() < 40000) return;
+          void atender(i);
+        }));
+    };
+    conferir();
     const canal = supabase
       .channel(`fila-${rest}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fila_impressao', filter: `restaurante_id=eq.${rest}` },
-        (payload) => void atender(payload.new as { id: string; mesa_id: string | null; criado_em: string }))
-      .subscribe();
-    return () => { void supabase.removeChannel(canal); };
-  }, [r?.id]);
+        (payload) => void atender(payload.new as Item))
+      .subscribe((st) => { if (st === 'SUBSCRIBED') conferir(); });
+    const intervalo = setInterval(conferir, 10000);
+    const aoVoltar = () => { if (document.visibilityState === 'visible') conferir(); };
+    document.addEventListener('visibilitychange', aoVoltar);
+    window.addEventListener('online', conferir);
+    return () => {
+      void supabase.removeChannel(canal);
+      clearInterval(intervalo);
+      document.removeEventListener('visibilitychange', aoVoltar);
+      window.removeEventListener('online', conferir);
+    };
+  }, [r?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- Lista de compras: contador e aviso de quem pediu acesso ---------- */
   const [compras, setCompras] = useState({ itens: 0, pessoas: 0 });

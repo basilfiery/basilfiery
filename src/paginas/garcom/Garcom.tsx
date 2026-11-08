@@ -470,7 +470,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
               {ps.length > 0 ? (
                 <>
                   <span className="garcom__mesa-total">{brl(total)}</span>
-                  {pago > 0 && <small className="garcom__mesa-pago">Pago {brl(pago)}</small>}
+                  {pago > 0 && <small className="garcom__mesa-pago"><Check size={10} strokeWidth={3.4} /> Pago {brl(pago).replace(/\s/, '')}</small>}
                   <small className="garcom__mesa-tempo"><Clock size={11} strokeWidth={2.6} /> {tempoDesde(ps[0].criado_em, agora)}{m.pessoas ? <><span className="garcom__mesa-sep">·</span><Users size={11} strokeWidth={2.6} /> {m.pessoas}</> : ps.length > 1 ? ` · ${ps.length} ped.` : ''}</small>
                 </>
               ) : (chamando || pedindo) && !sentado ? null : <small className="garcom__mesa-estado">{sentado ? 'Sem pedido' : 'Livre'}{m.pessoas ? <span className="garcom__mesa-sep">· <Users size={11} strokeWidth={2.6} /> {m.pessoas}</span> : null}</small>}
@@ -589,24 +589,38 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
   async function imprimirNoCaixa() {
     setEnviando(true);
     const { data: id, error } = await supabase.rpc('impressao_solicitar_conta', { p_mesa: mesa.id });
-    setEnviando(false);
-    if (error) return toast(msgErro(error), 'erro');
-    toast(`Conta da ${mesa.nome} enviada para a impressora do caixa.`, 'ok');
+    if (error) { setEnviando(false); return toast(msgErro(error), 'erro'); }
+    toast(`Conta da ${mesa.nome} enviada para o caixa. Aguardando a impressora…`, 'info');
 
-    // Confirma quando o computador do caixa imprimir (ou avisa se ninguém imprimir)
-    let impresso = false;
+    // Só confirma quando a impressora do caixa imprimir de verdade; se der erro, mostra o motivo
+    type Fila = { impresso_em: string | null; pego_em: string | null; pego_por: string | null; erro: string | null };
+    const buscar = async () => (await supabase.from('fila_impressao').select('impresso_em, pego_em, pego_por, erro').eq('id', id).maybeSingle()).data as Fila | null;
+    let fim = false;
+    const terminar = (msg: string, tipo: 'ok' | 'erro') => {
+      if (fim) return;
+      fim = true;
+      setEnviando(false);
+      toast(msg, tipo);
+      void supabase.removeChannel(canal);
+      clearInterval(conferir);
+      clearTimeout(limite);
+    };
+    const ver = (f: Fila | null) => {
+      if (!f) return;
+      if (f.impresso_em) terminar(`Conta da ${mesa.nome} impressa no caixa.`, 'ok');
+      else if (f.erro) terminar(`A conta não imprimiu (${f.pego_por ?? 'caixa'}): ${f.erro}. Confira a impressora e toque de novo.`, 'erro');
+    };
     const canal = supabase
       .channel(`impressao-${id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fila_impressao', filter: `id=eq.${id}` }, () => {
-        impresso = true;
-        toast(`Conta da ${mesa.nome} impressa no caixa.`, 'ok');
-        void supabase.removeChannel(canal);
-      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fila_impressao', filter: `id=eq.${id}` }, (p) => ver(p.new as Fila))
       .subscribe();
-    setTimeout(() => {
-      if (!impresso) toast('Nenhum computador imprimiu ainda. Deixe o painel do BasilFiery aberto no computador do caixa.', 'erro');
-      void supabase.removeChannel(canal);
-    }, 25000);
+    // Se o aviso em tempo real falhar, confere sozinho
+    const conferir = setInterval(() => void buscar().then(ver), 4000);
+    const limite = setTimeout(() => void buscar().then((f) => {
+      ver(f);
+      if (f?.pego_em) terminar('A impressora do caixa não respondeu. Confira se está ligada e com papel, e toque de novo.', 'erro');
+      else terminar('Nenhum computador do caixa pegou a impressão. Deixe o BasilFiery aberto no computador do caixa (de preferência o programa do Windows) e toque de novo.', 'erro');
+    }), 50000);
   }
 
   return (
@@ -624,7 +638,7 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
             </button>
           ) : (
             <button className="btn btn--primario" onClick={() => void imprimirNoCaixa()} disabled={enviando}>
-              <Printer size={18} /> {enviando ? 'Enviando…' : 'Imprimir conta no caixa'}
+              <Printer size={18} /> {enviando ? 'Imprimindo no caixa…' : 'Imprimir conta no caixa'}
             </button>
           )}
         </>

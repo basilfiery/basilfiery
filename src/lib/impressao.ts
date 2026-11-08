@@ -223,6 +223,8 @@ function rodape(m: ModeloImpressao) {
 
 // Fila: impressões em sequência, para não abrir várias ao mesmo tempo
 let fila: Promise<void> = Promise.resolve();
+/** Enquanto não for null, guarda o resultado de cada impressão disparada (null = imprimiu; texto = erro) */
+let coletor: Promise<string | null>[] | null = null;
 
 function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
   const desktop = programaDesktop();
@@ -230,15 +232,18 @@ function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
 
   // No programa para Windows: direto na impressora, sem janela
   if (desktop) {
-    fila = fila.then(() => desktop.imprimir(html, largura, impressora || undefined).catch((e: unknown) => {
+    const trabalho = fila.then(() => desktop.imprimir(html, largura, impressora || undefined).then(() => null, (e: unknown) => {
       const msg = e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(e);
       window.dispatchEvent(new CustomEvent(EVENTO_ERRO_IMPRESSAO, { detail: msg }));
+      return msg || 'A impressora não imprimiu';
     }));
+    coletor?.push(trabalho);
+    fila = trabalho.then(() => undefined);
     return;
   }
 
   // No navegador: janela de impressão (ou direto, com o Chrome em --kiosk-printing)
-  fila = fila.then(() => new Promise<void>((resolver) => {
+  const trabalho = fila.then(() => new Promise<null>((resolver) => {
     const iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
     iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
@@ -250,7 +255,7 @@ function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
     const win = iframe.contentWindow!;
     const terminar = () => {
       setTimeout(() => iframe.remove(), 500);
-      resolver();
+      resolver(null);
     };
     win.addEventListener('afterprint', terminar, { once: true });
     setTimeout(() => {
@@ -260,6 +265,8 @@ function imprimirHTML(corpo: string, largura: 58 | 80, impressora = '') {
       setTimeout(terminar, 1500);
     }, 150);
   }));
+  coletor?.push(trabalho);
+  fila = trabalho.then(() => undefined);
 }
 
 /**
@@ -541,6 +548,20 @@ export function imprimirPedido(p: Pedido, restaurante: string, opcoes: { automat
 export function imprimirConta(mesaNome: string, restaurante: string, pedidos: Pedido[]) {
   if (restaurante) loja = { ...loja, nome: restaurante };
   imprimirModelo('conta', () => corpoConta(mesaNome, pedidos));
+}
+
+/**
+ * Igual a imprimirConta, mas espera a impressora responder.
+ * Devolve null quando imprimiu, ou o motivo do erro (impressora desligada, sem papel, não respondeu…).
+ */
+export async function imprimirContaConfirmada(mesaNome: string, restaurante: string, pedidos: Pedido[]): Promise<string | null> {
+  const meus: Promise<string | null>[] = [];
+  coletor = meus;
+  try { imprimirConta(mesaNome, restaurante, pedidos); } finally { coletor = null; }
+  if (!meus.length) return 'Nenhuma impressora configurada neste computador';
+  const limite = new Promise<string>((ok) => setTimeout(() => ok('A impressora do caixa não respondeu'), 45000));
+  const r = await Promise.race([Promise.all(meus), limite]);
+  return typeof r === 'string' ? r : r.find(Boolean) ?? null;
 }
 
 /** Cupom de fechamento (ou parcial) do caixa. */

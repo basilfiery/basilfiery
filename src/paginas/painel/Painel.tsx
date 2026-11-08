@@ -27,6 +27,7 @@ import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, MesaAcesso, Papel, Pedido, RestauranteComPapel, ResumoCaixa } from '../../lib/tipos';
 import { PAPEL_ROTULO, brl, cx, descreverChamado, duracao, ehGestor, ls, podeCaixa, quando, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
+import type { ContaParcial } from '../../lib/contaParcial';
 import { adiarAtualizacao, aplicarAtualizacao, useNovaVersao, versaoAdiada } from '../../lib/versao';
 import '../../estilos/painel.css';
 
@@ -38,6 +39,8 @@ export interface ContextoPainel {
   acessos: MesaAcesso[];
   /** Celulares já liberados nas mesas (cliente sentado, mesmo sem pedido) */
   liberados: MesaAcesso[];
+  /** Mesas com parte da conta já paga (id da mesa → pagamentos) */
+  parciais: Record<string, ContaParcial>;
   conectado: boolean;
   carregando: boolean;
   recarregar: () => Promise<void>;
@@ -509,6 +512,7 @@ export default function Painel() {
     chamados: vivo.chamados,
     acessos: vivo.acessos,
     liberados: vivo.liberados,
+    parciais: vivo.parciais,
     conectado: vivo.conectado,
     carregando: vivo.carregando,
     recarregar: vivo.recarregar,

@@ -1,3 +1,4 @@
+import type { ContaParcial } from './contaParcial';
 export type Papel = 'dono' | 'gerente' | 'caixa' | 'garcom';
 export type StatusPedido = 'novo' | 'preparando' | 'pronto' | 'entregue' | 'cancelado';
 
@@ -203,6 +204,8 @@ export interface Mesa {
   tipo?: 'mesa' | 'comanda';
   /** Cliente da mesa enquanto ela está aberta (zera ao fechar a conta) */
   cliente_nome?: string | null;
+  /** Pagamentos já recebidos enquanto a mesa está aberta (zera ao fechar a conta) */
+  conta_parcial?: ContaParcial | null;
   cliente_telefone?: string | null;
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
+import type { ContaParcial } from './contaParcial';
 import type { Chamado, MesaAcesso, Pedido, StatusPedido } from './tipos';
 
 interface Eventos {
@@ -23,6 +24,8 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
   const [acessos, setAcessos] = useState<MesaAcesso[]>([]);
   // Celulares já liberados (cliente na mesa, mesmo sem pedido ainda): a mesa conta como ocupada
   const [liberados, setLiberados] = useState<MesaAcesso[]>([]);
+  // Mesas com parte da conta já paga (id da mesa → pagamentos), atualizado na hora
+  const [parciais, setParciais] = useState<Record<string, ContaParcial>>({});
   const [carregando, setCarregando] = useState(true);
   const [conectado, setConectado] = useState(false);
 
@@ -46,7 +49,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
   const carregar = useCallback(async () => {
     if (!restauranteId) return;
     const desde = new Date(Date.now() - 16 * 3600e3).toISOString();
-    const [p, c, a, l] = await Promise.all([
+    const [p, c, a, l, m] = await Promise.all([
       supabase.from('pedidos').select(SELECT_PEDIDO)
         .eq('restaurante_id', restauranteId)
         .or(`criado_em.gte.${desde},status.in.(novo,preparando,pronto)`)
@@ -63,6 +66,9 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
         .eq('restaurante_id', restauranteId)
         .eq('status', 'liberado').eq('fixo', false)
         .gte('respondido_em', desde),
+      supabase.from('mesas').select('id, conta_parcial')
+        .eq('restaurante_id', restauranteId)
+        .not('conta_parcial', 'is', null),
     ]);
     if (p.data) {
       const lista = p.data as Pedido[];
@@ -86,6 +92,7 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
       setAcessos(lista);
     }
     if (l.data) setLiberados(l.data as MesaAcesso[]);
+    if (m.data) setParciais(Object.fromEntries((m.data as { id: string; conta_parcial: ContaParcial }[]).map((x) => [x.id, x.conta_parcial])));
     semeado.current = true;
     setCarregando(false);
   }, [restauranteId, registrar]);
@@ -153,6 +160,15 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
         if (a.status !== 'pendente') setAcessos((lista) => lista.filter((x) => x.id !== a.id));
         setLiberados((lista) => (a.status === 'liberado' && !a.fixo ? [...lista.filter((x) => x.id !== a.id), a] : lista.filter((x) => x.id !== a.id)));
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'mesas', filter: filtro }, (payload) => {
+        const m = payload.new as { id: string; conta_parcial?: ContaParcial | null };
+        setParciais((atual) => {
+          if (!m.conta_parcial && !(m.id in atual)) return atual;
+          const novo = { ...atual };
+          if (m.conta_parcial) novo[m.id] = m.conta_parcial; else delete novo[m.id];
+          return novo;
+        });
+      })
       .subscribe((status) => {
         setConectado(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') void carregar();
@@ -186,5 +202,5 @@ export function usePedidosAoVivo(restauranteId: string | undefined, eventos: Eve
     setAcessos((lista) => lista.filter((a) => a.id !== id));
   }, []);
 
-  return { pedidos, chamados, acessos, liberados, carregando, conectado, recarregar: carregar, atualizarPedido, removerChamado, removerAcesso };
+  return { pedidos, chamados, acessos, liberados, parciais, carregando, conectado, recarregar: carregar, atualizarPedido, removerChamado, removerAcesso };
 }

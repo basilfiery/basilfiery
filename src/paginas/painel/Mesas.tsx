@@ -17,6 +17,7 @@ import type { Chamado, Mesa, MesaAcesso, Pedido } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, descreverChamado, ehGestor, hora, ls, ordenarNome, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
 import { linkMesa } from '../../lib/linkCurto';
+import { resumoParcial } from '../../lib/contaParcial';
 import { confirmar } from '../../componentes/Confirmar';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
 import Pdv from './Pdv';
@@ -35,7 +36,7 @@ function duracao(desde: string, agora: number) {
 }
 
 export default function Mesas() {
-  const { restaurante, papel, pedidos: aoVivo, chamados, acessos, liberados } = usePainel();
+  const { restaurante, papel, pedidos: aoVivo, chamados, acessos, liberados, parciais } = usePainel();
   const toast = useToast();
   const navegar = useNavigate();
   const agora = useAgora(30000);
@@ -84,11 +85,15 @@ export default function Mesas() {
   const pedidosDa = (mesaId: string) => abertos.filter((p) => p.mesa_id === mesaId);
   const totalDa = (mesaId: string) => pedidosDa(mesaId).reduce((s, p) => s + Number(p.total), 0);
   const chamadosDa = (mesaId: string) => chamados.filter((c) => c.mesa_id === mesaId);
+  /** Já pago e o que falta (com desconto/acréscimo combinados no caixa) */
+  const parcialDa = (mesaId: string) => resumoParcial(parciais[mesaId], totalDa(mesaId));
+  const pagoDa = (mesaId: string) => (parciais[mesaId]?.partes?.length ? parcialDa(mesaId).pago : 0);
   const situacao = (m: Mesa): Situacao => {
     if (!m.ativo) return 'inativa';
     // Liberada pelo garçom (cliente já no cardápio) também conta como ocupada
     if (!pedidosDa(m.id).length) return liberados.some((a) => a.mesa_id === m.id) ? 'ocupada' : 'livre';
-    return chamadosDa(m.id).some((c) => c.tipo === 'conta') ? 'pagando' : 'ocupada';
+    // Pediu a conta ou já pagou uma parte: "Pagando"
+    return chamadosDa(m.id).some((c) => c.tipo === 'conta') || pagoDa(m.id) > 0 ? 'pagando' : 'ocupada';
   };
 
   async function fecharVazia(m: Mesa) {
@@ -135,6 +140,7 @@ export default function Mesas() {
     const novos = ps.filter((p) => p.status === 'novo').length;
     const preparo = ps.filter((p) => p.status === 'preparando').length;
     const prontos = ps.filter((p) => p.status === 'pronto').length;
+    const pago = comConta ? pagoDa(m.id) : 0;
     return (
       <article
         key={m.id}
@@ -193,7 +199,11 @@ export default function Mesas() {
                 <PessoasMesa mesa={m} variante="compacto" aoMudar={(n) => mudarPessoasLocal(m.id, n)} />
                 <span className="mc__dado"><Clock size={15} /> {duracao(sentadoDesde && sentadoDesde < ps[0].criado_em ? sentadoDesde : ps[0].criado_em, agora)}</span>
               </div>
-              <div className="mc__valor"><small>Conta</small><strong className="mc__total">{brl(total)}</strong></div>
+              <div className="mc__valor">
+                <small>{pago > 0 ? 'Falta pagar' : 'Conta'}</small>
+                <strong className="mc__total">{brl(pago > 0 ? parcialDa(m.id).falta : total)}</strong>
+                {pago > 0 && <span className="mc__pago">Pago {brl(pago)} de {brl(parcialDa(m.id).devido)}</span>}
+              </div>
             </div>
           ) : st === 'ocupada' && sentadoDesde ? (
             <div className="mc__resumo">
@@ -308,6 +318,7 @@ export default function Mesas() {
           <PessoasMesa mesa={m} variante="compacto" aoMudar={(n) => mudarPessoasLocal(m.id, n)} />
           {ps.length > 0 && <span><Clock size={15} /> {duracao(ps[0].criado_em, agora)}</span>}
           {ps.length > 0 && <span className="lm-conta"><small>Conta</small><b>{brl(total)}</b></span>}
+          {ps.length > 0 && pagoDa(m.id) > 0 && <span className="lm-conta lm-conta--pago"><small>Pago</small><b>{brl(pagoDa(m.id))}</b></span>}
         </div>
         {ps.length === 0 && st === 'ocupada' && (
           <button className="btn btn--contorno lm-fechar" onClick={() => void fecharVazia(m).then(() => undefined)} title="O cliente foi embora sem pedir: deixa a mesa livre"><DoorOpen size={18} /> Fechar mesa</button>

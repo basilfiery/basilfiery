@@ -677,3 +677,11 @@ html:has(.mesa), body:has(.mesa) { height: 100%; overflow: hidden; overscroll-be
 }
 .modal-produto__indisponivel b { color: var(--text); margin-right: 4px; }
 .modal-produto__indisponivel svg { flex: none; color: var(--danger); }
+
+/* Conta: o que já foi pago no caixa e quanto falta */
+.conta__pago { list-style: none; margin: 0; padding: 12px 14px; display: grid; gap: 6px; border-radius: 12px; border: 1px solid color-mix(in srgb, #f59e0b 45%, var(--line)); background: color-mix(in srgb, #f59e0b 9%, transparent); }
+.conta__pago li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.conta__pago li > span:last-child { white-space: nowrap; color: var(--text); font-weight: 700; }
+.conta__falta { margin-top: 4px; padding-top: 8px; border-top: 1px dashed color-mix(in srgb, #f59e0b 45%, var(--line)); color: var(--text) !important; font-size: 1.05rem; font-weight: 700; }
+.conta__falta strong { font-size: 1.35rem; color: color-mix(in srgb, #d97706 75%, var(--text)); white-space: nowrap; }
+.conta__falta.ok strong { color: #16a34a; }

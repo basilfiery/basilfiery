@@ -391,3 +391,7 @@
 @media (min-width: 961px) and (max-width: 1180px) { body:has(.pdv__pedido) .sup-botao { right: 386px; } }
 @media (max-width: 960px) { body:has(.pdv__pedido.aberta) .sup-botao { display: none; } }
 .cm-fechar.pronta { background: var(--ok); color: #fff; border-color: transparent; box-shadow: 0 6px 18px color-mix(in srgb, var(--ok) 35%, transparent); }
+
+/* Parte da conta já paga (mesa "Pagando") */
+.lm-conta--pago { background: color-mix(in srgb, #f59e0b 15%, transparent); }
+.lm-conta--pago b { color: color-mix(in srgb, #d97706 78%, var(--text)); }

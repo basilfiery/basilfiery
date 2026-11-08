@@ -19,8 +19,10 @@ import { useSessao } from '../../lib/sessao';
 import { REPETIR_CHAMADO_MS, definirSom, somLigado, tocarAlerta, tocarChamadoUmaVez, vibrar } from '../../lib/som';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Chamado, Mesa, MesaAcesso, Pedido, RestauranteComPapel, StatusPedido } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, tempoDesde, useAgora } from '../../lib/util';
+import { STATUS_ROTULO, brl, cx, descreverChamado, hora, ordenarNome, rotuloForma, tempoDesde, useAgora } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
+import { IconeForma } from '../../componentes/Pagamento';
+import { resumoParcial, type ContaParcial } from '../../lib/contaParcial';
 import '../../estilos/painel.css';
 import '../../estilos/garcom.css';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
@@ -278,7 +280,7 @@ export default function Garcom({ modoApp = false }: { modoApp?: boolean }) {
             <CartaoMeta d={metas} aoAbrir={() => setAba('metas')} />
             {aba === 'mesas' ? (
               vivo.carregando ? <Carregando /> : (
-                <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} liberados={vivo.liberados} aoResponderAcesso={vivo.removerAcesso} agora={agora}
+                <MesasGarcom restaurante={r} pedidosAoVivo={vivo.pedidos} chamados={vivo.chamados} acessos={vivo.acessos} liberados={vivo.liberados} parciais={vivo.parciais} aoResponderAcesso={vivo.removerAcesso} agora={agora}
                   abrirMesa={abrirMesa} aoAbrir={() => setAbrirMesa(null)} aoAtender={(c) => void atender(c)} />
               )
             ) : (
@@ -351,12 +353,14 @@ function CartaoMeta({ d, aoAbrir }: { d: { hoje: Numeros; semana: Numeros } | nu
 }
 
 /* ---------------- Aba Mesas: conta de cada mesa + imprimir no caixa ---------------- */
-function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados, aoResponderAcesso, agora, abrirMesa, aoAbrir, aoAtender }: {
+function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados, parciais, aoResponderAcesso, agora, abrirMesa, aoAbrir, aoAtender }: {
   restaurante: RestauranteComPapel;
   pedidosAoVivo: Pedido[];
   chamados: Chamado[];
   acessos: MesaAcesso[];
   liberados: MesaAcesso[];
+  /** Mesas com parte da conta já paga no caixa */
+  parciais: Record<string, ContaParcial>;
   aoResponderAcesso: (id: string) => void;
   agora: number;
   /** Mesa para abrir já (tocou no chamado lá em cima) */
@@ -432,6 +436,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         <span><i className="ocupada" /> Ocupadas</span>
         <span><i className="levar" /> Levar</span>
         <span><i className="chamando" /> Chamando</span>
+        <span><i className="pagando" /> Pagando</span>
         <span><i className="conta" /> Conta</span>
       </div>
     </div>
@@ -449,9 +454,11 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
         // Pisca: pedido pronto para levar, pedido novo do cliente ou mesa chamando
         const levar = ps.some((p) => p.status === 'pronto');
         const novo = ps.some((p) => p.status === 'novo' && !p.garcom_atendido_em);
+        // Já pagou uma parte no caixa: mesa amarela "Pagando"
+        const pago = ps.length > 0 && parciais[m.id]?.partes?.length ? resumoParcial(parciais[m.id], total).pago : 0;
         const alerta = conta ? 'Conta' : chamando ? 'Chamando' : pedindo ? 'Liberar' : levar ? 'Levar pedido' : novo ? 'Pedido novo' : null;
         return (
-          <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando', conta && 'conta', !(chamando || pedindo) && levar && 'levar', !(chamando || pedindo) && !levar && novo && 'novo', alerta && 'pisca')} onClick={() => setSel(m)}>
+          <button key={m.id} className={cx('garcom__mesa', (ps.length > 0 || sentado) && 'ocupada', (chamando || pedindo) && 'chamando', conta && 'conta', pago > 0 && 'pagando', !(chamando || pedindo) && levar && 'levar', !(chamando || pedindo) && !levar && novo && 'novo', alerta && 'pisca')} onClick={() => setSel(m)}>
             <span className="garcom__mesa-topo">
               <strong>{m.nome}</strong>
               {(chamando || pedindo || levar || novo) && (
@@ -463,6 +470,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
               {ps.length > 0 ? (
                 <>
                   <span className="garcom__mesa-total">{brl(total)}</span>
+                  {pago > 0 && <small className="garcom__mesa-pago">Pago {brl(pago)}</small>}
                   <small className="garcom__mesa-tempo"><Clock size={11} strokeWidth={2.6} /> {tempoDesde(ps[0].criado_em, agora)}{m.pessoas ? <><span className="garcom__mesa-sep">·</span><Users size={11} strokeWidth={2.6} /> {m.pessoas}</> : ps.length > 1 ? ` · ${ps.length} ped.` : ''}</small>
                 </>
               ) : (chamando || pedindo) && !sentado ? null : <small className="garcom__mesa-estado">{sentado ? 'Sem pedido' : 'Livre'}{m.pessoas ? <span className="garcom__mesa-sep">· <Users size={11} strokeWidth={2.6} /> {m.pessoas}</span> : null}</small>}
@@ -481,6 +489,7 @@ function MesasGarcom({ restaurante, pedidosAoVivo, chamados, acessos, liberados,
           chamados={chamados.filter((c) => c.mesa_id === sel.id)}
           aoAtender={aoAtender}
           pedidos={pedidosDa(sel.id)}
+          parcial={parciais[sel.id]}
           agora={agora}
           mesas={mesas}
           totalDa={totalDa}
@@ -518,7 +527,7 @@ function ItensPedido({ p, comPreco = false }: { p: Pedido; comPreco?: boolean })
   );
 }
 
-function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, agora, mesas, totalDa, aoFechar, aoTrocar, aoPessoas, ocupada, aoFecharMesa, aoAtualizarPedidos }: {
+function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, aoAtender, pedidos, parcial, agora, mesas, totalDa, aoFechar, aoTrocar, aoPessoas, ocupada, aoFecharMesa, aoAtualizarPedidos }: {
   aoAtualizarPedidos: () => void;
   aoPessoas: (n: number | null) => void;
   /** Cliente sentado (celular liberado, nome ou pessoas): sem pedido, dá para fechar a mesa */
@@ -531,6 +540,8 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
   aoResponderAcesso: (id: string) => void;
   mesa: Mesa;
   pedidos: Pedido[];
+  /** O que o caixa já recebeu desta mesa */
+  parcial?: ContaParcial;
   agora: number;
   mesas: Mesa[];
   totalDa: (id: string) => number;
@@ -542,6 +553,8 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
   const [trocando, setTrocando] = useState(false);
   const [aba, setAba] = useState<'qr' | 'conta'>('qr');
   const total = pedidos.reduce((s, p) => s + Number(p.total), 0);
+  const pagos = parcial?.partes?.length ? parcial.partes : [];
+  const resumo = resumoParcial(parcial, total);
   const [fechando, setFechando] = useState(false);
   // Pedidos que pedem atenção do garçom: pronto (levar) e novo ainda não visto
   const [feitos, setFeitos] = useState<string[]>([]);
@@ -695,6 +708,16 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
             })}
           </div>
           <div className="total-linha"><span>Total da mesa</span><strong>{brl(total)}</strong></div>
+          {(pagos.length > 0 || resumo.desconto > 0 || resumo.acrescimo > 0) && (
+            <ul className="gpago" aria-label="Pagamentos já recebidos">
+              {resumo.desconto > 0 && <li className="gpago__ajuste"><span className="gpago__txt">Desconto</span><b>− {brl(resumo.desconto)}</b></li>}
+              {resumo.acrescimo > 0 && <li className="gpago__ajuste"><span className="gpago__txt">Acréscimo</span><b>+ {brl(resumo.acrescimo)}</b></li>}
+              {pagos.map((p, n) => (
+                <li key={p.id ?? n}><IconeForma forma={p.forma} tamanho={15} /><span className="gpago__txt">Pago em {p.forma === 'pix' ? 'Pix' : rotuloForma(p.forma).toLowerCase()}</span><b>{brl(Number(p.valor) / 100)}</b></li>
+              ))}
+              <li className={cx('gpago__falta', resumo.falta === 0 && 'ok')}><span className="gpago__txt">{resumo.falta === 0 ? 'Conta paga' : 'Falta pagar'}</span><strong>{brl(resumo.falta === 0 ? resumo.pago : resumo.falta)}</strong></li>
+            </ul>
+          )}
           <button className="btn btn--contorno btn--bloco" onClick={() => setTrocando(true)}>
             <ArrowRightLeft size={18} /> Cliente trocou de mesa
           </button>

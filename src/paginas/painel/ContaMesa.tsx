@@ -4,6 +4,7 @@ import { IconeForma, IconePix } from '../../componentes/Pagamento';
 import { cancelarComMotivo } from '../../componentes/CancelarPedido';
 import { useToast } from '../../componentes/Toast';
 import { imprimirConta } from '../../lib/impressao';
+import { lerAjuste, type ContaParcial } from '../../lib/contaParcial';
 import { msgErro, supabase } from '../../lib/supabase';
 import type { FormaPagamento, Mesa, Pedido } from '../../lib/tipos';
 import { brl, cx, hora, lerPreco, mascaraPreco, podeCaixa, precoParaTexto, rotuloForma } from '../../lib/util';
@@ -12,7 +13,8 @@ import { usePainel } from './Painel';
 /* =====================================================================
    Conta da mesa (tela de lançar na mesa): consumo, desconto/acréscimo e
    pagamento dividido: cada pessoa paga um valor, no dinheiro, cartão ou Pix.
-   Os pagamentos lançados ficam guardados nesta aba até fechar a conta.
+   Os pagamentos lançados ficam guardados na mesa (banco) até fechar a conta:
+   a mesa fica "Pagando" no painel, no app do garçom e na conta do cliente.
    ===================================================================== */
 
 type Escolha = 'dinheiro' | 'cartao' | 'pix';
@@ -23,31 +25,29 @@ const cent = (v: number) => Math.round(v * 100);
 const txt = (c: number) => precoParaTexto(c / 100);
 const ORDINAL = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª'];
 
-/** "10%" vira porcentagem do subtotal; "5,00" vira R$ 5,00 (em centavos). */
-function lerAjuste(t: string, subtotal: number) {
-  const s = t.trim();
-  if (!s) return 0;
-  if (s.endsWith('%')) {
-    const p = Number(s.slice(0, -1).replace(',', '.'));
-    return Number.isFinite(p) && p >= 0 ? Math.round(subtotal * p / 100) : NaN;
-  }
-  const v = lerPreco(s);
-  return Number.isFinite(v) && v >= 0 ? cent(v) : NaN;
-}
+const VAZIO: Rascunho = { partes: [], desconto: '', acrescimo: '' };
+const doBanco = (c: ContaParcial | undefined): Rascunho => (c ? {
+  partes: (c.partes ?? []).map((p) => ({ id: p.id ?? crypto.randomUUID(), forma: p.forma, valor: Number(p.valor), ...(p.recebido != null ? { recebido: Number(p.recebido) } : {}) })),
+  desconto: c.desconto ?? '', acrescimo: c.acrescimo ?? '',
+} : VAZIO);
+/** Para comparar o que está na tela com o que está salvo (ignora espaços) */
+const assinatura = (r: Rascunho) => JSON.stringify([r.partes.map((p) => [p.id, p.forma, p.valor, p.recebido ?? null]), r.desconto.trim(), r.acrescimo.trim()]);
 
+/** Pagamentos que ficaram só neste navegador (versão antiga): sobem para a mesa uma vez */
 const chave = (mesaId: string) => `bf:conta:${mesaId}`;
 function lerRascunho(mesaId: string): Rascunho {
   try {
     const r = JSON.parse(sessionStorage.getItem(chave(mesaId)) ?? 'null') as Rascunho | null;
     if (r && Array.isArray(r.partes)) return r;
   } catch { /* sem armazenamento */ }
-  return { partes: [], desconto: '', acrescimo: '' };
+  return VAZIO;
 }
 
 export function ContaMesa({ mesa, pedidos, aoMudar, aoFechada }: { mesa: Mesa; pedidos: Pedido[]; aoMudar: () => void; aoFechada: () => void }) {
-  const { restaurante, papel, caixa, abrirCaixa, recarregarCaixa, atualizarPedido } = usePainel();
+  const { restaurante, papel, caixa, abrirCaixa, recarregarCaixa, atualizarPedido, parciais } = usePainel();
   const toast = useToast();
-  const [rasc, setRasc] = useState<Rascunho>(() => lerRascunho(mesa.id));
+  const remoto = parciais[mesa.id];
+  const [rasc, setRasc] = useState<Rascunho>(() => (remoto ? doBanco(remoto) : lerRascunho(mesa.id)));
   const [ajuste, setAjuste] = useState<'desconto' | 'acrescimo' | null>(null);
   const [escolha, setEscolha] = useState<Escolha | null>(null);
   const [cartao, setCartao] = useState<'credito' | 'debito'>('credito');
@@ -57,9 +57,6 @@ export function ContaMesa({ mesa, pedidos, aoMudar, aoFechada }: { mesa: Mesa; p
   const fecharRef = useRef<HTMLButtonElement>(null);
   const valorRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    try { sessionStorage.setItem(chave(mesa.id), JSON.stringify(rasc)); } catch { /* sem armazenamento */ }
-  }, [mesa.id, rasc]);
 
   // Tela baixa: abre já mostrando o fechamento (o consumo fica logo acima, rolando)
   const rolagem = useRef<HTMLDivElement>(null);
@@ -85,6 +82,39 @@ export function ContaMesa({ mesa, pedidos, aoMudar, aoFechada }: { mesa: Mesa; p
   const pago = rasc.partes.reduce((s, p) => s + p.valor, 0);
   const falta = devido - pago;
   const pode = podeCaixa(papel);
+
+  // Guarda na mesa (banco) cada pagamento lançado/tirado e o desconto/acréscimo
+  const salvo = useRef(assinatura(doBanco(remoto)));
+  const rascRef = useRef(rasc);
+  rascRef.current = rasc;
+  const encerrada = useRef(false);
+  const salvar = useRef(async (_r: Rascunho) => { /* definido abaixo */ });
+  salvar.current = async (r: Rascunho) => {
+    const ass = assinatura(r);
+    if (!pode || encerrada.current || ass === salvo.current) return;
+    const antes = salvo.current;
+    salvo.current = ass;
+    const { error } = await supabase.rpc('mesa_conta_parcial_salvar', {
+      p_mesa: mesa.id,
+      p_dados: { partes: r.partes.map((p) => ({ id: p.id, forma: p.forma, valor: p.valor, recebido: p.recebido ?? null })), desconto: r.desconto, acrescimo: r.acrescimo },
+    });
+    if (error) { salvo.current = antes; toast(msgErro(error), 'erro'); return; }
+    try { sessionStorage.removeItem(chave(mesa.id)); } catch { /* sem armazenamento */ }
+  };
+  useEffect(() => {
+    // Pagamento lançado/tirado salva na hora; desconto/acréscimo espera parar de digitar
+    const t = setTimeout(() => void salvar.current(rasc), 450);
+    return () => clearTimeout(t);
+  }, [rasc]);
+  useEffect(() => () => { void salvar.current(rascRef.current); }, []);
+  // Mudou em outro computador: traz para esta tela (se aqui não tem nada por salvar)
+  useEffect(() => {
+    const r = doBanco(remoto);
+    const ass = assinatura(r);
+    if (ass === salvo.current || assinatura(rascRef.current) !== salvo.current) return;
+    salvo.current = ass;
+    setRasc(r);
+  }, [remoto]);
   const pronta = descOk && acrOk && falta === 0 && (devido === 0 || rasc.partes.length > 0);
 
   const mudar = (m: Partial<Rascunho>) => setRasc((r) => ({ ...r, ...m }));
@@ -108,7 +138,9 @@ export function ContaMesa({ mesa, pedidos, aoMudar, aoFechada }: { mesa: Mesa; p
   function lancar() {
     if (!forma || erroValor) return;
     const parte: Parte = { id: crypto.randomUUID(), forma, valor: valorC, ...(escolha === 'dinheiro' && Number.isFinite(recebidoC) ? { recebido: recebidoC } : {}) };
-    mudar({ partes: [...rasc.partes, parte] });
+    const novo = { ...rasc, partes: [...rasc.partes, parte] };
+    setRasc(novo);
+    void salvar.current(novo);
     setEscolha(null);
     if (valorC === falta) requestAnimationFrame(() => fecharRef.current?.focus());
   }
@@ -124,6 +156,7 @@ export function ContaMesa({ mesa, pedidos, aoMudar, aoFechada }: { mesa: Mesa; p
     });
     setFechando(false);
     if (error) return toast(msgErro(error), 'erro');
+    encerrada.current = true;
     try { sessionStorage.removeItem(chave(mesa.id)); } catch { /* sem armazenamento */ }
     const formas = [...new Set(rasc.partes.map((p) => rotuloForma(p.forma)))];
     toast(`${mesa.nome} liberada. ${brl(devido / 100)} recebido${formas.length ? ` (${formas.join(' + ')})` : ''}.`, 'ok');
@@ -212,7 +245,7 @@ export function ContaMesa({ mesa, pedidos, aoMudar, aoFechada }: { mesa: Mesa; p
                     {p.recebido != null && p.recebido > p.valor && <small>Troco de {brl((p.recebido - p.valor) / 100)}</small>}
                   </span>
                   <strong>{brl(p.valor / 100)}</strong>
-                  <button type="button" className="cm__excluir" onClick={() => mudar({ partes: rasc.partes.filter((x) => x.id !== p.id) })} aria-label={`Tirar pagamento de ${brl(p.valor / 100)}`} title="Tirar este pagamento"><X size={15} /></button>
+                  <button type="button" className="cm__excluir" onClick={() => { const novo = { ...rasc, partes: rasc.partes.filter((x) => x.id !== p.id) }; setRasc(novo); void salvar.current(novo); }} aria-label={`Tirar pagamento de ${brl(p.valor / 100)}`} title="Tirar este pagamento"><X size={15} /></button>
                 </li>
               ))}
               <li className={cx('cm-partes__falta', falta === 0 && 'ok', falta < 0 && 'passou')}>

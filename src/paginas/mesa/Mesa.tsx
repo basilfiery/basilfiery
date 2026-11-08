@@ -12,7 +12,8 @@ import { useToast } from '../../componentes/Toast';
 import { descreverAparelho, idDispositivo } from '../../lib/dispositivo';
 import { msgErro, rpcSeguro, supabase } from '../../lib/supabase';
 import type { StatusPedido } from '../../lib/tipos';
-import { STATUS_ROTULO, brl, cx, hora, ls } from '../../lib/util';
+import { STATUS_ROTULO, brl, cx, hora, ls, rotuloForma } from '../../lib/util';
+import { resumoParcial, type ContaParcial } from '../../lib/contaParcial';
 import { useNovaVersao } from '../../lib/versao';
 import { useAppInstalavel } from '../../lib/manifesto';
 import { sugerirObs } from '../../lib/sugestoes';
@@ -127,6 +128,8 @@ export function juntarNoCarrinho(c: Linha[], p: ProdutoMesa, qtd: number, obs: s
 
 interface Conta {
   total: number;
+  /** O que já foi pago no caixa (a mesa continua aberta) */
+  parcial?: ContaParcial | null;
   pedidos: { id: string; numero: number; status: StatusPedido; total: number; criado_em: string; itens: { nome: string; qtd: number; preco: number; obs: string | null; complementos?: string | null }[] }[];
 }
 
@@ -1555,6 +1558,19 @@ function ModalConta({ token, dispositivo, aoFechar, aoPedirConta, aoMesaFechada 
             </section>
           ))}
           <div className="conta__total"><span>Total da mesa</span><strong>{brl(conta.total)}</strong></div>
+          {conta.parcial && (() => {
+            const r = resumoParcial(conta.parcial, Number(conta.total));
+            const partes = conta.parcial.partes ?? [];
+            if (!partes.length && !r.desconto && !r.acrescimo) return null;
+            return (
+              <ul className="conta__pago" aria-label="Já pago">
+                {r.desconto > 0 && <li><span>Desconto</span><span>− {brl(r.desconto)}</span></li>}
+                {r.acrescimo > 0 && <li><span>Acréscimo / serviço</span><span>+ {brl(r.acrescimo)}</span></li>}
+                {partes.map((p, n) => <li key={n}><span>Pago em {p.forma === 'pix' ? 'Pix' : rotuloForma(p.forma).toLowerCase()}</span><span>{brl(Number(p.valor) / 100)}</span></li>)}
+                <li className={cx('conta__falta', r.falta === 0 && 'ok')}><span>{r.falta === 0 ? 'Conta paga' : 'Falta pagar'}</span><strong>{brl(r.falta === 0 ? r.pago : r.falta)}</strong></li>
+              </ul>
+            );
+          })()}
           <p className="muted conta__nota">O pagamento é feito com o garçom ou no caixa.</p>
         </div>
       )}

@@ -317,3 +317,21 @@
 .gconta__pedido.pendente header b { color: var(--danger); }
 .gconta__pedido.pendente .badge { background: var(--danger); color: #fff; }
 .gconta__pedido.pendente .btn { min-height: 46px; }
+
+/* Mesa que já pagou uma parte no caixa: amarela "Pagando" */
+.gapp .garcom__mesa.pagando:not(.chamando):not(.levar) { color: #2b1d00; background: linear-gradient(160deg, #fcd34d, #f59e0b); box-shadow: 0 10px 22px -12px rgba(217, 119, 6, .9), inset 0 1px 0 rgba(255, 255, 255, .35); }
+.gapp .garcom__mesa.pagando:not(.chamando):not(.levar) small, .gapp .garcom__mesa.pagando:not(.chamando):not(.levar) .garcom__mesa-total, .gapp .garcom__mesa.pagando:not(.chamando):not(.levar) .garcom__mesa-chamando { color: #2b1d00; }
+.gapp .garcom__mesa.pagando:not(.chamando):not(.levar) .garcom__mesa-sino { background: rgba(0, 0, 0, .12); }
+.gapp .garcom__mesa-pago { display: block; font-weight: 800 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.gapp .garcom__legenda i.pagando { background: #f59e0b; }
+
+/* Conta da mesa: o que o caixa já recebeu e quanto falta */
+.gpago { list-style: none; margin: 0; padding: 10px 12px; display: grid; gap: 8px; border-radius: 14px; border: 1px solid color-mix(in srgb, #f59e0b 45%, var(--line)); background: color-mix(in srgb, #f59e0b 9%, transparent); }
+.gpago li { display: flex; align-items: center; gap: 10px; min-width: 0; font-weight: 700; }
+.gpago .gpago__txt { flex: 1; min-width: 0; color: var(--muted); font-size: .92rem; }
+.gpago li > b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.gpago__falta { padding-top: 8px; border-top: 1px dashed color-mix(in srgb, #f59e0b 45%, var(--line)); }
+.gpago__falta .gpago__txt { color: var(--text); font-size: 1rem; }
+.gpago__falta strong { font-size: 1.25rem; color: color-mix(in srgb, #d97706 75%, var(--text)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gpago__falta.ok strong { color: #1fbf6e; }

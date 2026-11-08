@@ -198,7 +198,7 @@ export function ContaMesa({ mesa, pedidos, aoMudar, aoFechada }: { mesa: Mesa; p
               </ul>
             </section>
           ))}
-          <button type="button" className="cm__imprimir" onClick={() => imprimirConta(mesa.nome, restaurante.nome, pedidos)}><Printer size={15} /> Imprimir conta</button>
+          <button type="button" className="cm__imprimir" onClick={() => imprimirConta(mesa.nome, restaurante.nome, pedidos, { partes: rasc.partes, desconto: descOk ? rasc.desconto : '', acrescimo: acrOk ? rasc.acrescimo : '' })}><Printer size={15} /> Imprimir conta</button>
         </div>
 
         <div className="cm__fechamento">

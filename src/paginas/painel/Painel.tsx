@@ -330,7 +330,7 @@ export default function Painel() {
         const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id, p_aparelho: nomeAparelho });
         if (!pegou) return; // outro computador já pegou
         const [{ data: mesa }, { data: peds }] = await Promise.all([
-          supabase.from('mesas').select('nome').eq('id', item.mesa_id).single(),
+          supabase.from('mesas').select('nome, conta_parcial').eq('id', item.mesa_id).single(),
           supabase.from('pedidos').select('*, pedido_itens(*)').eq('mesa_id', item.mesa_id)
             .is('pago_em', null).neq('status', 'cancelado').order('criado_em'),
         ]);
@@ -338,7 +338,7 @@ export default function Painel() {
         try {
           erro = !mesa ? 'Mesa não encontrada'
             : !peds?.length ? 'A mesa não tem pedido em aberto'
-              : await imprimirContaConfirmada(mesa.nome, restRef.current?.nome ?? '', peds as Pedido[]);
+              : await imprimirContaConfirmada(mesa.nome, restRef.current?.nome ?? '', peds as Pedido[], mesa.conta_parcial as ContaParcial | null);
         } catch (e) {
           erro = e instanceof Error ? e.message : 'Erro ao imprimir';
         }

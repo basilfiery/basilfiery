@@ -1,5 +1,6 @@
 import type { Pedido, ResumoCaixa } from './tipos';
 import { brl, ls } from './util';
+import { resumoParcial, type ContaParcial } from './contaParcial';
 
 /* =====================================================================
    Impressão térmica (cupom 58/80 mm)
@@ -318,6 +319,7 @@ export function documento(corpo: string, largura: 58 | 80, programa = false) {
       .cozinha tr.ad.extra span { display: inline-block; margin: 2px 0; padding: 1px 6px; border: 2px solid #000; border-radius: 3px; text-transform: uppercase; letter-spacing: .02em; }
       .tot { display: flex; justify-content: space-between; gap: 6px; font-weight: 900; font-size: 1.18em; }
       .tot span:last-child { white-space: nowrap; }
+      .tot.gg { font-size: 1.42em; margin-top: 2px; }
       .p { font-size: .9em; font-weight: 700; }
       .feito { margin-top: 8px; padding-top: 5px; border-top: 1.5px dotted #000; text-align: center; font-size: .85em; }
     </style></head><body>${corpo}</body></html>`;
@@ -411,7 +413,29 @@ function corpoCozinha(p: Pedido) {
     ${p.observacao ? `<hr><b>OBS:</b> <span class="obs">${esc(p.observacao)}</span>` : ''}`;
 }
 
-function corpoConta(mesaNome: string, pedidos: Pedido[]) {
+const FORMA_PAGA: Record<string, string> = { dinheiro: 'Dinheiro', pix: 'Pix', credito: 'Cartão de crédito', debito: 'Cartão de débito', outro: 'Outro' };
+
+/** Conferência: desconto/acréscimo, o que já foi pago (forma e valor) e quanto falta. */
+function blocoPagamentos(subtotal: number, parcial?: ContaParcial | null) {
+  const r = resumoParcial(parcial, subtotal);
+  const partes = parcial?.partes ?? [];
+  if (!partes.length && !r.desconto && !r.acrescimo) return `<div class="tot"><span>TOTAL</span><span>${brl(subtotal)}</span></div>`;
+  const linha = (rotulo: string, valor: string) => `<tr><td>${esc(rotulo)}</td><td class="v">${valor}</td></tr>`;
+  const ajustes = r.desconto || r.acrescimo
+    ? `<table>${linha('Subtotal', brl(subtotal))}${r.desconto ? linha('Desconto', `- ${brl(r.desconto)}`) : ''}${r.acrescimo ? linha('Acréscimo / serviço', `+ ${brl(r.acrescimo)}`) : ''}</table>`
+    : '';
+  const pagos = partes.length
+    ? `<hr><div class="c"><b>PAGAMENTOS JÁ FEITOS</b></div>
+      <table>${partes.map((p) => linha(FORMA_PAGA[p.forma] ?? p.forma, brl(Number(p.valor) / 100))).join('')}</table>
+      <div class="tot"><span>TOTAL PAGO</span><span>${brl(r.pago)}</span></div>`
+    : '';
+  const falta = r.falta > 0
+    ? `<div class="tot gg"><span>FALTA PAGAR</span><span>${brl(r.falta)}</span></div>`
+    : `<div class="c g">CONTA PAGA</div>`;
+  return `${ajustes}<div class="tot"><span>TOTAL</span><span>${brl(r.devido)}</span></div>${pagos}<hr class="duplo">${falta}`;
+}
+
+function corpoConta(mesaNome: string, pedidos: Pedido[], parcial?: ContaParcial | null) {
   // Agrupa itens iguais (mesmo nome, adicionais, observação e preço); com observação diferente sai em linha própria
   const ls2 = new Map<string, { nome: string; complementos?: string | null; adicionais?: Adic[] | null; obs: string | null; qtd: number; preco: number }>();
   for (const p of pedidos) {
@@ -429,7 +453,7 @@ function corpoConta(mesaNome: string, pedidos: Pedido[]) {
     <hr>
     <table>${[...ls2.values()].map((l) => `<tr><td class="q">${l.qtd}x</td><td>${esc(l.nome)}</td><td class="v">${brl(l.qtd * l.preco)}</td></tr>${adicionaisHtml(adicionaisDo(l), l.qtd, true)}${linhaObs(l.obs, true)}`).join('')}</table>
     <hr>
-    <div class="tot"><span>TOTAL</span><span>${brl(total)}</span></div>`;
+    ${blocoPagamentos(total, parcial)}`;
 }
 
 function corpoFechamento(r: ResumoCaixa, parcial: boolean) {
@@ -545,19 +569,19 @@ export function imprimirPedido(p: Pedido, restaurante: string, opcoes: { automat
   imprimirModelo(modelo, () => (modelo === 'cozinha' ? corpoCozinha(p) : corpoPedido(p)));
 }
 
-export function imprimirConta(mesaNome: string, restaurante: string, pedidos: Pedido[]) {
+export function imprimirConta(mesaNome: string, restaurante: string, pedidos: Pedido[], parcial?: ContaParcial | null) {
   if (restaurante) loja = { ...loja, nome: restaurante };
-  imprimirModelo('conta', () => corpoConta(mesaNome, pedidos));
+  imprimirModelo('conta', () => corpoConta(mesaNome, pedidos, parcial));
 }
 
 /**
  * Igual a imprimirConta, mas espera a impressora responder.
  * Devolve null quando imprimiu, ou o motivo do erro (impressora desligada, sem papel, não respondeu…).
  */
-export async function imprimirContaConfirmada(mesaNome: string, restaurante: string, pedidos: Pedido[]): Promise<string | null> {
+export async function imprimirContaConfirmada(mesaNome: string, restaurante: string, pedidos: Pedido[], parcial?: ContaParcial | null): Promise<string | null> {
   const meus: Promise<string | null>[] = [];
   coletor = meus;
-  try { imprimirConta(mesaNome, restaurante, pedidos); } finally { coletor = null; }
+  try { imprimirConta(mesaNome, restaurante, pedidos, parcial); } finally { coletor = null; }
   if (!meus.length) return 'Nenhuma impressora configurada neste computador';
   const limite = new Promise<string>((ok) => setTimeout(() => ok('A impressora do caixa não respondeu'), 45000));
   const r = await Promise.race([Promise.all(meus), limite]);

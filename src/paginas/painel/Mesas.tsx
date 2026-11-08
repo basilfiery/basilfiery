@@ -171,7 +171,7 @@ export default function Mesas() {
                 <>
                   <button className="menu-item" onClick={() => { fechar(); if (comConta) abrirMesa(m, 'conta'); else setSelecionada(m); }}><Receipt size={17} /> {comConta ? 'Receber e fechar conta' : 'Detalhes da mesa'}</button>
                   {comConta && <button className="menu-item" onClick={() => { fechar(); setSelecionada(m); }}><Tablet size={17} /> Ver mesa</button>}
-                  {comConta && <button className="menu-item" onClick={() => { fechar(); imprimirConta(m.nome, restaurante.nome, ps); }}><Printer size={17} /> Imprimir conta</button>}
+                  {comConta && <button className="menu-item" onClick={() => { fechar(); imprimirConta(m.nome, restaurante.nome, ps, parciais[m.id]); }}><Printer size={17} /> Imprimir conta</button>}
                   {comConta && <button className="menu-item" onClick={() => { fechar(); setTrocandoDe(m); }}><ArrowRightLeft size={17} /> Trocar de mesa</button>}
                   {!comConta && st === 'ocupada' && <button className="menu-item" onClick={() => { fechar(); void fecharVazia(m); }}><DoorOpen size={17} /> Fechar mesa (saiu sem pedir)</button>}
                   <div className="menu-sep" />
@@ -438,7 +438,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
   aoReceber: () => void;
 }) {
   const toast = useToast();
-  const { removerChamado, atualizarPedido } = usePainel();
+  const { removerChamado, atualizarPedido, parciais } = usePainel();
   const [nome, setNome] = useState(mesa.nome);
   const [setorMesa, setSetorMesa] = useState(mesa.setor ?? '');
   const [token, setToken] = useState(mesa.token);
@@ -531,7 +531,7 @@ function ModalMesa({ mesa, pedidos, chamados, restauranteNome, podeFechar, gesto
             ))}
             <div className="total-linha"><span>Total</span><strong>{brl(total)}</strong></div>
             <div className="acoes-linha">
-              <button className="btn btn--contorno" onClick={() => imprimirConta(mesa.nome, restauranteNome, pedidos)}>
+              <button className="btn btn--contorno" onClick={() => imprimirConta(mesa.nome, restauranteNome, pedidos, parciais[mesa.id])}>
                 <Printer size={18} /> Imprimir conta
               </button>
               <button className="btn btn--contorno" onClick={() => setTrocando(true)}>

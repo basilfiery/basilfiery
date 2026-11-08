@@ -35,6 +35,7 @@ function iniciar() {
   primeiraExecucao();
   criarJanela();
   criarBandeja();
+  iniciarAtualizacao();
 }
 
 function doSite(url) {
@@ -134,10 +135,73 @@ function atualizarMenu() {
     { label: 'Abrir BasilFiery', click: mostrar },
     { label: 'Recarregar', click: () => { janela.loadURL(INICIO); mostrar(); } },
     { type: 'separator' },
+    atualizacaoPronta
+      ? { label: `Instalar a versão ${atualizacaoPronta} agora (reinicia em segundos)`, click: () => instalarAtualizacao() }
+      : { label: `Versão ${app.getVersion()}: procurar atualização`, click: () => procurarAtualizacao(true) },
+    { type: 'separator' },
     { label: 'Abrir quando o Windows iniciar', type: 'checkbox', checked: auto, click: (item) => definirAutoInicio(item.checked) },
     { type: 'separator' },
     { label: 'Sair (para de receber pedidos)', click: () => { saindo = true; app.quit(); } },
   ]));
+}
+
+/* ------------------------- Atualização automática ------------------------- */
+// O programa procura versão nova sozinho (ao abrir e a cada 3 horas), baixa em segundo plano
+// e instala sem atrapalhar o atendimento:
+// - se acabou de abrir (ainda sem movimento), instala na hora;
+// - com o programa em uso, instala de madrugada (3h às 6h) ou quando o programa for fechado;
+// - ou na hora, pelo menu do ícone perto do relógio.
+let atualizacaoPronta = null;
+const abertoEm = Date.now();
+let atualizador = null;
+
+function iniciarAtualizacao() {
+  if (!app.isPackaged) return;
+  try {
+    atualizador = require('electron-updater').autoUpdater;
+  } catch {
+    return;
+  }
+  atualizador.autoDownload = true;
+  atualizador.autoInstallOnAppQuit = true;
+  atualizador.on('update-downloaded', (info) => {
+    atualizacaoPronta = info.version;
+    if (bandeja) {
+      atualizarMenu();
+      bandeja.setToolTip(`BasilFiery: versão ${info.version} pronta para instalar`);
+    }
+    if (Date.now() - abertoEm < 3 * 60000) instalarAtualizacao();
+  });
+  atualizador.on('error', () => { /* sem internet ou servidor fora: tenta de novo depois */ });
+  procurarAtualizacao(false);
+  setInterval(() => procurarAtualizacao(false), 3 * 3600e3);
+  // De madrugada (3h às 6h), com atualização baixada: instala
+  setInterval(() => {
+    const h = new Date().getHours();
+    if (atualizacaoPronta && h >= 3 && h < 6) instalarAtualizacao();
+  }, 10 * 60000);
+}
+
+function procurarAtualizacao(avisar) {
+  if (!atualizador) return;
+  atualizador.checkForUpdates().then((r) => {
+    if (!avisar || !bandeja) return;
+    const nova = r && r.updateInfo && r.updateInfo.version !== app.getVersion();
+    bandeja.displayBalloon({
+      title: 'BasilFiery',
+      content: nova ? `Baixando a versão ${r.updateInfo.version}. Ela instala sozinha.` : `Você já está na versão mais nova (${app.getVersion()}).`,
+      iconType: 'info',
+    });
+  }).catch(() => {
+    if (avisar && bandeja) bandeja.displayBalloon({ title: 'BasilFiery', content: 'Não deu para procurar atualização agora (sem internet?).', iconType: 'warning' });
+  });
+}
+
+function instalarAtualizacao() {
+  if (!atualizador || !atualizacaoPronta) return;
+  saindo = true;
+  // Silencioso e abre de novo sozinho
+  setImmediate(() => atualizador.quitAndInstall(true, true));
 }
 
 function definirAutoInicio(ligado) {

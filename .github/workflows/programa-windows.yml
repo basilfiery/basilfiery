@@ -45,10 +45,12 @@ jobs:
         run: |
           VERSAO=$(node -p "require('./package.json').version")
           TAG="programa-v$VERSAO"
+          # latest.yml: o programa instalado consulta este arquivo para saber se há versão nova e se atualizar sozinho
+          ARQUIVOS="dist/BasilFiery-Instalador.exe dist/latest.yml dist/BasilFiery-Instalador.exe.blockmap"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" dist/BasilFiery-Instalador.exe --clobber
+            gh release upload "$TAG" $ARQUIVOS --clobber
           else
-            gh release create "$TAG" dist/BasilFiery-Instalador.exe \
+            gh release create "$TAG" $ARQUIVOS \
               --title "BasilFiery para Windows $VERSAO" \
               --notes "Instalador do programa BasilFiery para Windows (versão $VERSAO)." \
               --latest

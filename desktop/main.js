@@ -189,20 +189,18 @@ ipcMain.handle('bf:imprimir', async (e, { html, larguraMm, impressora }) => {
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   try {
-    // Impressora de verdade (a escolhida ou a padrão do Windows), para conferir a fila dela
-    const lista = await janela.webContents.getPrintersAsync().catch(() => []);
+    // Já vai montando o cupom enquanto descobre a impressora (a escolhida ou a padrão do Windows)
+    const [lista] = await Promise.all([
+      janela.webContents.getPrintersAsync().catch(() => []),
+      w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(String(html))}`),
+    ]);
     const nome = impressora || (lista.find((p) => p.isDefault) || {}).name || '';
     if (impressora && lista.length && !lista.some((p) => p.name === impressora)) {
       throw new Error(`A impressora "${impressora}" não está instalada neste computador`);
     }
-    // Fila travada (cupom com erro ou parado há mais de 30 s): a impressora não está imprimindo.
-    // Limpa a fila (senão sai uma pilha de cupons antigos quando ela voltar) e avisa na hora.
-    const antes = nome ? await filaImpressora(nome) : null;
-    if (antes && (antes.parados > 0 || antes.erros > 0)) { await limparFila(nome); throw new Error(IMPRESSORA_PARADA); }
-
-    await w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(String(html))}`);
     const alturaPx = await w.webContents.executeJavaScript('Math.ceil(document.documentElement.scrollHeight)');
     const alturaMicrons = Math.max(Math.ceil((alturaPx * 25400) / 96) + 6000, 60000);
+    // Manda para a impressora NA HORA; a conferência vem depois, sem atrasar o papel
     await new Promise((ok, falhou) => {
       w.webContents.print(
         {
@@ -217,14 +215,16 @@ ipcMain.handle('bf:imprimir', async (e, { html, larguraMm, impressora }) => {
     });
 
     // O Windows diz "ok" só por pôr na fila, mesmo com a impressora desligada.
-    // Confere se o cupom saiu da fila (a térmica leva 1 a 3 s); se ficar parado, é erro de verdade.
-    if (nome && antes) {
-      for (let i = 0; i < 8; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
+    // Confere se o cupom saiu da fila (a térmica leva 1 a 3 s); com erro ou parado, é falha de verdade.
+    if (nome) {
+      const ini = Date.now();
+      while (Date.now() - ini < 12000) {
+        await new Promise((r) => setTimeout(r, 400));
         const agora = await filaImpressora(nome);
-        if (!agora || agora.total === 0) return;
+        if (!agora) return; // não deu para conferir: confia no Windows
+        if (agora.total === 0) return; // saiu da fila: imprimiu
         // O Windows marca "Erro" logo que a impressora não responde (desligada, sem cabo, está em outro computador)
-        if (agora.erros > 0) break;
+        if (agora.erros > 0 || agora.parados > 0) break;
       }
       // Tira o cupom parado: quando a impressora voltar, não sai uma pilha de contas antigas
       await limparFila(nome);
@@ -237,25 +237,68 @@ ipcMain.handle('bf:imprimir', async (e, { html, larguraMm, impressora }) => {
 
 const IMPRESSORA_PARADA = 'A impressora não está imprimindo: confira se está ligada, com o cabo conectado e com papel';
 
-/** Trabalhos na fila da impressora do Windows: total e parados há mais de 30 s. null = não deu para ver. */
-function filaImpressora(nome) {
-  const n = nome.replace(/'/g, "''");
-  const cmd = `$j = @(Get-PrintJob -PrinterName '${n}' -ErrorAction Stop | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' }); $p = @($j | Where-Object { $_.SubmittedTime -lt (Get-Date).AddSeconds(-30) }); $e = @($j | Where-Object { [string]$_.JobStatus -match 'Error|Offline|Paused|PaperOut|UserIntervention|Blocked' }); "$($j.Count) $($p.Count) $($e.Count)"`;
-  return new Promise((ok) => {
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd], { windowsHide: true, timeout: 10000 }, (erro, saida) => {
-      const m = /(\d+)\s+(\d+)\s+(\d+)/.exec(String(saida || ''));
-      ok(erro || !m ? null : { total: Number(m[1]), parados: Number(m[2]), erros: Number(m[3]) });
-    });
+/*
+ * PowerShell que fica aberto: abrir um novo leva ~2 s a cada consulta; aberto, responde em décimos de segundo.
+ * Se ele travar ou fechar, abre outro; se nem assim der, usa o jeito antigo (um PowerShell por consulta).
+ */
+let ps = null;
+let filaPs = Promise.resolve();
+function abrirPs() {
+  if (ps && ps.exitCode === null && !ps.killed) return ps;
+  try {
+    ps = require('child_process').spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'], { windowsHide: true });
+    ps.stdout.setEncoding('utf8');
+    ps.on('error', () => { ps = null; });
+    ps.on('exit', () => { ps = null; });
+    ps.stdin.on('error', () => { ps = null; });
+  } catch {
+    ps = null;
+  }
+  return ps;
+}
+function rodarPs(cmd) {
+  const rodar = () => new Promise((ok) => {
+    const p = abrirPs();
+    if (!p) {
+      execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd], { windowsHide: true, timeout: 10000 }, (erro, saida) => ok(erro ? null : String(saida || '')));
+      return;
+    }
+    const marca = `__bf_${Date.now()}_${Math.random().toString(36).slice(2)}__`;
+    let saida = '';
+    const aoDado = (d) => {
+      saida += d;
+      const i = saida.indexOf(marca);
+      if (i >= 0) { fim(); ok(saida.slice(0, i)); }
+    };
+    const limite = setTimeout(() => { fim(); try { p.kill(); } catch { /* já fechou */ } ps = null; ok(null); }, 10000);
+    const fim = () => { clearTimeout(limite); p.stdout.off('data', aoDado); };
+    p.stdout.on('data', aoDado);
+    try {
+      p.stdin.write(`try { ${cmd} } catch { 'ERRO' }\nWrite-Output '${marca}'\n`);
+    } catch {
+      fim(); ps = null; ok(null);
+    }
   });
+  const r = filaPs.then(rodar);
+  filaPs = r.then(() => undefined, () => undefined);
+  return r;
+}
+// Deixa o PowerShell pronto logo que o programa abre (a primeira conferência já sai rápida)
+app.whenReady().then(() => { if (process.platform === 'win32') void rodarPs("'ok'"); });
+
+/** Trabalhos na fila da impressora do Windows: total, parados há mais de 30 s e com erro. null = não deu para ver. */
+async function filaImpressora(nome) {
+  const n = nome.replace(/'/g, "''");
+  const cmd = `$j = @(Get-PrintJob -PrinterName '${n}' -ErrorAction Stop | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' }); $p = @($j | Where-Object { $_.SubmittedTime -lt (Get-Date).AddSeconds(-30) }); $e = @($j | Where-Object { [string]$_.JobStatus -match 'Error|Offline|Paused|PaperOut|UserIntervention|Blocked' }); "FILA $($j.Count) $($p.Count) $($e.Count)"`;
+  const saida = await rodarPs(cmd);
+  const m = /FILA (\d+)\s+(\d+)\s+(\d+)/.exec(String(saida || ''));
+  return m ? { total: Number(m[1]), parados: Number(m[2]), erros: Number(m[3]) } : null;
 }
 
 /** Apaga da fila os cupons que não saíram (só os deste usuário; não precisa de administrador). */
-function limparFila(nome) {
+async function limparFila(nome) {
   const n = nome.replace(/'/g, "''");
-  const cmd = `Get-PrintJob -PrinterName '${n}' -ErrorAction SilentlyContinue | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' } | ForEach-Object { Remove-PrintJob -InputObject $_ -ErrorAction SilentlyContinue }`;
-  return new Promise((ok) => {
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd], { windowsHide: true, timeout: 10000 }, () => ok());
-  });
+  await rodarPs(`Get-PrintJob -PrinterName '${n}' -ErrorAction SilentlyContinue | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' } | ForEach-Object { Remove-PrintJob -InputObject $_ -ErrorAction SilentlyContinue }; 'ok'`);
 }
 
 app.on('before-quit', () => { saindo = true; });

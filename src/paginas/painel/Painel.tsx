@@ -318,6 +318,7 @@ export default function Painel() {
     // Identidade deste computador: se a impressora dele falhar, a conta passa para outro e ele não pega de novo
     const eu = idDispositivo();
     const CHAVE_FALHA = 'bf:impressao:falhou-em';
+    const CHAVE_OK = 'bf:impressao:ok-em';
     type Item = { id: string; mesa_id: string | null; criado_em: string; pego_em?: string | null; impresso_em?: string | null; falharam?: string[] | null };
     const emAndamento = new Set<string>();
     const livre = (i: Item) => !i.impresso_em && !(i.falharam ?? []).includes(eu) && !(i.pego_em && Date.now() - new Date(i.pego_em).getTime() < 40000);
@@ -326,23 +327,28 @@ export default function Painel() {
       if (Date.now() - new Date(item.criado_em).getTime() > 5 * 60000) return;
       emAndamento.add(item.id);
       try {
-        // Qualquer computador aberto imprime a conta pedida pelo garçom. Preferência: programa do Windows
-        // com impressão automática, depois programa, depois navegador com automática, depois navegador.
-        // Computador cuja impressora falhou nas últimas horas espera mais: o que tem impressora pega primeiro.
+        // Qualquer computador aberto imprime a conta pedida pelo garçom. Para sair o mais rápido possível:
+        // - programa do Windows que já imprimiu com sucesso pega NA HORA (é o computador da impressora);
+        // - programa que nunca imprimiu espera um pouquinho; navegador espera mais;
+        // - computador cuja impressora falhou nas últimas horas espera bastante (o da impressora pega primeiro).
         const falhouHaPouco = Date.now() - ls.ler<number>(CHAVE_FALHA, 0) < 12 * 3600e3;
-        const espera = (desktop ? 0 : 2500) + (cfgImpRef.current.auto ? 0 : 1500) + (falhouHaPouco ? 5000 : 0);
+        const jaImprimiu = Date.now() - ls.ler<number>(CHAVE_OK, 0) < 30 * 24 * 3600e3;
+        const espera = falhouHaPouco ? 5000
+          : desktop ? (jaImprimiu ? 0 : 600)
+            : 2500 + (cfgImpRef.current.auto ? 0 : 1500);
         if (espera) {
           await new Promise((ok) => setTimeout(ok, espera));
           const { data: f } = await supabase.from('fila_impressao').select('id, mesa_id, criado_em, impresso_em, pego_em, falharam').eq('id', item.id).maybeSingle();
           if (!f || !livre(f as Item)) return; // outro computador já pegou
         }
-        const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id, p_aparelho: nomeAparelho, p_dispositivo: eu });
-        if (!pegou) return; // outro computador já pegou
-        const [{ data: mesa }, { data: peds }] = await Promise.all([
+        // Pega a conta e já busca a mesa e os pedidos ao mesmo tempo (uma ida ao servidor a menos)
+        const [{ data: pegou }, { data: mesa }, { data: peds }] = await Promise.all([
+          supabase.rpc('impressao_reivindicar', { p_id: item.id, p_aparelho: nomeAparelho, p_dispositivo: eu }),
           supabase.from('mesas').select('nome, conta_parcial').eq('id', item.mesa_id).single(),
           supabase.from('pedidos').select('*, pedido_itens(*)').eq('mesa_id', item.mesa_id)
             .is('pago_em', null).neq('status', 'cancelado').order('criado_em'),
         ]);
+        if (!pegou) return; // outro computador já pegou
         let erro: string | null;
         try {
           erro = !mesa ? 'Mesa não encontrada'
@@ -356,7 +362,7 @@ export default function Painel() {
         if (erro) {
           ls.gravar(CHAVE_FALHA, Date.now());
           toast(`A conta da ${mesa?.nome ?? 'mesa'} não imprimiu neste computador (${erro}). Passando para outro computador do caixa.`, 'erro');
-        } else ls.gravar(CHAVE_FALHA, 0);
+        } else { ls.gravar(CHAVE_FALHA, 0); ls.gravar(CHAVE_OK, Date.now()); }
       } finally {
         emAndamento.delete(item.id);
       }

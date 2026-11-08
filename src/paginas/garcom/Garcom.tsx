@@ -605,10 +605,27 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
       clearInterval(conferir);
       clearTimeout(limite);
     };
+    // Um computador sem impressora (ou com ela desligada) solta a conta e outro computador do caixa tenta.
+    // Só mostra erro se nenhum conseguir.
+    let avisouOutro = false;
+    let ultimoErro: Fila | null = null;
+    let desistir: ReturnType<typeof setTimeout> | undefined;
     const ver = (f: Fila | null) => {
       if (!f) return;
-      if (f.impresso_em) terminar(`Conta da ${mesa.nome} impressa no caixa.`, 'ok');
-      else if (f.erro) terminar(`A conta não imprimiu (${f.pego_por ?? 'caixa'}): ${f.erro}. Confira a impressora e toque de novo.`, 'erro');
+      if (f.impresso_em) { clearTimeout(desistir); terminar(`Conta da ${mesa.nome} impressa no caixa${f.pego_por ? ` (${f.pego_por})` : ''}.`, 'ok'); return; }
+      if (f.erro && !f.pego_em) {
+        ultimoErro = f;
+        if (!avisouOutro) {
+          avisouOutro = true;
+          toast(`Um computador não conseguiu imprimir. Tentando no outro computador do caixa…`, 'info');
+          desistir = setTimeout(() => void buscar().then((g) => {
+            if (g?.impresso_em) return ver(g);
+            if (g?.pego_em) return; // outro computador está imprimindo agora
+            const e = g ?? ultimoErro;
+            terminar(`A conta não imprimiu (${e?.pego_por ?? 'caixa'}): ${e?.erro ?? 'erro na impressora'}. Confira a impressora do caixa e toque de novo.`, 'erro');
+          }), 15000);
+        }
+      }
     };
     const canal = supabase
       .channel(`impressao-${id}`)
@@ -619,8 +636,9 @@ function ContaMesa({ restaurante, acessos, aoResponderAcesso, mesa, chamados, ao
     const limite = setTimeout(() => void buscar().then((f) => {
       ver(f);
       if (f?.pego_em) terminar('A impressora do caixa não respondeu. Confira se está ligada e com papel, e toque de novo.', 'erro');
+      else if (f?.erro) terminar(`A conta não imprimiu (${f.pego_por ?? 'caixa'}): ${f.erro}. Confira a impressora do caixa e toque de novo.`, 'erro');
       else terminar('Nenhum computador do caixa pegou a impressão. Deixe o BasilFiery aberto no computador do caixa (de preferência o programa do Windows) e toque de novo.', 'erro');
-    }), 50000);
+    }), 75000);
   }
 
   return (

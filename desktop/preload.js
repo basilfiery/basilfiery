@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('basilfieryDesktop', {
   imprimir: (html, larguraMm, impressora) => ipcRenderer.invoke('bf:imprimir', { html, larguraMm, impressora }),
   impressoras: () => ipcRenderer.invoke('bf:impressoras'),
   mostrar: () => ipcRenderer.invoke('bf:mostrar'),
+  computador: () => ipcRenderer.invoke('bf:computador'),
   recarregar: () => ipcRenderer.invoke('bf:recarregar'),
 });

@@ -169,6 +169,9 @@ ipcMain.handle('bf:recarregar', async (e) => {
   janela.webContents.reloadIgnoringCache();
 });
 
+// Nome do computador: o garçom vê em qual computador a conta imprimiu (ou falhou)
+ipcMain.handle('bf:computador', (e) => (veioDoSite(e) ? require('os').hostname() : ''));
+
 ipcMain.handle('bf:impressoras', async (e) => {
   if (!veioDoSite(e)) return [];
   const lista = await janela.webContents.getPrintersAsync();
@@ -192,9 +195,10 @@ ipcMain.handle('bf:imprimir', async (e, { html, larguraMm, impressora }) => {
     if (impressora && lista.length && !lista.some((p) => p.name === impressora)) {
       throw new Error(`A impressora "${impressora}" não está instalada neste computador`);
     }
-    // Fila travada (cupom parado há mais de 30 s): a impressora não está imprimindo
+    // Fila travada (cupom com erro ou parado há mais de 30 s): a impressora não está imprimindo.
+    // Limpa a fila (senão sai uma pilha de cupons antigos quando ela voltar) e avisa na hora.
     const antes = nome ? await filaImpressora(nome) : null;
-    if (antes && antes.parados > 0) throw new Error(IMPRESSORA_PARADA);
+    if (antes && (antes.parados > 0 || antes.erros > 0)) { await limparFila(nome); throw new Error(IMPRESSORA_PARADA); }
 
     await w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(String(html))}`);
     const alturaPx = await w.webContents.executeJavaScript('Math.ceil(document.documentElement.scrollHeight)');
@@ -219,6 +223,8 @@ ipcMain.handle('bf:imprimir', async (e, { html, larguraMm, impressora }) => {
         await new Promise((r) => setTimeout(r, 1000));
         const agora = await filaImpressora(nome);
         if (!agora || agora.total === 0) return;
+        // O Windows marca "Erro" logo que a impressora não responde (desligada, sem cabo, está em outro computador)
+        if (agora.erros > 0) break;
       }
       // Tira o cupom parado: quando a impressora voltar, não sai uma pilha de contas antigas
       await limparFila(nome);
@@ -234,11 +240,11 @@ const IMPRESSORA_PARADA = 'A impressora não está imprimindo: confira se está 
 /** Trabalhos na fila da impressora do Windows: total e parados há mais de 30 s. null = não deu para ver. */
 function filaImpressora(nome) {
   const n = nome.replace(/'/g, "''");
-  const cmd = `$j = @(Get-PrintJob -PrinterName '${n}' -ErrorAction Stop | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' }); $p = @($j | Where-Object { $_.SubmittedTime -lt (Get-Date).AddSeconds(-30) }); "$($j.Count) $($p.Count)"`;
+  const cmd = `$j = @(Get-PrintJob -PrinterName '${n}' -ErrorAction Stop | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' }); $p = @($j | Where-Object { $_.SubmittedTime -lt (Get-Date).AddSeconds(-30) }); $e = @($j | Where-Object { [string]$_.JobStatus -match 'Error|Offline|Paused|PaperOut|UserIntervention|Blocked' }); "$($j.Count) $($p.Count) $($e.Count)"`;
   return new Promise((ok) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd], { windowsHide: true, timeout: 10000 }, (erro, saida) => {
-      const m = /(\d+)\s+(\d+)/.exec(String(saida || ''));
-      ok(erro || !m ? null : { total: Number(m[1]), parados: Number(m[2]) });
+      const m = /(\d+)\s+(\d+)\s+(\d+)/.exec(String(saida || ''));
+      ok(erro || !m ? null : { total: Number(m[1]), parados: Number(m[2]), erros: Number(m[3]) });
     });
   });
 }

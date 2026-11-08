@@ -17,7 +17,7 @@ import { BalaoSuporte, useCaixaSuporte } from '../../componentes/ChatSuporte';
 import { linkAssinar } from '../../config/site';
 import { dataBR, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { useToast } from '../../componentes/Toast';
-import { descreverAparelho } from '../../lib/dispositivo';
+import { descreverAparelho, idDispositivo } from '../../lib/dispositivo';
 import {
   EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirContaConfirmada, imprimirPedido, imprimirTeste,
   lerConfigImpressao, programaDesktop,
@@ -311,23 +311,32 @@ export default function Painel() {
     const aparelho = descreverAparelho();
     const desktop = !!programaDesktop();
     if (!desktop && /iPhone|iPad|Android/.test(aparelho)) return;
-    const nomeAparelho = desktop ? 'Programa do caixa (Windows)' : `${aparelho} (navegador)`;
-    type Item = { id: string; mesa_id: string | null; criado_em: string; pego_em?: string | null };
+    // Nome que o garçom vê ("Programa do Windows · NOTEBOOK-CAIXA"): o programa novo informa o nome do computador
+    let nomeAparelho = desktop ? 'Programa do Windows' : `${aparelho} (navegador)`;
+    void (programaDesktop() as { computador?: () => Promise<string> } | undefined)?.computador?.()
+      .then((n) => { if (n) nomeAparelho += ` · ${n}`; }).catch(() => undefined);
+    // Identidade deste computador: se a impressora dele falhar, a conta passa para outro e ele não pega de novo
+    const eu = idDispositivo();
+    const CHAVE_FALHA = 'bf:impressao:falhou-em';
+    type Item = { id: string; mesa_id: string | null; criado_em: string; pego_em?: string | null; impresso_em?: string | null; falharam?: string[] | null };
     const emAndamento = new Set<string>();
+    const livre = (i: Item) => !i.impresso_em && !(i.falharam ?? []).includes(eu) && !(i.pego_em && Date.now() - new Date(i.pego_em).getTime() < 40000);
     const atender = async (item: Item) => {
-      if (!item.mesa_id || emAndamento.has(item.id)) return;
+      if (!item.mesa_id || emAndamento.has(item.id) || !livre(item)) return;
       if (Date.now() - new Date(item.criado_em).getTime() > 5 * 60000) return;
       emAndamento.add(item.id);
       try {
-        // Qualquer painel aberto no computador imprime a conta pedida pelo garçom. Preferência: programa do Windows
+        // Qualquer computador aberto imprime a conta pedida pelo garçom. Preferência: programa do Windows
         // com impressão automática, depois programa, depois navegador com automática, depois navegador.
-        const espera = (desktop ? 0 : 2500) + (cfgImpRef.current.auto ? 0 : 1500);
+        // Computador cuja impressora falhou nas últimas horas espera mais: o que tem impressora pega primeiro.
+        const falhouHaPouco = Date.now() - ls.ler<number>(CHAVE_FALHA, 0) < 12 * 3600e3;
+        const espera = (desktop ? 0 : 2500) + (cfgImpRef.current.auto ? 0 : 1500) + (falhouHaPouco ? 5000 : 0);
         if (espera) {
           await new Promise((ok) => setTimeout(ok, espera));
-          const { data: f } = await supabase.from('fila_impressao').select('impresso_em, pego_em, erro').eq('id', item.id).maybeSingle();
-          if (!f || f.impresso_em || f.erro || (f.pego_em && Date.now() - new Date(f.pego_em).getTime() < 40000)) return; // outro computador já pegou
+          const { data: f } = await supabase.from('fila_impressao').select('id, mesa_id, criado_em, impresso_em, pego_em, falharam').eq('id', item.id).maybeSingle();
+          if (!f || !livre(f as Item)) return; // outro computador já pegou
         }
-        const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id, p_aparelho: nomeAparelho });
+        const { data: pegou } = await supabase.rpc('impressao_reivindicar', { p_id: item.id, p_aparelho: nomeAparelho, p_dispositivo: eu });
         if (!pegou) return; // outro computador já pegou
         const [{ data: mesa }, { data: peds }] = await Promise.all([
           supabase.from('mesas').select('nome, conta_parcial').eq('id', item.mesa_id).single(),
@@ -342,26 +351,29 @@ export default function Painel() {
         } catch (e) {
           erro = e instanceof Error ? e.message : 'Erro ao imprimir';
         }
-        // Só agora conta como impressa (ou o erro volta para o garçom ver na hora)
-        await supabase.rpc('impressao_concluir', { p_id: item.id, p_erro: erro });
-        if (erro) toast(`A conta da ${mesa?.nome ?? 'mesa'} não imprimiu: ${erro}`, 'erro');
+        // Só agora conta como impressa. Se falhou aqui, a conta volta para a fila e outro computador imprime.
+        await supabase.rpc('impressao_concluir', { p_id: item.id, p_erro: erro, p_dispositivo: eu });
+        if (erro) {
+          ls.gravar(CHAVE_FALHA, Date.now());
+          toast(`A conta da ${mesa?.nome ?? 'mesa'} não imprimiu neste computador (${erro}). Passando para outro computador do caixa.`, 'erro');
+        } else ls.gravar(CHAVE_FALHA, 0);
       } finally {
         emAndamento.delete(item.id);
       }
     };
     // Pendentes (também cobre o aviso em tempo real que se perdeu: aba parada, internet que caiu)
     const conferir = () => {
-      void supabase.from('fila_impressao').select('id, mesa_id, criado_em, pego_em').eq('restaurante_id', rest)
-        .is('impresso_em', null).is('erro', null).gte('criado_em', new Date(Date.now() - 5 * 60000).toISOString())
-        .then(({ data }) => ((data ?? []) as Item[]).forEach((i) => {
-          if (i.pego_em && Date.now() - new Date(i.pego_em).getTime() < 40000) return;
-          void atender(i);
-        }));
+      void supabase.from('fila_impressao').select('id, mesa_id, criado_em, impresso_em, pego_em, falharam').eq('restaurante_id', rest)
+        .is('impresso_em', null).gte('criado_em', new Date(Date.now() - 5 * 60000).toISOString())
+        .then(({ data }) => ((data ?? []) as Item[]).forEach((i) => void atender(i)));
     };
     conferir();
     const canal = supabase
       .channel(`fila-${rest}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fila_impressao', filter: `restaurante_id=eq.${rest}` },
+        (payload) => void atender(payload.new as Item))
+      // Outro computador falhou e soltou a conta: este tenta na hora
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fila_impressao', filter: `restaurante_id=eq.${rest}` },
         (payload) => void atender(payload.new as Item))
       .subscribe((st) => { if (st === 'SUBSCRIBED') conferir(); });
     const intervalo = setInterval(conferir, 10000);

@@ -5,6 +5,7 @@
 const { app, BrowserWindow, Tray, Menu, shell, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { execFile } = require('child_process');
 
 // Endereço que o programa abre (troca para o domínio próprio quando ele estiver no ar)
 const SITE = 'https://basilfiery.com.br';
@@ -185,6 +186,16 @@ ipcMain.handle('bf:imprimir', async (e, { html, larguraMm, impressora }) => {
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   try {
+    // Impressora de verdade (a escolhida ou a padrão do Windows), para conferir a fila dela
+    const lista = await janela.webContents.getPrintersAsync().catch(() => []);
+    const nome = impressora || (lista.find((p) => p.isDefault) || {}).name || '';
+    if (impressora && lista.length && !lista.some((p) => p.name === impressora)) {
+      throw new Error(`A impressora "${impressora}" não está instalada neste computador`);
+    }
+    // Fila travada (cupom parado há mais de 30 s): a impressora não está imprimindo
+    const antes = nome ? await filaImpressora(nome) : null;
+    if (antes && antes.parados > 0) throw new Error(IMPRESSORA_PARADA);
+
     await w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(String(html))}`);
     const alturaPx = await w.webContents.executeJavaScript('Math.ceil(document.documentElement.scrollHeight)');
     const alturaMicrons = Math.max(Math.ceil((alturaPx * 25400) / 96) + 6000, 60000);
@@ -200,10 +211,46 @@ ipcMain.handle('bf:imprimir', async (e, { html, larguraMm, impressora }) => {
         (sucesso, motivo) => (sucesso ? ok() : falhou(new Error(motivo || 'Falha ao imprimir'))),
       );
     });
+
+    // O Windows diz "ok" só por pôr na fila, mesmo com a impressora desligada.
+    // Confere se o cupom saiu da fila (a térmica leva 1 a 3 s); se ficar parado, é erro de verdade.
+    if (nome && antes) {
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const agora = await filaImpressora(nome);
+        if (!agora || agora.total === 0) return;
+      }
+      // Tira o cupom parado: quando a impressora voltar, não sai uma pilha de contas antigas
+      await limparFila(nome);
+      throw new Error(IMPRESSORA_PARADA);
+    }
   } finally {
     w.destroy();
   }
 });
+
+const IMPRESSORA_PARADA = 'A impressora não está imprimindo: confira se está ligada, com o cabo conectado e com papel';
+
+/** Trabalhos na fila da impressora do Windows: total e parados há mais de 30 s. null = não deu para ver. */
+function filaImpressora(nome) {
+  const n = nome.replace(/'/g, "''");
+  const cmd = `$j = @(Get-PrintJob -PrinterName '${n}' -ErrorAction Stop | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' }); $p = @($j | Where-Object { $_.SubmittedTime -lt (Get-Date).AddSeconds(-30) }); "$($j.Count) $($p.Count)"`;
+  return new Promise((ok) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd], { windowsHide: true, timeout: 10000 }, (erro, saida) => {
+      const m = /(\d+)\s+(\d+)/.exec(String(saida || ''));
+      ok(erro || !m ? null : { total: Number(m[1]), parados: Number(m[2]) });
+    });
+  });
+}
+
+/** Apaga da fila os cupons que não saíram (só os deste usuário; não precisa de administrador). */
+function limparFila(nome) {
+  const n = nome.replace(/'/g, "''");
+  const cmd = `Get-PrintJob -PrinterName '${n}' -ErrorAction SilentlyContinue | Where-Object { [string]$_.JobStatus -notmatch 'Printed|Complete|Deleted' } | ForEach-Object { Remove-PrintJob -InputObject $_ -ErrorAction SilentlyContinue }`;
+  return new Promise((ok) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd], { windowsHide: true, timeout: 10000 }, () => ok());
+  });
+}
 
 app.on('before-quit', () => { saindo = true; });
 app.on('window-all-closed', () => { /* continua na bandeja */ });

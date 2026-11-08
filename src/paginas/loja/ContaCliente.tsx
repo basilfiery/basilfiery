@@ -239,13 +239,16 @@ function Entrada3D({ nome, logo, cor, children }: { nome: string; logo: string |
           <div className="e3d__palco">
             <div className="e3d__anel" />
             {ITENS_3D.map((it, i) => (
-              <span key={i} className="e3d__item" style={{ '--x': `${it.x}px`, '--y': `${it.y}px`, '--z': `${it.z}px`, '--s': it.s, '--d': `${it.d}s`, '--b': `${Math.max(0, -it.z) / 90}px` } as CSSProperties}>
+              <span key={i} className={it.z < 0 ? "e3d__item e3d__item--longe" : "e3d__item"} style={{ '--x': `${it.x}px`, '--y': `${it.y}px`, '--z': `${it.z}px`, '--s': it.s, '--d': `${it.d}s`, '--b': `${Math.max(0, -it.z) / 90}px` } as CSSProperties}>
                 <i>{it.e}</i>
               </span>
             ))}
             <div className="e3d__logo">
-              {logo ? <img src={logo} alt="" /> : <span>{nome.charAt(0)}</span>}
-              <i className="e3d__brilho" />
+              {/* Recorte próprio: no iPhone o canto arredondado não recortava o brilho dentro do 3D */}
+              <span className="e3d__recorte">
+                {logo ? <img src={logo} alt="" /> : <span>{nome.charAt(0)}</span>}
+                <i className="e3d__brilho" />
+              </span>
             </div>
           </div>
         </div>

@@ -24,7 +24,7 @@ import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { calcularAdicionais, chaveEscolhas, gruposDoProduto, regraGrupo, type Escolha, type GrupoAdicionalMesa, type OpcaoAdicional, type RegrasProduto } from '../../lib/adicionais';
 import { JogoMemoria } from './JogoMemoria';
 import { telefoneFormatado } from '../loja/ContaCliente';
-import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
+import { dicaArrastar, manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
 import { bumpsVistos, escolherBump, juntarBump, marcarBumpVisto, soltarBumpsSozinhos, type BumpCardapio, type EscopoBump, type ExtraBump, type OfertaBump, type SugestoesBump } from '../../lib/orderBump';
 import { CorpoOrderBump } from '../../componentes/OrderBump';
 import '../../estilos/mesa.css';
@@ -200,7 +200,7 @@ export default function Mesa() {
   const listaRef = useRef<HTMLDivElement>(null);
   // Lembra a subcategoria e a posição de cada categoria (voltar não recomeça do topo)
   const { catAtiva, subAtiva, escolherCategoria: irCategoria, abrirSub, zerar: zerarNavegacao, atual: navAtual } = useNavegacaoCardapio(listaRef);
-  const catsRef = useRef<HTMLElement>(null);
+  const catsRef = useRef<HTMLElement | null>(null);
   useAlturaTela();
   const cancelados = useAvisosCancelamento(token, dispositivo, acesso === 'liberado' || acesso === 'equipe');
   // "Adicionar à tela de início" guarda esta mesa (e não o painel do sistema)
@@ -664,7 +664,7 @@ export default function Mesa() {
       <CapaCardapio imagem={restaurante.capa_url} video={restaurante.capa_video_url} />
 
       <div className="mesa__corpo">
-        <nav className="mesa__cats" aria-label="Categorias" ref={catsRef}>
+        <nav className="mesa__cats" aria-label="Categorias" ref={(el) => { catsRef.current = el; if (el && !el.dataset.dica) { el.dataset.dica = '1'; dicaArrastar(el, 1500); } }}>
           {/* Só as categorias; as subcategorias aparecem como abas no conteúdo */}
           {secoes.map((c) => (
             <Fragment key={c.id}>

@@ -351,7 +351,7 @@
 }
 .e3d__item i {
   display: block; width: 80px; margin: -40px 0 0 -40px; font-size: calc(52px * var(--s)); font-style: normal; line-height: 80px; text-align: center;
-  filter: drop-shadow(0 14px 14px rgba(0, 0, 0, .55)) blur(var(--b));
+  text-shadow: 0 14px 14px rgba(0, 0, 0, .55);
   animation: e3d-flutua 5.5s ease-in-out infinite; animation-delay: var(--d);
 }
 @keyframes e3d-flutua {
@@ -440,3 +440,12 @@ img.loja-conta-btn__inicial { object-fit: cover; }
   background: var(--surface-2); color: var(--muted); font: inherit; font-size: .85rem; font-weight: 800; cursor: pointer; transition: background .15s, color .15s, border-color .15s;
 }
 .loja-numero__sn.ativo { background: var(--acento); border-color: var(--acento); color: #fff; }
+
+/* iPhone: sombra por filtro dentro do 3D desenhava linhas pretas; o desfoque fica só nos itens do fundo */
+.e3d__item--longe i { filter: blur(var(--b)); }
+.e3d__logo { overflow: visible; }
+.e3d__recorte {
+  position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit; overflow: hidden;
+  -webkit-mask-image: -webkit-radial-gradient(white, black); isolation: isolate;
+}
+.e3d__recorte img { width: 100%; height: 100%; object-fit: cover; }

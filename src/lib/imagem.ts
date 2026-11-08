@@ -8,12 +8,13 @@ const RENDER = '/storage/v1/render/image/public/';
 
 /**
  * Foto do armazenamento no tamanho certo para a tela (o servidor reduz e entrega em WebP).
+ * resize=contain: só reduz, sem cortar (sem ele o servidor mantém a altura original e corta = foto com zoom).
  * Foto do card: ~30 KB em vez de ~300 KB. SVG, GIF e links de outros sites ficam como estão.
  */
 export function imgTam(url: string | null | undefined, largura: number): string {
   if (!url) return '';
   if (!url.includes(PUBLICO) || /\.(svg|gif)(\?|$)/i.test(url)) return url;
-  return `${url.replace(PUBLICO, RENDER)}${url.includes('?') ? '&' : '?'}width=${largura}&quality=75`;
+  return `${url.replace(PUBLICO, RENDER)}${url.includes('?') ? '&' : '?'}width=${largura}&quality=75&resize=contain`;
 }
 
 const jaPedidas = new Set<string>();

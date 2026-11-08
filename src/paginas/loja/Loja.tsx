@@ -21,7 +21,7 @@ import { fraseCancelamento } from '../../lib/cancelamento';
 import { useCardapioAoVivo } from '../../lib/cardapioAoVivo';
 import { buscarEndereco, distanciaKm, minhaLocalizacao, taxaPorRaio, type FaixaRaio, type Ponto } from '../../lib/mapa';
 import '../../estilos/mesa.css';
-import { manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
+import { centralizarNaBarra, dicaArrastar, manterAbaVisivel, useNavegacaoCardapio } from '../../lib/navegacaoCardapio';
 import '../../estilos/loja.css';
 import { imgTam, usePreCarregarFotos } from '../../lib/imagem';
 
@@ -488,9 +488,9 @@ export default function LojaCardapio() {
       <>
       <CapaCardapio imagem={loja.capa_url} video={loja.capa_video_url} />
       <div className="mesa__corpo">
-        <nav className="mesa__cats" aria-label="Categorias">
+        <nav className="mesa__cats" aria-label="Categorias" ref={(el) => { if (el && !precisaLogin && !el.dataset.dica) { el.dataset.dica = '1'; dicaArrastar(el, 1200); } }}>
           {secoes.map((c) => (
-            <button key={c.id} className={cx('mesa__cat', secao?.id === c.id && 'ativa')} onClick={() => escolher(c.id)}>
+            <button key={c.id} className={cx('mesa__cat', secao?.id === c.id && 'ativa')} onClick={(e) => { escolher(c.id); centralizarNaBarra(e.currentTarget); }}>
               <span className="mesa__cat-emoji" aria-hidden="true">{c.id === DESTAQUES ? <Star size={18} fill="currentColor" /> : c.emoji}</span>
               <span className="mesa__cat-nome">{c.nome}</span>
               <span className="mesa__cat-qtd">{c.total}</span>

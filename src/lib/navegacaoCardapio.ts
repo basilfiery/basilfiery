@@ -7,6 +7,8 @@ import { useCallback, useRef, useState, type RefObject } from 'react';
  */
 export function manterAbaVisivel(barra: HTMLElement | null, abaAtual: string) {
   if (!barra || barra.dataset.ativa === abaAtual) return;
+  // Barra acabou de aparecer (abriu a categoria): mostra que dá para arrastar para o lado
+  if (barra.dataset.ativa === undefined) dicaArrastar(barra, 500);
   barra.dataset.ativa = abaAtual;
   requestAnimationFrame(() => {
     const aba = barra.querySelector<HTMLElement>('.mesa__aba.ativa');
@@ -17,6 +19,50 @@ export function manterAbaVisivel(barra: HTMLElement | null, abaAtual: string) {
     if (ini < barra.scrollLeft) barra.scrollTo({ left: Math.max(0, ini - 16), behavior: 'smooth' });
     else if (fim > barra.scrollLeft + barra.clientWidth) barra.scrollTo({ left: fim - barra.clientWidth + 16, behavior: 'smooth' });
   });
+}
+
+/**
+ * Dica de que a barra arrasta para o lado: ela anda um pouco sozinha e volta.
+ * Só acontece se tiver coisa escondida à direita e a pessoa ainda não mexeu na barra.
+ */
+export function dicaArrastar(barra: HTMLElement | null, atraso = 600) {
+  if (!barra || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let parou = false;
+  const parar = () => { parou = true; };
+  barra.addEventListener('pointerdown', parar, { once: true });
+  barra.addEventListener('touchstart', parar, { once: true, passive: true });
+  barra.addEventListener('wheel', parar, { once: true, passive: true });
+  window.setTimeout(() => {
+    const sobra = barra.scrollWidth - barra.clientWidth;
+    if (parou || !barra.isConnected || sobra < 24 || barra.scrollLeft > 4) return;
+    const dist = Math.min(90, sobra);
+    const snap = barra.style.scrollSnapType;
+    barra.style.scrollSnapType = 'none';
+    const ida = 420, pausa = 160, volta = 560, ini = performance.now();
+    const suave = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+    const passo = (agora: number) => {
+      const t = agora - ini;
+      if (parou || !barra.isConnected) { barra.style.scrollSnapType = snap; return; }
+      if (t < ida) barra.scrollLeft = dist * suave(t / ida);
+      else if (t < ida + pausa) barra.scrollLeft = dist;
+      else if (t < ida + pausa + volta) barra.scrollLeft = dist * (1 - suave((t - ida - pausa) / volta));
+      else { barra.scrollLeft = 0; barra.style.scrollSnapType = snap; return; }
+      requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+  }, atraso);
+}
+
+/**
+ * Barra de categorias (celular): a categoria tocada vai para o meio da barra, mostrando as próximas.
+ * Se ela já está no lugar (ex.: a primeira), a barra dá a dica de que arrasta.
+ */
+export function centralizarNaBarra(botao: HTMLElement | null) {
+  const barra = botao?.parentElement;
+  if (!botao || !barra || barra.scrollWidth - barra.clientWidth < 8) return;
+  const alvo = Math.max(0, Math.min(barra.scrollWidth - barra.clientWidth, botao.offsetLeft - (barra.clientWidth - botao.offsetWidth) / 2));
+  if (Math.abs(alvo - barra.scrollLeft) > 12) barra.scrollTo({ left: alvo, behavior: 'smooth' });
+  else dicaArrastar(barra, 0);
 }
 
 /**

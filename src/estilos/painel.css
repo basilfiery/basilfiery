@@ -3270,3 +3270,53 @@ button.garcom__chamado:active { transform: scale(.985); }
 
 /* Mesa com parte da conta já paga */
 .mc__valor .mc__pago { margin-top: 2px; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, #f59e0b 16%, transparent); color: color-mix(in srgb, #d97706 78%, var(--text)); font-size: .72rem; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ---------- Entregadores ---------- */
+.badge--frete { display: inline-flex; align-items: center; gap: 4px; background: color-mix(in srgb, #16a34a 16%, transparent); color: color-mix(in srgb, #16a34a 80%, var(--text)); font-weight: 800; }
+.entr-lista li { align-items: center; }
+.entr-status { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 700; color: color-mix(in srgb, #16a34a 80%, var(--text)); }
+.entr-status--rota { color: var(--acento); }
+.entr-receber { flex: none; display: grid; justify-items: end; gap: 2px; min-width: 112px; padding: 8px 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
+.entr-receber small { color: var(--muted); font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.entr-receber strong { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.entr-receber span { color: var(--muted); font-size: .76rem; }
+.entr-receber .btn { margin-top: 4px; }
+.entr-corridas { margin-top: 20px; display: grid; gap: 14px; }
+.entr-corridas__cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.entr-corridas__cab .card__titulo { margin: 0; }
+.entr-corridas__cab .card__titulo small { color: var(--muted); font-weight: 600; margin-left: 6px; font-size: .8rem; }
+.entr-corridas__cab .select { width: auto; min-width: 220px; }
+.entr-tabela td { white-space: nowrap; }
+.entr-bairro { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 760px) {
+  .entr-lista li { flex-wrap: wrap; }
+  .entr-receber { order: 3; flex: 1; justify-items: start; }
+}
+
+/* Pedido de entrega: entregador e frete grátis */
+.dp__entrega { display: grid; gap: 10px; }
+.dp__entrega-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dp__entrega .select { max-width: 220px; }
+.dp__corrida { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); font-size: .9rem; }
+.dp__corrida b { font-variant-numeric: tabular-nums; }
+.dp__frete { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #16a34a 12%, transparent); border: 1px solid color-mix(in srgb, #16a34a 45%, var(--line)); font-size: .88rem; line-height: 1.35; }
+.dp__frete svg { flex: none; margin-top: 1px; color: #16a34a; }
+.cp__frete { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #16a34a; color: #fff; font-size: .68rem; font-weight: 800; vertical-align: middle; }
+.cp__entregador { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: var(--muted); font-size: .78rem; font-weight: 700; }
+.cp__entregador.rota { color: var(--acento); }
+
+/* Configurações › Frete grátis e entregador */
+.cfg-frete { gap: 22px; }
+.cfg-frete__bloco { display: grid; gap: 12px; padding: 18px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); }
+.cfg-frete__bloco h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.05rem; }
+.cfg-frete__bloco > p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+.cfg-frete__bloco .campo, .cfg-frete__bloco label { max-width: 320px; }
+.cfg-dias { display: flex; flex-wrap: wrap; gap: 8px; }
+.cfg-dia {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.cfg-dia:hover { border-color: color-mix(in srgb, #16a34a 50%, var(--line)); }
+.cfg-dia.ativo { background: #16a34a; border-color: #16a34a; color: #fff; box-shadow: 0 6px 16px -8px rgba(22, 163, 74, .8); }
+.cfg-corrida { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }

@@ -25,7 +25,7 @@ function base64UrlParaBytes(b64: string) {
 
 /** Pede permissão, inscreve este aparelho e liga ao restaurante. */
 /** app 'dono': o celular do dono recebe só as vendas, e o toque abre o app do dono. */
-export async function ativarPush(restauranteId: string, app: 'garcom' | 'dono' = 'garcom') {
+export async function ativarPush(restauranteId: string, app: 'garcom' | 'dono' | 'entregador' = 'garcom') {
   const estado = await estadoPush();
   if (estado === 'precisa-instalar') {
     throw new Error('No iPhone/iPad: toque em Compartilhar → "Adicionar à Tela de Início", abra o app por lá e ative de novo.');

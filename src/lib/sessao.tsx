@@ -109,7 +109,7 @@ export function useSessao() {
 /** Para onde mandar a pessoa depois do login, de acordo com o cargo. */
 export function destinoInicial(s: Sessao): string {
   if (!s.restaurante) return s.ehAdmin ? '/plataforma' : '/painel';
-  return s.restaurante.papel === 'garcom' ? '/garcom' : '/painel';
+  return s.restaurante.papel === 'garcom' ? '/garcom' : s.restaurante.papel === 'entregador' ? '/appentregador' : '/painel';
 }
 
 export function ExigeLogin({ children }: { children: ReactNode }) {

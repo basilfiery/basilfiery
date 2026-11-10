@@ -1,5 +1,5 @@
 import type { ContaParcial } from './contaParcial';
-export type Papel = 'dono' | 'gerente' | 'caixa' | 'garcom';
+export type Papel = 'dono' | 'gerente' | 'caixa' | 'garcom' | 'entregador';
 export type StatusPedido = 'novo' | 'preparando' | 'pronto' | 'entregue' | 'cancelado';
 
 /** Marca no topo do menu do sistema: BasilFiery, logo + nome próprios, ou só uma imagem larga (16:9) */
@@ -77,6 +77,12 @@ export interface Restaurante {
   /** Taxa de entrega: fixa, por distância (raio) ou por bairro */
   entrega_modo?: 'fixa' | 'raio' | 'bairro';
   entrega_raios?: { ate_km: number; taxa: number }[];
+  /** Frete grátis nestes dias da semana (0 = domingo … 6 = sábado) */
+  frete_gratis_dias?: number[];
+  /** Pedido mínimo (itens) para ganhar o frete grátis */
+  frete_gratis_minimo?: number;
+  /** Corrida do entregador: valor fixo por entrega (null = a taxa de entrega normal) */
+  corrida_fixa?: number | null;
   entrega_bairros?: { nome: string; taxa: number; lat?: number; lng?: number }[];
   lat?: number | null;
   lng?: number | null;
@@ -249,6 +255,18 @@ export interface Pedido {
   forma_pagamento: 'dinheiro' | 'pix' | 'credito' | 'debito' | null;
   troco_para: number | null;
   taxa_entrega: number;
+  /** Entregador (motoboy) que pegou a entrega */
+  entregador_id?: string | null;
+  entregador_nome?: string | null;
+  /** Saiu para entrega / entregue ao cliente */
+  saiu_em?: string | null;
+  entregue_em?: string | null;
+  /** Promoção: o cliente não pagou a entrega (a corrida do entregador continua valendo) */
+  frete_gratis?: boolean;
+  /** Valor da corrida que o entregador recebe */
+  taxa_entregador?: number | null;
+  /** Corrida já acertada (paga) com o entregador */
+  entregador_pago_em?: string | null;
   pedido_itens: PedidoItem[];
 }
 

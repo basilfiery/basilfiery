@@ -72,17 +72,31 @@ Deno.serve(async (req) => {
       tag: p.tag,
       url: '/dono',
     });
+    // App do entregador: só entregas (pedido novo de entrega e entrega pronta para sair)
+    const mensagemEntregador = JSON.stringify({
+      titulo: p.evento === 'pronto' ? p.titulo.replace(/^Pedido/, 'Entrega') : `Nova entrega #${String(p.titulo).match(/#(\d+)/)?.[1] ?? ''}`,
+      corpo: p.evento === 'pronto' ? p.corpo : 'Já está em preparo. Toque para ver o endereço.',
+      tag: p.tag,
+      url: '/appentregador',
+    });
     let enviados = 0;
     await Promise.all(inscricoes.map(async (s) => {
       const doDono = s.app === 'dono';
-      // App do dono (celular): pedido novo e venda. O app da equipe: o resto (pedido, pronto, chamados)
-      if (doDono && p.evento !== 'venda' && p.evento !== 'pedido') return;
-      // Venda (conta paga) só interessa ao dono
-      if (!doDono && p.evento === 'venda') return;
+      const doEntregador = s.app === 'entregador';
+      if (doEntregador) {
+        if (p.tipo !== 'delivery' || (p.evento !== 'pedido' && p.evento !== 'pronto')) return;
+        // Entrega que já é de outro entregador: não avisa os demais
+        if (p.entregador_id && p.entregador_id !== s.user_id) return;
+      } else {
+        // App do dono (celular): pedido novo e venda. O app da equipe: o resto (pedido, pronto, chamados)
+        if (doDono && p.evento !== 'venda' && p.evento !== 'pedido') return;
+        // Venda (conta paga) só interessa ao dono
+        if (!doDono && p.evento === 'venda') return;
+      }
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          doDono ? mensagemDono : mensagem,
+          doEntregador ? mensagemEntregador : doDono ? mensagemDono : mensagem,
           { TTL: 600, urgency: 'high' },
         );
         enviados++;

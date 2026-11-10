@@ -14,7 +14,7 @@ const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const PAPEIS = ['dono', 'gerente', 'caixa', 'garcom'] as const;
+const PAPEIS = ['dono', 'gerente', 'caixa', 'garcom', 'entregador'] as const;
 type Papel = typeof PAPEIS[number];
 
 class Falha extends Error {

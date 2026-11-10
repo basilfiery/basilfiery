@@ -22,6 +22,7 @@ const PASSOS: Passo[] = [
   { id: 'formas', rotulo: 'Formas de entrega', dica: 'Como o cliente pode receber o pedido' },
   { id: 'minimo', rotulo: 'Pedido mínimo', dica: 'Valor mínimo dos itens para pedir pelo cardápio digital' },
   { id: 'taxa', rotulo: 'Taxa de entrega', dica: 'Valor cobrado pela entrega' },
+  { id: 'frete', rotulo: 'Frete grátis e entregador', dica: 'Dias com entrega grátis para o cliente e quanto o entregador recebe por corrida' },
   { id: 'pagamento', rotulo: 'Pagamento na entrega', dica: 'Formas de pagamento que o cliente pode escolher' },
 ];
 
@@ -114,6 +115,10 @@ export default function Estabelecimento() {
     raios: (r.entrega_raios?.length ? r.entrega_raios : [{ ate_km: 3, taxa: 5 }, { ate_km: 6, taxa: 8 }]).map((x) => ({ km: String(x.ate_km).replace('.', ','), taxa: precoParaTexto(Number(x.taxa)) })),
     bairros: (r.entrega_bairros ?? []).map((x) => ({ nome: x.nome, taxa: precoParaTexto(Number(x.taxa)), lat: x.lat, lng: x.lng })),
     lat: r.lat ?? null as number | null, lng: r.lng ?? null as number | null,
+    frete_dias: [...(r.frete_gratis_dias ?? [])].map(Number).sort() as number[],
+    frete_minimo: precoParaTexto(Number(r.frete_gratis_minimo ?? 0)),
+    corrida_modo: (r.corrida_fixa != null ? 'fixa' : 'taxa') as 'taxa' | 'fixa',
+    corrida: r.corrida_fixa != null ? precoParaTexto(Number(r.corrida_fixa)) : '',
   });
   const [base, setBase] = useState(inicial);
   const [f, setF] = useState(base);
@@ -208,6 +213,10 @@ export default function Estabelecimento() {
     if (f.modo === 'bairro' && !bairros.length) return erro('Cadastre pelo menos um bairro com a taxa.', 'taxa');
     if (f.modo === 'bairro' && bairros.some((x) => !Number.isFinite(x.taxa) || x.taxa < 0)) return erro('Confira a taxa dos bairros.', 'taxa');
     if (!f.formas.length) return erro('Escolha pelo menos uma forma de pagamento.', 'pagamento');
+    const freteMinimo = f.frete_minimo.trim() ? lerPreco(f.frete_minimo) : 0;
+    if (!Number.isFinite(freteMinimo) || freteMinimo < 0) return erro('Pedido mínimo do frete grátis inválido. Ex.: 30,00', 'frete');
+    const corrida = f.corrida_modo === 'fixa' ? lerPreco(f.corrida) : null;
+    if (corrida !== null && (!Number.isFinite(corrida) || corrida < 0 || corrida > 500)) return erro('Valor da corrida inválido. Ex.: 7,00', 'frete');
     for (const h of f.horarios) if (h.aberto && (!h.de || !h.ate)) return erro('Preencha os horários dos dias abertos.', 'horarios');
     if (f.mapa_url.trim() && !/^https:\/\/\S+$/i.test(f.mapa_url.trim())) return erro('Cole o link do mapa completo (começa com https://).', 'endereco');
 
@@ -228,6 +237,7 @@ export default function Estabelecimento() {
         delivery_tempo: `${de} a ${ate} min`, entrega_ativa: f.entrega_ativa, retirada_ativa: f.retirada_ativa,
         delivery_minimo: minimo, delivery_taxa: taxa, formas_pagamento: f.formas,
         entrega_modo: f.modo, entrega_raios: raios, entrega_bairros: bairros, lat: f.lat, lng: f.lng,
+        frete_gratis_dias: f.frete_dias, frete_gratis_minimo: freteMinimo, corrida_fixa: corrida,
       }).eq('id', r.id),
       mudou(d, dadosBase)
         ? supabase.from('restaurante_dados').upsert({
@@ -414,6 +424,47 @@ export default function Estabelecimento() {
       )}
 
       {passo.id === 'taxa' && <TaxaEntrega f={f} setF={setF} enderecoTexto={[f.end.rua, f.end.numero, f.end.bairro, f.end.cidade, f.end.uf].filter(Boolean).join(', ') || r.endereco || ''} />}
+
+      {passo.id === 'frete' && (
+        <div className="form cfg-frete">
+          <section className="cfg-frete__bloco">
+            <h3>Frete grátis</h3>
+            <p>Nos dias marcados o cliente <b>não paga a entrega</b>. O cardápio digital mostra a promoção em destaque, e o pedido chega no sistema com “Frete grátis”.</p>
+            <div className="cfg-dias" role="group" aria-label="Dias com frete grátis">
+              {DIAS.map((d, i) => {
+                const ligado = f.frete_dias.includes(i);
+                return (
+                  <button key={d} type="button" aria-pressed={ligado} className={cx('cfg-dia', ligado && 'ativo')}
+                    onClick={() => set('frete_dias', ligado ? f.frete_dias.filter((x) => x !== i) : [...f.frete_dias, i].sort())}>
+                    {ligado && <Check size={14} strokeWidth={3} />} {d}
+                  </button>
+                );
+              })}
+            </div>
+            <CampoAjuda rotulo="Pedido mínimo para ganhar o frete grátis (R$)" ajuda="0,00 = vale para qualquer pedido. A conta é só dos itens.">
+              <span className="input-icone"><b>R$</b><input className="input" inputMode="decimal" value={f.frete_minimo} onChange={(e) => set('frete_minimo', mascaraPreco(e.target.value))} /></span>
+            </CampoAjuda>
+            <p className="cfg-nota"><span>{f.frete_dias.length ? <>Frete grátis toda <b>{f.frete_dias.map((i) => DIAS[i].toLowerCase()).join(', ')}</b>.</> : 'Nenhum dia marcado: o frete é cobrado normalmente.'}</span></p>
+          </section>
+          <section className="cfg-frete__bloco">
+            <h3><Bike size={18} /> Corrida do entregador</h3>
+            <p>Quanto o entregador recebe por entrega. Vale também no frete grátis: o cliente não paga, mas o entregador recebe a corrida e confere no app dele.</p>
+            <div className="cfg-corrida" role="radiogroup" aria-label="Valor da corrida">
+              <button type="button" role="radio" aria-checked={f.corrida_modo === 'taxa'} className={cx('cfg-forma', f.corrida_modo === 'taxa' && 'ativo')} onClick={() => set('corrida_modo', 'taxa')}>
+                <span>Igual à taxa de entrega</span><i className="cfg-forma__marca">{f.corrida_modo === 'taxa' && <Check size={14} strokeWidth={3} />}</i>
+              </button>
+              <button type="button" role="radio" aria-checked={f.corrida_modo === 'fixa'} className={cx('cfg-forma', f.corrida_modo === 'fixa' && 'ativo')} onClick={() => set('corrida_modo', 'fixa')}>
+                <span>Valor fixo por entrega</span><i className="cfg-forma__marca">{f.corrida_modo === 'fixa' && <Check size={14} strokeWidth={3} />}</i>
+              </button>
+            </div>
+            {f.corrida_modo === 'fixa' && (
+              <CampoAjuda rotulo="Valor de cada corrida (R$)">
+                <span className="input-icone"><b>R$</b><input className="input" inputMode="decimal" placeholder="7,00" value={f.corrida} onChange={(e) => set('corrida', mascaraPreco(e.target.value))} autoFocus /></span>
+              </CampoAjuda>
+            )}
+          </section>
+        </div>
+      )}
 
       {passo.id === 'pagamento' && (
         <div className="cfg-formas">

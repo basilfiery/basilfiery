@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Ban, Bike, Check, FileText, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MapPin, MessageCircle, MoreVertical, Plus, Printer, SlidersHorizontal, Store, UtensilsCrossed, Wallet, X, ShoppingBasket,
+  Ban, Bike, Check, FileText, Gift, ChefHat, ClipboardList, Clock, ConciergeBell, ExternalLink, Eye, GlassWater, LayoutGrid, List, MapPin, MessageCircle, MoreVertical, Plus, Printer, SlidersHorizontal, Store, UtensilsCrossed, Wallet, X, ShoppingBasket,
 } from 'lucide-react';
 import { FotoProduto, Switch, Vazio } from '../../componentes/Basicos';
 import { Carregando } from '../../componentes/Carregando';
@@ -9,7 +9,7 @@ import { Suspenso } from '../../componentes/Suspenso';
 import { useToast } from '../../componentes/Toast';
 import { imprimirPedido } from '../../lib/impressao';
 import { msgErro, supabase } from '../../lib/supabase';
-import type { FormaPagamento, Mesa, Pedido, StatusPedido } from '../../lib/tipos';
+import type { FormaPagamento, Membro, Mesa, Pedido, StatusPedido } from '../../lib/tipos';
 import { SeletorPagamento } from '../../componentes/Pagamento';
 import { STATUS_ROTULO, brl, cx, hora, minutosDesde, ordenarNome, podeCaixa, tempoDesde, useAgora } from '../../lib/util';
 import { usePainel } from './Painel';
@@ -58,7 +58,7 @@ function acaoPrincipal(p: Pedido) {
         ? { rotulo: 'Aceitar', longo: 'Aceitar e servir', proximo: 'pronto' as const, classe: 'btn--primario', icone: null }
         : { rotulo: 'Aceitar', longo: 'Aceitar pedido', proximo: 'preparando' as const, classe: 'btn--primario', icone: null };
     case 'preparando': return { rotulo: 'Marcar pronto', longo: 'Marcar como pronto', proximo: 'pronto' as const, classe: 'btn--pronto', icone: <Check size={16} /> };
-    case 'pronto': return { rotulo: 'Marcar entregue', longo: 'Entregue na mesa', proximo: 'entregue' as const, classe: 'btn--entregar', icone: <ConciergeBell size={16} /> };
+    case 'pronto': return { rotulo: 'Marcar entregue', longo: p.tipo === 'delivery' ? 'Entregue ao cliente' : p.tipo === 'mesa' ? 'Entregue na mesa' : 'Marcar como entregue', proximo: 'entregue' as const, classe: 'btn--entregar', icone: <ConciergeBell size={16} /> };
     default: return null;
   }
 }
@@ -303,7 +303,7 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
         <span className={cx('cp__tipo', p.tipo !== 'mesa' && 'cp__tipo--casa')}>{iconeTipo(p, 13)} {ROTULO_TIPO[p.tipo ?? 'mesa']}</span>
       </header>
       <div className="cp__cliente">
-        {p.tipo && p.tipo !== 'mesa' ? <>{p.cliente_nome || p.mesa_nome}{p.endereco?.bairro && <small className="cp__bairro">{p.endereco.bairro}</small>}</> : p.mesa_nome}
+        {p.tipo && p.tipo !== 'mesa' ? <>{p.cliente_nome || p.mesa_nome}{p.endereco?.bairro && <small className="cp__bairro">{p.endereco.bairro}</small>}{p.frete_gratis && <span className="cp__frete"><Gift size={11} /> Frete grátis</span>}</> : p.mesa_nome}
         {p.precisa_preparo === false && <span className="cp__selo" title="Bebidas ou itens prontos: não passa pela cozinha"><GlassWater size={13} /> Sem preparo</span>}
       </div>
       <ul className="cp__itens">
@@ -313,6 +313,9 @@ function CartaoPedido({ pedido: p, agora, selecionado, aoSelecionar, aoMudar, ao
       </ul>
       {(p.observacao || p.pedido_itens.some((i) => i.obs)) && <div className="cp__obs">Tem observação</div>}
       <div className="cp__total">{brl(p.total)}</div>
+      {p.tipo === 'delivery' && p.status !== 'cancelado' && (
+        <div className={cx('cp__entregador', p.saiu_em && 'rota')}><Bike size={13} /> {p.entregador_nome ? `${p.entregador_nome.split(' ')[0]}${p.entregue_em ? ' entregou' : p.saiu_em ? ' · em rota' : ' · vai levar'}` : 'Sem entregador'}</div>
+      )}
       {p.status === 'preparando' && <div className="cp__info">Em preparo há {tempoDesde(p.atualizado_em, agora)}</div>}
 
       <footer className="cp__acoes">
@@ -351,6 +354,72 @@ function DadosCliente({ p }: { p: Pedido }) {
         <p className="dp__endereco"><MapPin size={15} /> <span>{e.rua}, {e.numero}{e.complemento ? ` · ${e.complemento}` : ''}<br />{e.bairro}{e.distancia_km != null ? ` · ${String(e.distancia_km).replace('.', ',')} km da loja` : ''}{e.referencia ? <><br /><em>Ref.: {e.referencia}</em></> : null}{e.lat != null && <><br /><a href={`https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}`} target="_blank" rel="noopener">Abrir rota no mapa</a></>}</span></p>
       ) : <p className="dp__endereco"><Store size={15} /> <span>{p.tipo === 'balcao' ? 'Venda no balcão (PDV)' : 'Cliente vai retirar no balcão'}</span></p>}
       <p className="dp__endereco"><Wallet size={15} /> <span>{FORMA_ROTULO[p.forma_pagamento ?? ''] ?? '—'} {p.tipo === 'delivery' ? 'na entrega' : p.tipo === 'balcao' ? (p.pago_em ? '· pago no balcão' : 'no balcão') : 'na retirada'}{p.troco_para ? (p.tipo === 'balcao' ? ` · recebido ${brl(Number(p.troco_para))}` : ` · levar troco para ${brl(Number(p.troco_para))}`) : ''}</span></p>
+    </section>
+  );
+}
+
+/** Lista dos entregadores da loja (para escolher quem leva) */
+let cacheEntregadores: { rest: string; lista: Membro[] } | null = null;
+function useEntregadores(restauranteId: string) {
+  const [lista, setLista] = useState<Membro[]>(() => (cacheEntregadores?.rest === restauranteId ? cacheEntregadores.lista : []));
+  useEffect(() => {
+    void supabase.from('membros').select('*').eq('restaurante_id', restauranteId).eq('papel', 'entregador').order('nome')
+      .then(({ data }) => { const l = (data ?? []) as Membro[]; cacheEntregadores = { rest: restauranteId, lista: l }; setLista(l); });
+  }, [restauranteId]);
+  return lista;
+}
+
+/** Entrega: quem leva, corrida do entregador e frete grátis em destaque */
+function DadosEntrega({ p }: { p: Pedido }) {
+  const { restaurante, papel, atualizarPedido } = usePainel();
+  const toast = useToast();
+  const entregadores = useEntregadores(restaurante.id);
+  const [ocupado, setOcupado] = useState(false);
+  const pode = podeCaixa(papel) && p.status !== 'cancelado' && !p.entregue_em;
+
+  async function escolher(id: string) {
+    setOcupado(true);
+    const { error } = await supabase.rpc('entrega_atribuir', { p_pedido: p.id, p_entregador: id || null });
+    setOcupado(false);
+    if (error) return toast(msgErro(error), 'erro');
+    const nome = entregadores.find((m) => m.user_id === id)?.nome ?? null;
+    atualizarPedido(p.id, { entregador_id: id || null, entregador_nome: nome, ...(id ? {} : { saiu_em: null }) });
+    toast(id ? `Pedido #${p.numero} com ${nome}.` : `Pedido #${p.numero} sem entregador.`, 'ok');
+  }
+  async function saiu() {
+    setOcupado(true);
+    const { error } = await supabase.rpc('entrega_saiu', { p_pedido: p.id });
+    setOcupado(false);
+    if (error) return toast(msgErro(error), 'erro');
+    atualizarPedido(p.id, { saiu_em: new Date().toISOString() });
+    toast(`Pedido #${p.numero} saiu para entrega.`, 'ok');
+  }
+
+  return (
+    <section className="dp__entrega">
+      <h3 className="dp__titulo">Entrega</h3>
+      {p.frete_gratis && (
+        <p className="dp__frete"><Gift size={16} /> <span><b>Frete grátis para o cliente</b> (promoção do dia). A corrida do entregador continua valendo.</span></p>
+      )}
+      <div className="dp__entrega-linha">
+        <span>Entregador</span>
+        {pode && entregadores.length > 0 ? (
+          <select className="select" value={p.entregador_id ?? ''} disabled={ocupado} onChange={(e) => void escolher(e.target.value)} aria-label="Entregador">
+            <option value="">Sem entregador</option>
+            {entregadores.map((m) => <option key={m.user_id} value={m.user_id}>{m.nome}</option>)}
+          </select>
+        ) : (
+          <b>{p.entregador_nome ?? (entregadores.length ? 'Ninguém pegou ainda' : 'Cadastre em Entregadores')}</b>
+        )}
+      </div>
+      <div className="dp__entrega-linha">
+        <span>Situação</span>
+        <span className="dp__chip"><Bike size={15} /> {p.entregue_em ? `Entregue às ${hora(p.entregue_em)}` : p.saiu_em ? `Em rota desde ${hora(p.saiu_em)}` : p.entregador_id ? 'Aguardando sair' : 'Aguardando entregador'}</span>
+      </div>
+      {pode && p.entregador_id && !p.saiu_em && (
+        <button className="btn btn--contorno btn--sm" disabled={ocupado} onClick={() => void saiu()}><Bike size={15} /> Marcar que saiu para entrega</button>
+      )}
+      <div className="dp__corrida"><span>Corrida do entregador</span><b>{brl(Number(p.taxa_entregador ?? p.taxa_entrega ?? 0))}{p.entregador_pago_em ? ' · paga' : ''}</b></div>
     </section>
   );
 }
@@ -502,7 +571,9 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
 
             <section className="dp__totais">
               <div><span>Subtotal ({qtdItens} {qtdItens === 1 ? 'item' : 'itens'})</span><span>{brl(subtotal)}</span></div>
-              {Number(p.taxa_entrega) > 0 && <div><span>Taxa de entrega</span><span>{brl(Number(p.taxa_entrega))}</span></div>}
+              {p.frete_gratis
+                ? <div><span>Taxa de entrega</span><span className="badge badge--frete"><Gift size={12} /> Grátis (promoção)</span></div>
+                : Number(p.taxa_entrega) > 0 && <div><span>Taxa de entrega</span><span>{brl(Number(p.taxa_entrega))}</span></div>}
               <div className="dp__total"><span>Total</span><span>{brl(p.total)}</span></div>
             </section>
 
@@ -511,6 +582,7 @@ function PainelDetalhes({ pedido: p, fotos, agora, aoFechar, aoMudar, aoImprimir
               <span className="dp__chip">{iconeTipo(p, 15)} {p.tipo && p.tipo !== 'mesa' ? ROTULO_TIPO[p.tipo] : `Mesa · ${p.mesa_nome}`}</span>
             </section>
             {p.tipo && p.tipo !== 'mesa' && <DadosCliente p={p} />}
+            {p.tipo === 'delivery' && <DadosEntrega p={p} />}
             <section className="dp__linha">
               <span>Preparo</span>
               {p.precisa_preparo === false

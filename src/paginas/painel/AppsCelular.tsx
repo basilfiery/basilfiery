@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BarChart3, Download, MessageCircle, Share, ShoppingCart, Smartphone, SquarePlus, UserRound } from 'lucide-react';
+import { BarChart3, Bike, Download, MessageCircle, Share, ShoppingCart, Smartphone, SquarePlus, UserRound } from 'lucide-react';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { usePainel } from './Painel';
 import { origemSistema } from '../../lib/linkCurto';
@@ -25,6 +25,12 @@ export default function AppsCelular() {
       whats: `Olá! Este é o app dos garçons da ${r.nome}: ${origem}/appgarcom (entre com o seu e-mail e senha)`,
       extra: <Link className="btn btn--fantasma btn--sm" to="/painel/garcons">Criar acesso de garçom</Link>,
       android: true,
+    },
+    {
+      id: 'entregador', icone: Bike, titulo: 'App do entregador', link: `${origem}/appentregador`,
+      texto: 'As entregas em tempo real, rota no mapa, quanto cobrar do cliente e as corridas de cada motoboy. Cada um entra com o acesso criado em Equipe › Entregadores.',
+      whats: `Olá! Este é o app de entregas da ${r.nome}: ${origem}/appentregador (entre com o seu e-mail e senha)`,
+      extra: <Link className="btn btn--fantasma btn--sm" to="/painel/entregadores">Criar acesso de entregador</Link>,
     },
     {
       id: 'colab', icone: ShoppingCart, titulo: 'App dos colaboradores', link: linkColaboradores(r.codigo),

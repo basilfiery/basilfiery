@@ -399,10 +399,11 @@ function corpoPedido(p: Pedido) {
     <table>${p.pedido_itens.map((i) => itemHtml(i, true)).join('')}</table>
     ${p.observacao ? `<hr><b>OBS DO PEDIDO:</b><div class="obs">${esc(p.observacao)}</div>` : ''}
     <hr>
-    ${Number(p.taxa_entrega) > 0 ? `<div class="tot" style="font-size:1em"><span>Entrega</span><span>${brl(Number(p.taxa_entrega))}</span></div>` : ''}
+    ${p.frete_gratis ? `<div class="tot" style="font-size:1em"><span>Entrega</span><span>GRÁTIS</span></div><div class="c p">*** FRETE GRÁTIS (promoção) ***</div>` : Number(p.taxa_entrega) > 0 ? `<div class="tot" style="font-size:1em"><span>Entrega</span><span>${brl(Number(p.taxa_entrega))}</span></div>` : ''}
     ${Number(p.desconto) > 0 ? `<div class="tot" style="font-size:1em"><span>Desconto</span><span>- ${brl(Number(p.desconto))}</span></div>` : ''}
     <div class="tot"><span>TOTAL</span><span>${brl(p.total)}</span></div>
-    ${p.tipo && p.tipo !== 'mesa' ? `<div class="c p">${esc(rotuloPagamento(p))}</div>` : ''}`;
+    ${p.tipo && p.tipo !== 'mesa' ? `<div class="c p">${esc(rotuloPagamento(p))}</div>` : ''}
+    ${p.tipo === 'delivery' && p.taxa_entregador != null ? `<hr><div class="tot" style="font-size:1em"><span>Corrida do entregador</span><span>${brl(Number(p.taxa_entregador))}</span></div>${p.entregador_nome ? `<div class="p">Entregador: ${esc(p.entregador_nome)}</div>` : ''}` : ''}`;
 }
 
 function corpoCozinha(p: Pedido) {

@@ -42,6 +42,18 @@ interface Loja {
   /** Taxa: fixa, por distância (raio) ou por bairro */
   entrega_modo?: 'fixa' | 'raio' | 'bairro'; lat?: number | null; lng?: number | null; cidade?: string | null;
   raios?: FaixaRaio[] | null; bairros?: { nome: string; taxa: number }[] | null;
+  /** Frete grátis em dias da semana (0 = domingo); hoje = é dia de frete grátis */
+  frete_gratis?: { dias: number[]; minimo: number; hoje: boolean } | null;
+}
+
+const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+/** Ganha frete grátis com estes itens? (dia da promoção + pedido mínimo) */
+const ganhaFreteGratis = (l: Loja, subtotal: number) => !!l.frete_gratis?.hoje && subtotal >= Number(l.frete_gratis.minimo ?? 0);
+/** "Frete grátis toda terça" / "às terças e sextas" */
+function textoDiasFrete(dias: number[]) {
+  const nomes = [...dias].sort().map((d) => DIAS_SEMANA[d]);
+  if (nomes.length === 7) return 'todos os dias';
+  return nomes.length === 1 ? `toda ${nomes[0]}` : `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
 }
 
 /** "Entrega R$ 5" / "a partir de R$ 3" / "grátis" para o topo e a sacola. */
@@ -386,8 +398,12 @@ export default function LojaCardapio() {
       <div className="carrinho__rodape">
         <div className="loja-totais">
           <div><span>Subtotal</span><span>{brl(subtotal)}</span></div>
-          {(loja.entrega_modo ?? 'fixa') === 'fixa' ? Number(loja.taxa) > 0 && <div><span>Entrega</span><span>{brl(Number(loja.taxa))}</span></div>
-            : <div><span>Entrega</span><span>calculada no endereço</span></div>}
+          {ganhaFreteGratis(loja, subtotal) ? <div className="loja-totais__frete"><span>Entrega</span><span><Gift size={14} /> Grátis hoje</span></div>
+            : (loja.entrega_modo ?? 'fixa') === 'fixa' ? Number(loja.taxa) > 0 && <div><span>Entrega</span><span>{brl(Number(loja.taxa))}</span></div>
+              : <div><span>Entrega</span><span>calculada no endereço</span></div>}
+          {loja.frete_gratis?.hoje && !ganhaFreteGratis(loja, subtotal) && carrinho.length > 0 && (
+            <p className="loja-frete-falta"><Gift size={14} /> Faltam {brl(Number(loja.frete_gratis.minimo) - subtotal)} para ganhar frete grátis</p>
+          )}
         </div>
         {faltaMinimo > 0 && carrinho.length > 0 && <p className="loja-aviso">Pedido mínimo {brl(Number(loja.minimo))}. Faltam {brl(faltaMinimo)}.</p>}
         <button className="btn btn--primario btn--lg btn--bloco" disabled={!carrinho.length || !loja.aberto || faltaMinimo > 0} onClick={() => { setVerCarrinho(false); setFinalizar(true); rastrear('InitiateCheckout', subtotal); }}>
@@ -457,6 +473,15 @@ export default function LojaCardapio() {
         </div>
       </header>
 
+      {loja.entrega !== false && loja.frete_gratis && (
+        <div className={cx('loja-frete', loja.frete_gratis.hoje && 'hoje')}>
+          <span className="loja-frete__icone" aria-hidden="true"><Gift size={20} /></span>
+          <span>
+            <b>{loja.frete_gratis.hoje ? 'Hoje tem FRETE GRÁTIS!' : `Frete grátis ${textoDiasFrete(loja.frete_gratis.dias)}`}</b>
+            <small>{Number(loja.frete_gratis.minimo) > 0 ? `Em pedidos a partir de ${brl(Number(loja.frete_gratis.minimo))}` : loja.frete_gratis.hoje ? 'A entrega é por nossa conta em qualquer pedido.' : 'Em qualquer pedido para entrega.'}</small>
+          </span>
+        </div>
+      )}
       <div className="loja-info">
         <span><Clock size={15} /> {loja.tempo}</span>
         {loja.entrega !== false && <span><Bike size={15} /> {rotuloEntrega(loja)}</span>}
@@ -811,10 +836,13 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntr
   // Endereço mudou: precisa calcular de novo
   useEffect(() => { if (modo === 'raio') setLocal(null); }, [cli.endereco.rua, cli.endereco.numero, cli.endereco.bairro, modo]);
   const bairroEscolhido = modo === 'bairro' ? (loja.bairros ?? []).find((b) => b.nome.toLowerCase() === cli.endereco.bairro.trim().toLowerCase()) : undefined;
-  const taxa = tipo !== 'delivery' ? 0
+  const taxaNormal = tipo !== 'delivery' ? 0
     : modo === 'bairro' ? Number(bairroEscolhido?.taxa ?? 0)
       : modo === 'raio' ? Number(local?.taxa ?? 0)
         : Number(loja.taxa);
+  // Dia de frete grátis: o cliente não paga a entrega (o servidor confere de novo)
+  const freteGratis = tipo === 'delivery' && ganhaFreteGratis(loja, subtotal);
+  const taxa = freteGratis ? 0 : taxaNormal;
   const total = subtotal + taxa;
 
   async function enviar(e: FormEvent) {
@@ -964,7 +992,9 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntr
             const p = porId.get(l.produto_id);
             return p ? <div key={l.chave}><span>{l.qtd}× {nomeItem(p)}{l.texto && <small className="carrinho__adic">{l.texto}</small>}</span><span>{brl(precoLinha(l, p) * l.qtd)}</span></div> : null;
           })}
-          {taxa > 0 && <div><span>Taxa de entrega</span><span>{brl(taxa)}</span></div>}
+          {freteGratis ? (
+            <div className="loja-resumo__frete"><span><Gift size={15} /> Taxa de entrega</span><span>{taxaNormal > 0 && <s>{brl(taxaNormal)}</s>} Grátis</span></div>
+          ) : taxa > 0 && <div><span>Taxa de entrega</span><span>{brl(taxa)}</span></div>}
           <div className="loja-resumo__total"><span>Total</span><strong>{brl(total)}</strong></div>
         </div>
         <button className="btn btn--primario btn--lg btn--bloco" disabled={enviando}>{enviando ? 'Enviando…' : `Fazer pedido · ${brl(total)}`}</button>
@@ -980,6 +1010,7 @@ interface StatusPedido {
   total: number; taxa: number; criado_em: string; pago: boolean; forma: Forma; troco: number | null; cliente: string;
   endereco: Cliente['endereco'] | null; itens: { nome: string; qtd: number; preco: number; complementos?: string | null }[];
   motivo?: string | null; cancelados?: { nome: string; qtd: number; motivo: string | null }[] | null;
+  saiu_em?: string | null; entregador?: string | null; frete_gratis?: boolean;
   loja: { nome: string; logo_url: string | null; cor: string; whatsapp: string | null; endereco: string | null; codigo: string; tempo: string };
 }
 
@@ -1015,7 +1046,7 @@ export function LojaPedido() {
   const etapas = [
     { id: 'novo', rotulo: 'Pedido recebido', dica: 'A loja já viu o seu pedido.' },
     { id: 'preparando', rotulo: 'Em preparo', dica: 'Está sendo preparado agora.' },
-    { id: 'pronto', rotulo: entrega ? 'Saiu para entrega' : 'Pronto para retirar', dica: entrega ? 'Está a caminho.' : 'Pode vir buscar no balcão.' },
+    { id: 'pronto', rotulo: entrega ? (p.saiu_em ? 'Saiu para entrega' : 'Pronto, saindo já já') : 'Pronto para retirar', dica: entrega ? (p.saiu_em ? `${p.entregador ? `${p.entregador} está` : 'Está'} a caminho.` : 'Aguardando o entregador sair.') : 'Pode vir buscar no balcão.' },
     { id: 'entregue', rotulo: entrega ? 'Entregue' : 'Retirado', dica: 'Bom apetite!' },
   ];
   const atual = etapas.findIndex((e) => e.id === p.status);
@@ -1060,7 +1091,8 @@ export function LojaPedido() {
         <h2>Resumo</h2>
         <div className="loja-resumo">
           {p.itens.map((i, n) => <div key={n}><span>{i.qtd}× {i.nome}{i.complementos && <small className="carrinho__adic">{i.complementos}</small>}</span><span>{brl(i.qtd * Number(i.preco))}</span></div>)}
-          {Number(p.taxa) > 0 && <div><span>Taxa de entrega</span><span>{brl(Number(p.taxa))}</span></div>}
+          {p.frete_gratis ? <div className="loja-resumo__frete"><span><Gift size={15} /> Taxa de entrega</span><span>Grátis</span></div>
+            : Number(p.taxa) > 0 && <div><span>Taxa de entrega</span><span>{brl(Number(p.taxa))}</span></div>}
           <div className="loja-resumo__total"><span>Total</span><strong>{brl(Number(p.total))}</strong></div>
         </div>
         <p className="loja-pedido__linha"><Banknote size={16} /> {FORMAS.find((f) => f.id === p.forma)?.rotulo} {entrega ? 'na entrega' : 'na retirada'}{p.troco ? ` · troco para ${brl(Number(p.troco))}` : ''}{p.pago ? ' · pago' : ''}</p>

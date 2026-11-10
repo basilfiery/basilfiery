@@ -1,0 +1,25 @@
+{
+  "id": "/appentregador",
+  "name": "Entregas · BasilFiery",
+  "short_name": "Entregas",
+  "description": "As entregas da loja em tempo real, rota no mapa e as suas corridas.",
+  "start_url": "/appentregador",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121010",
+  "theme_color": "#121010",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

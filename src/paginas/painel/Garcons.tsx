@@ -6,19 +6,26 @@ import { Avatar } from '../../componentes/Perfil';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { useToast } from '../../componentes/Toast';
 import { gestao, msgErro, supabase } from '../../lib/supabase';
-import type { Membro } from '../../lib/tipos';
+import type { Membro, Papel } from '../../lib/tipos';
 import { usePainel } from './Painel';
 import { origemSistema } from '../../lib/linkCurto';
 import { confirmar } from '../../componentes/Confirmar';
 
-interface Acesso { nome: string; email: string; senha?: string; telefone?: string; jaTinhaConta?: boolean }
+export interface Acesso { nome: string; email: string; senha?: string; telefone?: string; jaTinhaConta?: boolean }
+
+/** App de cada cargo de celular: garçom ou entregador */
+export type AppEquipe = 'garcom' | 'entregador';
+const TEXTO_APP: Record<AppEquipe, { nome: string; caminho: string; dica: string; quem: string }> = {
+  garcom: { nome: 'app do garçom', caminho: '/appgarcom', quem: 'garçom', dica: 'Abra o link no celular, entre e toque em “Ativar notificações” para receber os pedidos e os chamados das mesas. Toque na bolinha do topo para colocar sua foto.' },
+  entregador: { nome: 'app do entregador', caminho: '/appentregador', quem: 'entregador', dica: 'Abra o link no celular, entre e toque em “Ativar avisos” para saber na hora quando tem entrega pronta para sair.' },
+};
 
 /** Link do app do garçom: separado do sistema (não passa pela tela de login do caixa). */
-const linkApp = (_codigo: string, email?: string) =>
-  `${origemSistema()}/appgarcom${email ? `?email=${encodeURIComponent(email)}` : ''}`;
+export const linkApp = (_codigo: string, email?: string, app: AppEquipe = 'garcom') =>
+  `${origemSistema()}${TEXTO_APP[app].caminho}${email ? `?email=${encodeURIComponent(email)}` : ''}`;
 
 /** Senha fácil de ditar/digitar no celular (sem letras confusas como l/1, O/0). */
-function gerarSenha() {
+export function gerarSenha() {
   const letras = 'abcdefghjkmnpqrstuvwxyz';
   const numeros = '23456789';
   const pega = (s: string) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length];
@@ -125,7 +132,8 @@ export default function Garcons() {
   );
 }
 
-function ModalCadastrar({ restauranteId, aoFechar, aoCriar }: { restauranteId: string; aoFechar: () => void; aoCriar: (a: Acesso) => void }) {
+export function ModalCadastrar({ restauranteId, aoFechar, aoCriar, papel = 'garcom' }: { restauranteId: string; aoFechar: () => void; aoCriar: (a: Acesso) => void; papel?: Papel }) {
+  const quem = papel === 'entregador' ? 'entregador' : 'garçom';
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState(gerarSenha);
@@ -137,7 +145,7 @@ function ModalCadastrar({ restauranteId, aoFechar, aoCriar }: { restauranteId: s
     setErro('');
     setSalvando(true);
     try {
-      const r = await gestao<{ jaExistia: boolean }>('criar_membro', { restaurante_id: restauranteId, nome, email, senha, papel: 'garcom' });
+      const r = await gestao<{ jaExistia: boolean }>('criar_membro', { restaurante_id: restauranteId, nome, email, senha, papel });
       aoCriar({ nome: nome.trim(), email: email.trim().toLowerCase(), senha: r.jaExistia ? undefined : senha, telefone, jaTinhaConta: r.jaExistia });
     } catch (e) {
       setErro(msgErro(e));
@@ -150,7 +158,7 @@ function ModalCadastrar({ restauranteId, aoFechar, aoCriar }: { restauranteId: s
     <Modal
       aberto
       aoFechar={aoFechar}
-      titulo="Cadastrar garçom"
+      titulo={`Cadastrar ${quem}`}
       rodape={
         <>
           <button className="btn btn--contorno" onClick={aoFechar}>Cancelar</button>
@@ -169,7 +177,7 @@ function ModalCadastrar({ restauranteId, aoFechar, aoCriar }: { restauranteId: s
             <button type="button" className="btn btn--contorno" onClick={() => setSenha(gerarSenha())} title="Gerar outra senha"><Wand2 size={16} /> Gerar</button>
           </div>
         </Campo>
-        <Campo rotulo="WhatsApp do garçom (opcional)" dica="Só para enviar o acesso agora. Ex.: 11 98765-4321">
+        <Campo rotulo={`WhatsApp do ${quem} (opcional)`} dica="Só para enviar o acesso agora. Ex.: 11 98765-4321">
           <input className="input" inputMode="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
         </Campo>
         {erro && <p className="erro-form">{erro}</p>}
@@ -178,7 +186,7 @@ function ModalCadastrar({ restauranteId, aoFechar, aoCriar }: { restauranteId: s
   );
 }
 
-function ModalNovaSenha({ membro, aoFechar, aoSalvar }: { membro: Membro; aoFechar: () => void; aoSalvar: (senha: string) => void }) {
+export function ModalNovaSenha({ membro, aoFechar, aoSalvar }: { membro: Membro; aoFechar: () => void; aoSalvar: (senha: string) => void }) {
   const toast = useToast();
   const [senha, setSenha] = useState(gerarSenha);
   const [salvando, setSalvando] = useState(false);
@@ -218,16 +226,16 @@ function ModalNovaSenha({ membro, aoFechar, aoSalvar }: { membro: Membro; aoFech
   );
 }
 
-function ModalEnviarAcesso({ acesso, restaurante, codigo, aoFechar }: { acesso: Acesso; restaurante: string; codigo: string; aoFechar: () => void }) {
+export function ModalEnviarAcesso({ acesso, restaurante, codigo, aoFechar, app = 'garcom' }: { acesso: Acesso; restaurante: string; codigo: string; aoFechar: () => void; app?: AppEquipe }) {
   const toast = useToast();
   const mensagem = [
-    `Olá, ${acesso.nome.split(' ')[0]}! Seu acesso ao app do garçom do ${restaurante}:`,
+    `Olá, ${acesso.nome.split(' ')[0]}! Seu acesso ao ${TEXTO_APP[app].nome} do ${restaurante}:`,
     '',
-    `🔗 ${linkApp(codigo, acesso.email)}`,
+    `🔗 ${linkApp(codigo, acesso.email, app)}`,
     `📧 E-mail: ${acesso.email}`,
     acesso.senha ? `🔑 Senha: ${acesso.senha}` : '🔑 Senha: a mesma que você já usa',
     '',
-    'Abra o link no celular, entre e toque em “Ativar notificações” para receber os pedidos e os chamados das mesas. Toque na bolinha do topo para colocar sua foto.',
+    TEXTO_APP[app].dica,
   ].join('\n');
   const numero = (acesso.telefone ?? '').replace(/\D/g, '');
   const destino = numero ? (numero.length <= 11 ? `55${numero}` : numero) : '';
@@ -247,7 +255,7 @@ function ModalEnviarAcesso({ acesso, restaurante, codigo, aoFechar }: { acesso: 
       }
     >
       {acesso.jaTinhaConta && (
-        <p className="caixa__alerta" style={{ marginTop: 0 }}>Este e-mail já tinha conta no BasilFiery: o garçom entra com a senha que já usa.</p>
+        <p className="caixa__alerta" style={{ marginTop: 0 }}>Este e-mail já tinha conta no BasilFiery: o {TEXTO_APP[app].quem} entra com a senha que já usa.</p>
       )}
       <pre className="mensagem-acesso">{mensagem}</pre>
       {acesso.senha && <p className="muted" style={{ margin: 0, fontSize: '.82rem' }}>Anote a senha: por segurança, ela não fica salva para ser vista depois.</p>}

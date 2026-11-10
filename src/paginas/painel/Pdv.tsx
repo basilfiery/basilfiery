@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Check, ChefHat, ChevronUp, LayoutGrid, MessageSquareText, Minus, Pencil, PencilLine, Plus, Printer, Receipt, Search, ShoppingBasket, Trash2, UserRound, Wallet, X,
+  Bike, Check, ChefHat, ChevronUp, Gift, LayoutGrid, MessageSquareText, Minus, Pencil, PencilLine, Plus, Printer, Receipt, Search, ShoppingBasket, Trash2, UserRound, Wallet, X,
 } from 'lucide-react';
 import { FotoProduto, Switch } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
@@ -27,7 +27,9 @@ interface Dados {
   adicionais_grupos?: GrupoAdicionalMesa[]; produto_grupos?: Record<string, string[]>; produto_regras?: RegrasProduto;
 }
 interface SecaoPdv { id: string; nome: string; principal: string; itens: ProdutoMesa[] }
-type Modo = 'balcao' | 'mesa';
+type Modo = 'balcao' | 'mesa' | 'entrega';
+interface EnderecoPdv { rua: string; numero: string; bairro: string; complemento: string; referencia: string }
+const END_VAZIO: EnderecoPdv = { rua: '', numero: '', bairro: '', complemento: '', referencia: '' };
 
 const FORMAS: { id: FormaPagamento; rotulo: string }[] = [
   { id: 'pix', rotulo: 'Pix' }, { id: 'dinheiro', rotulo: 'Dinheiro' },
@@ -130,6 +132,14 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   const [forma, setForma] = useState<FormaPagamento | null>(null);
   const [recebido, setRecebido] = useState('');
   const [cozinhaManual, setCozinhaManual] = useState<boolean | null>(null);
+  // Entrega feita pelo balcão (cliente pediu na loja para receber em casa)
+  const [end, setEnd] = useState<EnderecoPdv>(END_VAZIO);
+  const [taxaTxt, setTaxaTxt] = useState('');
+  const [taxaManual, setTaxaManual] = useState(false);
+  const [freteHoje, setFreteHoje] = useState(false);
+  const [freteManual, setFreteManual] = useState<boolean | null>(null);
+  const [pagoAgora, setPagoAgora] = useState(false);
+  const [corridaFixa, setCorridaFixa] = useState<number | null>(null);
   const [editando, setEditando] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [concluida, setConcluida] = useState<{ id: string; numero: number; total: number; troco: number | null; forma: FormaPagamento | null } | null>(null);
@@ -185,12 +195,32 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   const subtotal = linhas.reduce((s, l) => s + precoLinha(l, porId.get(l.produto_id)) * l.qtd, 0);
   const valorDesconto = lerDesconto(desconto, subtotal);
   const descontoOk = Number.isFinite(valorDesconto) && valorDesconto >= 0 && valorDesconto <= subtotal;
-  const total = Math.max(0, subtotal - (descontoOk ? valorDesconto : 0));
+  const itensComDesconto = Math.max(0, subtotal - (descontoOk ? valorDesconto : 0));
+  const taxaEntrega = modo === 'entrega' && taxaTxt.trim() ? lerPreco(taxaTxt) : 0;
+  const taxaOk = modo !== 'entrega' || (taxaTxt.trim() !== '' && Number.isFinite(taxaEntrega) && taxaEntrega >= 0);
+  const freteGratis = modo === 'entrega' && (freteManual ?? freteHoje);
+  const total = itensComDesconto + (modo === 'entrega' && !freteGratis && Number.isFinite(taxaEntrega) ? taxaEntrega : 0);
+  const cobraAgora = modo === 'balcao' || (modo === 'entrega' && pagoAgora);
   const valorRecebido = recebido.trim() ? lerPreco(recebido) : NaN;
   const troco = forma === 'dinheiro' && Number.isFinite(valorRecebido) ? valorRecebido - total : null;
   const qtdItens = linhas.reduce((s, l) => s + l.qtd, 0);
   const precisaCozinha = linhas.some((l) => dados?.preparo.includes(porId.get(l.produto_id)?.real_id ?? l.produto_id));
-  const cozinha = cozinhaManual ?? precisaCozinha;
+  const cozinha = cozinhaManual ?? (modo === 'entrega' ? true : precisaCozinha);
+
+  // Entrega: taxa pelo bairro (bairro cadastrado ou taxa fixa) e se hoje é dia de frete grátis
+  useEffect(() => {
+    if (modo !== 'entrega') return;
+    const t = setTimeout(() => {
+      void supabase.rpc('pdv_taxa_entrega', { p_rest: r.id, p_bairro: end.bairro.trim(), p_itens: itensComDesconto }).then(({ data }) => {
+        const x = data as { taxa: number | null; frete_gratis: boolean; corrida_fixa: number | null } | null;
+        if (!x) return;
+        setFreteHoje(!!x.frete_gratis);
+        setCorridaFixa(x.corrida_fixa != null ? Number(x.corrida_fixa) : null);
+        if (!taxaManual && x.taxa != null) setTaxaTxt(precoParaTexto(Number(x.taxa)));
+      });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [modo, end.bairro, itensComDesconto, r.id, taxaManual]);
   const qtdNoPedido = (id: string) => linhas.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
 
   const gruposDe = (p: ProdutoMesa) => gruposDoProduto(p.real_id ?? p.id, dados?.adicionais_grupos, dados?.produto_grupos, dados?.produto_regras);
@@ -224,6 +254,7 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   function limpar() {
     setLinhas([]); setObsPedido(''); setVerObs(false); setDesconto(''); setVerDesconto(false);
     setCliTel(''); setCliNome(''); setForma(null); setRecebido(''); setCozinhaManual(null); setEditando(null);
+    setEnd(END_VAZIO); setTaxaTxt(''); setTaxaManual(false); setFreteManual(null); setPagoAgora(false);
     setFolhaAberta(false);
   }
 
@@ -231,9 +262,13 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
     !linhas.length ? 'Adicione itens'
       : !descontoOk ? 'Desconto inválido'
         : modo === 'mesa' && !mesaId ? 'Escolha a mesa'
-          : modo === 'balcao' && caixa === null ? 'Abra o caixa'
-            : modo === 'balcao' && !forma ? 'Escolha o pagamento'
-              : modo === 'balcao' && forma === 'dinheiro' && troco !== null && troco < 0 ? 'Valor recebido menor'
+          : modo === 'entrega' && !cliNome.trim() ? 'Nome do cliente'
+          : modo === 'entrega' && digitos(cliTel).length < 10 ? 'WhatsApp do cliente'
+          : modo === 'entrega' && (!end.rua.trim() || !end.numero.trim() || !end.bairro.trim()) ? 'Endereço da entrega'
+          : !taxaOk ? 'Taxa de entrega'
+          : cobraAgora && caixa === null ? 'Abra o caixa'
+            : cobraAgora && !forma ? 'Escolha o pagamento'
+              : cobraAgora && forma === 'dinheiro' && troco !== null && troco < 0 ? 'Valor recebido menor'
                 : cliTel && digitos(cliTel).length < 10 ? 'WhatsApp com DDD'
                   : '';
 
@@ -250,7 +285,10 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
         return { produto_id: p?.real_id ?? l.produto_id, categoria_id: p?.tamanho_id ?? null, qtd: l.qtd, obs: l.obs, adicionais: l.adicionais ?? [] };
       }),
       p_dados: {
-        modo, mesa_id: modo === 'mesa' ? mesaId : null, forma: modo === 'balcao' ? forma : null,
+        modo, mesa_id: modo === 'mesa' ? mesaId : null, forma: modo === 'mesa' ? null : forma,
+        ...(modo === 'entrega' ? {
+          endereco: end, taxa: Number.isFinite(taxaEntrega) ? String(taxaEntrega) : '', frete_gratis: freteGratis, pago_agora: pagoAgora,
+        } : {}),
         recebido: forma === 'dinheiro' && Number.isFinite(valorRecebido) ? String(valorRecebido) : '',
         desconto: valorDesconto > 0 ? String(valorDesconto) : '', cozinha, obs: obsPedido,
         cliente_nome: mesaFixa ? mesaFixa.cliente_nome ?? '' : cliNome,
@@ -260,7 +298,10 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
     setEnviando(false);
     if (error) return toast(msgErro(error), 'erro');
     const v = data as { id: string; numero: number; total: number; troco: number | null };
-    if (modo === 'mesa') {
+    if (modo === 'entrega') {
+      toast(`Entrega #${v.numero} criada${freteGratis ? ' com frete grátis' : ''}. Ela já aparece no app dos entregadores.`, 'ok');
+      setConcluida({ ...v, forma: pagoAgora ? forma : null, troco: pagoAgora ? v.troco : null });
+    } else if (modo === 'mesa') {
       toast(`Pedido #${v.numero} lançado na ${mesaFixa?.nome ?? mesas.find((m) => m.id === mesaId)?.nome ?? 'mesa'}.`, 'ok');
       aoLancar?.();
       conta?.aoAba('conta');
@@ -409,13 +450,40 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
               {descontoOk && valorDesconto > 0 && <em>− {brl(valorDesconto)}</em>}
             </div>
           )}
+          {modo === 'entrega' && (
+            <>
+              <div className="pdv-totais__entrega">
+                <span><Bike size={14} /> Entrega</span>
+                <input className={cx('input', !taxaOk && 'input--erro', freteGratis && 'riscado')} value={taxaTxt} onChange={(e) => { setTaxaTxt(mascaraPreco(e.target.value)); setTaxaManual(true); }} placeholder="0,00" inputMode="decimal" aria-label="Taxa de entrega" />
+                {freteGratis && <em className="pdv-gratis">Grátis</em>}
+              </div>
+              <div className="pdv-frete">
+                <Switch marcado={freteGratis} aoMudar={(v) => setFreteManual(v)}>
+                  <span><Gift size={15} /> Frete grátis{freteHoje ? ' (promoção de hoje)' : ''}</span>
+                </Switch>
+              </div>
+              <div className="pdv-corrida"><span>Corrida do entregador</span><b>{brl(corridaFixa ?? (Number.isFinite(taxaEntrega) ? taxaEntrega : 0))}</b></div>
+            </>
+          )}
           <div className="pdv-totais__total"><span>Total</span><strong>{brl(total)}</strong></div>
         </div>
 
         {mesaFixa ? <ClienteMesa key={mesaFixa.id} mesa={mesaFixa} aoSalvar={() => aoLancar?.()} /> : (
           <div className="pdv-cliente">
-            <input className="input" inputMode="tel" value={mascaraTelefone(cliTel)} onChange={(e) => setCliTel(digitos(e.target.value))} placeholder="WhatsApp (opcional)" aria-label="WhatsApp do cliente" />
-            <input className="input" value={cliNome} maxLength={80} onChange={(e) => setCliNome(e.target.value)} placeholder="Nome do cliente" aria-label="Nome do cliente" />
+            <input className="input" inputMode="tel" value={mascaraTelefone(cliTel)} onChange={(e) => setCliTel(digitos(e.target.value))} placeholder={modo === 'entrega' ? 'WhatsApp do cliente *' : 'WhatsApp (opcional)'} aria-label="WhatsApp do cliente" />
+            <input className="input" value={cliNome} maxLength={80} onChange={(e) => setCliNome(e.target.value)} placeholder={modo === 'entrega' ? 'Nome do cliente *' : 'Nome do cliente'} aria-label="Nome do cliente" />
+          </div>
+        )}
+        {modo === 'entrega' && (
+          <div className="pdv-endereco">
+            <input className="input pdv-endereco__rua" value={end.rua} maxLength={120} onChange={(e) => setEnd({ ...end, rua: e.target.value })} placeholder="Rua *" aria-label="Rua" />
+            <input className="input pdv-endereco__num" value={end.numero} maxLength={20} onChange={(e) => setEnd({ ...end, numero: e.target.value })} placeholder="Nº *" aria-label="Número" />
+            <input className="input" value={end.bairro} maxLength={80} list="pdv-bairros" onChange={(e) => { setEnd({ ...end, bairro: e.target.value }); setTaxaManual(false); }} placeholder="Bairro *" aria-label="Bairro" />
+            <input className="input" value={end.complemento} maxLength={80} onChange={(e) => setEnd({ ...end, complemento: e.target.value })} placeholder="Complemento" aria-label="Complemento" />
+            <input className="input pdv-endereco__ref" value={end.referencia} maxLength={120} onChange={(e) => setEnd({ ...end, referencia: e.target.value })} placeholder="Ponto de referência" aria-label="Ponto de referência" />
+            {r.entrega_modo === 'bairro' && (
+              <datalist id="pdv-bairros">{(r.entrega_bairros ?? []).map((b) => <option key={b.nome} value={b.nome}>{brl(Number(b.taxa))}</option>)}</datalist>
+            )}
           </div>
         )}
 
@@ -426,6 +494,12 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
           </select>
         ) : (
           <>
+            {modo === 'entrega' && (
+              <div className="pdv-quando" role="radiogroup" aria-label="Quando o cliente paga">
+                <button type="button" role="radio" aria-checked={!pagoAgora} className={cx(!pagoAgora && 'ativo')} onClick={() => setPagoAgora(false)}>Paga na entrega</button>
+                <button type="button" role="radio" aria-checked={pagoAgora} className={cx(pagoAgora && 'ativo')} onClick={() => setPagoAgora(true)}>Já pagou aqui</button>
+              </div>
+            )}
             <div className="pdv-formas" role="radiogroup" aria-label="Forma de pagamento">
               {FORMAS.map((f) => (
                 <button key={f.id} type="button" role="radio" aria-checked={forma === f.id} className={cx('pdv-forma', forma === f.id && 'ativo')} onClick={() => setForma(f.id)}>
@@ -436,13 +510,13 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
             </div>
             {forma === 'dinheiro' && (
               <div className="pdv-troco">
-                <input className="input" inputMode="decimal" value={recebido} onChange={(e) => setRecebido(mascaraPreco(e.target.value))} placeholder="Valor recebido" aria-label="Valor recebido" />
+                <input className="input" inputMode="decimal" value={recebido} onChange={(e) => setRecebido(mascaraPreco(e.target.value))} placeholder={modo === 'entrega' && !pagoAgora ? 'Troco para quanto?' : 'Valor recebido'} aria-label="Valor recebido" />
                 <div className="pdv-troco__atalhos">
                   {[...new Set([Math.ceil(total), Math.ceil(total / 10) * 10, Math.ceil(total / 50) * 50, 100])].filter((v) => v >= total && v > 0).slice(0, 3).map((v) => (
                     <button key={v} type="button" className="pdv-chip" onClick={() => setRecebido(precoParaTexto(v))}>{brl(v)}</button>
                   ))}
                 </div>
-                {troco !== null && <p className={cx('pdv-troco__valor', troco < 0 && 'falta')}>{troco < 0 ? `Faltam ${brl(-troco)}` : `Troco: ${brl(troco)}`}</p>}
+                {troco !== null && <p className={cx('pdv-troco__valor', troco < 0 && 'falta')}>{troco < 0 ? `Faltam ${brl(-troco)}` : modo === 'entrega' && !pagoAgora ? `O entregador leva ${brl(troco)} de troco` : `Troco: ${brl(troco)}`}</p>}
               </div>
             )}
           </>
@@ -453,12 +527,13 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
             <span><ChefHat size={15} /> Enviar para a cozinha</span>
           </Switch>
           {modo === 'balcao' && <small>{cozinha ? 'Vai para Pedidos e imprime na cozinha.' : 'Entregue na hora: a venda já fica concluída.'}</small>}
+          {modo === 'entrega' && <small>{cozinha ? 'Vai para a cozinha; o entregador é avisado quando ficar pronto.' : 'Já está pronto: vai direto para os entregadores.'}</small>}
         </div>
 
       </div>
       <div className="pdv-pedido__acao">
         <button type="button" className="btn btn--primario btn--lg btn--bloco pdv-gerar" disabled={!!motivoBloqueio || enviando} onClick={() => void gerar()}>
-          {enviando ? 'Gerando…' : motivoBloqueio || (modo === 'mesa' ? `Lançar na ${mesaFixa ? mesaFixa.nome : 'mesa'} · ${brl(total)}` : `Gerar pedido · ${brl(total)}`)}
+          {enviando ? 'Gerando…' : motivoBloqueio || (modo === 'mesa' ? `Lançar na ${mesaFixa ? mesaFixa.nome : 'mesa'} · ${brl(total)}` : modo === 'entrega' ? `Enviar entrega · ${brl(total)}` : `Gerar pedido · ${brl(total)}`)}
           <kbd>Ctrl + Enter</kbd>
         </button>
       </div>
@@ -476,10 +551,13 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
           <button role="tab" aria-selected={modo === 'mesa'} className={cx(modo === 'mesa' && 'ativo')} onClick={() => setModo('mesa')}>
             <LayoutGrid size={17} /> Mesas <span>lançar na conta</span>
           </button>
+          <button role="tab" aria-selected={modo === 'entrega'} className={cx(modo === 'entrega' && 'ativo')} disabled={!podeBalcao} onClick={() => setModo('entrega')}>
+            <Bike size={17} /> Entrega <span>levar até o cliente</span>
+          </button>
         </div>
       </header>}
 
-      {modo === 'balcao' && caixa === null && (
+      {cobraAgora && caixa === null && (
         <div className="pdv__aviso">
           <Wallet size={18} />
           <span><b>O caixa está fechado.</b> Abra o caixa para receber as vendas do balcão.</span>

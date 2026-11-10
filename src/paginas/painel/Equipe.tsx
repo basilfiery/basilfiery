@@ -15,6 +15,7 @@ const DESCRICAO_PAPEL: Record<Papel, string> = {
   gerente: 'Cardápio, mesas, estoque e equipe.',
   caixa: 'Pedidos, mesas, fechar contas e estoque.',
   garcom: 'Pedidos e chamados no celular.',
+  entregador: 'Só as entregas, no app do entregador.',
 };
 
 export default function Equipe() {
@@ -78,7 +79,7 @@ export default function Equipe() {
                     <td>
                       {editavel ? (
                         <select className="select" style={{ width: 'auto', padding: '6px 10px' }} value={m.papel} onChange={(e) => void mudarPapel(m, e.target.value as Papel)}>
-                          {(['gerente', 'caixa', 'garcom'] as Papel[]).map((p) => <option key={p} value={p}>{PAPEL_ROTULO[p]}</option>)}
+                          {(['gerente', 'caixa', 'garcom', 'entregador'] as Papel[]).map((p) => <option key={p} value={p}>{PAPEL_ROTULO[p]}</option>)}
                         </select>
                       ) : (
                         <span className="badge badge--laranja">{PAPEL_ROTULO[m.papel]}</span>
@@ -150,7 +151,7 @@ function ModalAdicionar({ restauranteId, podeAdicionarDono, aoFechar, aoSalvar }
     }
   }
 
-  const papeis: Papel[] = podeAdicionarDono ? ['garcom', 'caixa', 'gerente', 'dono'] : ['garcom', 'caixa', 'gerente'];
+  const papeis: Papel[] = podeAdicionarDono ? ['garcom', 'entregador', 'caixa', 'gerente', 'dono'] : ['garcom', 'entregador', 'caixa', 'gerente'];
 
   return (
     <Modal

@@ -36,6 +36,8 @@ const Cardapio = tela(() => import('./paginas/painel/Cardapio'));
 const Estoque = tela(() => import('./paginas/painel/Estoque'));
 const Equipe = tela(() => import('./paginas/painel/Equipe'));
 const Garcons = tela(() => import('./paginas/painel/Garcons'));
+const Entregadores = tela(() => import('./paginas/painel/Entregadores'));
+const AppEntregador = tela(() => import('./paginas/entregador/AppEntregador'));
 const Configuracoes = tela(() => import('./paginas/painel/Configuracoes'));
 const Conta = tela(() => import('./paginas/painel/Conta'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
@@ -54,7 +56,7 @@ const ListaCompras = tela(() => import('./paginas/compras/ListaCompras'));
 const TELAS_PAINEL = [
   () => import('./paginas/painel/Pedidos'), () => import('./paginas/painel/Mesas'), () => import('./paginas/painel/Pdv'),
   () => import('./paginas/painel/Cardapio'), () => import('./paginas/painel/Estoque'), () => import('./paginas/painel/Relatorios'),
-  () => import('./paginas/painel/Garcons'), () => import('./paginas/painel/Equipe'), () => import('./paginas/painel/Configuracoes'),
+  () => import('./paginas/painel/Garcons'), () => import('./paginas/painel/Entregadores'), () => import('./paginas/painel/Equipe'), () => import('./paginas/painel/Configuracoes'),
   () => import('./paginas/painel/Conta'), () => import('./paginas/painel/Compras'), () => import('./paginas/painel/Aparencia'),
   () => import('./paginas/painel/AppsCelular'), () => import('./paginas/painel/NotasFiscais'), () => import('./paginas/painel/Dominios'),
   () => import('./paginas/painel/TermosPoliticas'), () => import('./paginas/mesa/Mesa'),
@@ -114,6 +116,7 @@ export default function App() {
         <Route path="/lista/:codigo" element={<ListaCompras />} />
         <Route path="/colaboradores/:codigo" element={<ListaCompras />} />
         <Route path="/appgarcom" element={<AppGarcomGeral />} />
+        <Route path="/appentregador" element={<AppEntregador />} />
         <Route path="/colaboradores" element={<ListaCompras />} />
         <Route path="/g" element={<AppGarcomInicio />} />
         <Route path="/g/:codigo" element={<AppGarcom />} />
@@ -133,6 +136,7 @@ export default function App() {
           <Route path="dominios" element={<Dominios />} />
           <Route path="estoque" element={<Estoque />} />
           <Route path="garcons" element={<Garcons />} />
+          <Route path="entregadores" element={<Entregadores />} />
           <Route path="equipe" element={<Equipe />} />
           <Route path="pdv" element={<Pdv />} />
           <Route path="compras" element={<Compras />} />

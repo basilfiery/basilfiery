@@ -452,19 +452,36 @@ img.loja-conta-btn__inicial { object-fit: cover; }
 
 /* Frete grátis (promoção em dias da semana) */
 .loja-frete {
-  display: flex; align-items: center; gap: 12px; margin: 10px 16px 0; padding: 11px 14px; border-radius: 16px;
-  border: 1px dashed color-mix(in srgb, #22c55e 55%, transparent); background: color-mix(in srgb, #22c55e 8%, transparent); color: var(--text);
+  position: relative; overflow: hidden; margin: 0; height: 42px; display: flex; align-items: center;
+  color: #d9fbe6;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, #22c55e 10%, transparent), color-mix(in srgb, #22c55e 20%, transparent) 50%, color-mix(in srgb, #22c55e 10%, transparent)),
+    var(--bg);
+  border-block: 1px solid color-mix(in srgb, #22c55e 32%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
 }
-.loja-frete span:last-child { display: grid; gap: 1px; min-width: 0; }
-.loja-frete b { font-size: .98rem; }
-.loja-frete small { color: var(--muted); font-size: .82rem; }
-.loja-frete__icone { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, #22c55e 18%, transparent); color: #22c55e; }
-.loja-frete.hoje { border-style: solid; border-color: transparent; color: #fff; background: linear-gradient(120deg, #16a34a, #22c55e 55%, #4ade80); box-shadow: 0 12px 26px -14px rgba(22, 163, 74, .9); }
-.loja-frete.hoje small { color: rgba(255, 255, 255, .9); }
-.loja-frete.hoje b { font-size: 1.05rem; letter-spacing: .01em; }
-.loja-frete.hoje .loja-frete__icone { background: rgba(255, 255, 255, .22); color: #fff; animation: loja-frete-pula 2.4s ease-in-out infinite; }
-@keyframes loja-frete-pula { 0%, 70%, 100% { transform: none; } 80% { transform: translateY(-3px) rotate(-8deg); } 90% { transform: translateY(0) rotate(6deg); } }
-@media (prefers-reduced-motion: reduce) { .loja-frete.hoje .loja-frete__icone { animation: none; } }
+:root[data-tema='claro'] .loja-frete:not(.hoje) { color: #14532d; }
+.loja-frete__trilho { display: flex; width: max-content; animation: loja-frete-desliza 56s linear infinite; will-change: transform; }
+.loja-frete:hover .loja-frete__trilho { animation-play-state: paused; }
+.loja-frete__grupo { display: flex; flex: none; }
+.loja-frete__item { display: inline-flex; align-items: center; gap: 10px; padding-right: 26px; white-space: nowrap; }
+.loja-frete__icone { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; background: #22c55e; color: #052e16; box-shadow: 0 4px 12px -4px rgba(34, 197, 94, .8); }
+.loja-frete__item b { font-size: .86rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.loja-frete__item small { font-size: .84rem; font-weight: 600; opacity: .78; }
+.loja-frete__sep { width: 5px; height: 5px; margin-left: 16px; border-radius: 50%; background: currentColor; opacity: .45; }
+@keyframes loja-frete-desliza { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+/* Hoje: faixa verde viva */
+.loja-frete.hoje {
+  color: #fff; border-color: transparent;
+  background: linear-gradient(90deg, #15803d, #16a34a 30%, #22c55e 50%, #16a34a 70%, #15803d);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), inset 0 -1px 0 rgba(0, 0, 0, .18);
+  -webkit-mask-image: none; mask-image: none;
+}
+.loja-frete.hoje .loja-frete__icone { background: #fff; color: #15803d; box-shadow: none; animation: loja-frete-pula 2.4s ease-in-out infinite; }
+.loja-frete.hoje .loja-frete__item small { opacity: .92; }
+@keyframes loja-frete-pula { 0%, 70%, 100% { transform: none; } 80% { transform: translateY(-2px) rotate(-8deg); } 90% { transform: translateY(0) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .loja-frete__trilho, .loja-frete.hoje .loja-frete__icone { animation-duration: 90s; } }
 .loja-totais__frete span:last-child, .loja-resumo__frete span:last-child { display: inline-flex; align-items: center; gap: 5px; color: #16a34a; font-weight: 800; }
 .loja-resumo__frete span:first-child { display: inline-flex; align-items: center; gap: 6px; }
 .loja-resumo__frete s { color: var(--muted); font-weight: 600; }

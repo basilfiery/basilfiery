@@ -48,6 +48,27 @@ interface Loja {
 
 const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 /** Ganha frete grátis com estes itens? (dia da promoção + pedido mínimo) */
+/** Faixa de frete grátis: desliza sozinha, em looping, devagar */
+function FaixaFrete({ hoje, titulo, texto }: { hoje: boolean; titulo: string; texto: string }) {
+  const grupo = (k: number) => (
+    <div className="loja-frete__grupo" key={k}>
+      {[0, 1, 2].map((i) => (
+        <span className="loja-frete__item" key={i}>
+          <span className="loja-frete__icone"><Gift size={15} /></span>
+          <b>{titulo}</b>
+          <small>{texto}</small>
+          <i className="loja-frete__sep" />
+        </span>
+      ))}
+    </div>
+  );
+  return (
+    <div className={cx('loja-frete', hoje && 'hoje')} role="note" aria-label={`${titulo}. ${texto}.`}>
+      <div className="loja-frete__trilho" aria-hidden="true">{grupo(0)}{grupo(1)}</div>
+    </div>
+  );
+}
+
 const ganhaFreteGratis = (l: Loja, subtotal: number) => !!l.frete_gratis?.hoje && subtotal >= Number(l.frete_gratis.minimo ?? 0);
 /** "Frete grátis toda terça" / "às terças e sextas" */
 function textoDiasFrete(dias: number[]) {
@@ -474,13 +495,9 @@ export default function LojaCardapio() {
       </header>
 
       {loja.entrega !== false && loja.frete_gratis && (
-        <div className={cx('loja-frete', loja.frete_gratis.hoje && 'hoje')}>
-          <span className="loja-frete__icone" aria-hidden="true"><Gift size={20} /></span>
-          <span>
-            <b>{loja.frete_gratis.hoje ? 'Hoje tem FRETE GRÁTIS!' : `Frete grátis ${textoDiasFrete(loja.frete_gratis.dias)}`}</b>
-            <small>{Number(loja.frete_gratis.minimo) > 0 ? `Em pedidos a partir de ${brl(Number(loja.frete_gratis.minimo))}` : loja.frete_gratis.hoje ? 'A entrega é por nossa conta em qualquer pedido.' : 'Em qualquer pedido para entrega.'}</small>
-          </span>
-        </div>
+        <FaixaFrete hoje={!!loja.frete_gratis.hoje}
+          titulo={loja.frete_gratis.hoje ? 'Hoje tem frete grátis' : `Frete grátis ${textoDiasFrete(loja.frete_gratis.dias)}`}
+          texto={Number(loja.frete_gratis.minimo) > 0 ? `Em pedidos a partir de ${brl(Number(loja.frete_gratis.minimo))}` : loja.frete_gratis.hoje ? 'A entrega é por nossa conta' : 'Em qualquer pedido para entrega'} />
       )}
       <div className="loja-info">
         <span><Clock size={15} /> {loja.tempo}</span>

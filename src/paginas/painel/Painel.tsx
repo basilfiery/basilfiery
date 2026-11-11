@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, Bike, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Headset, Printer, QrCode, Receipt, RefreshCw, Rocket, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Bell, Bike, Contact, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Headset, Printer, QrCode, Receipt, RefreshCw, Rocket, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -73,6 +73,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
       { para: '/painel', icone: ClipboardList, rotulo: 'Pedidos', papeis: TODOS, fim: true },
       { para: '/painel/pdv', icone: ShoppingBasket, rotulo: 'Pedidos balcão (PDV)', curto: 'PDV', papeis: TODOS },
       { para: '/painel/mesas', icone: LayoutGrid, rotulo: 'Mesas', papeis: TODOS },
+      { para: '/painel/clientes', icone: Contact, rotulo: 'Clientes', papeis: CAIXA, novo: true },
       {
         para: '/painel/cardapio', icone: BookOpen, rotulo: 'Gestor de cardápio', curto: 'Cardápio', papeis: GESTORES,
         filhos: [
@@ -128,7 +129,6 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
       {
         para: '/painel/config', icone: Settings, rotulo: 'Configurações', papeis: TODOS,
         filhos: [
-          { para: '/painel/config/clientes', rotulo: 'Meus clientes', papeis: CAIXA, novo: true },
           { para: '/painel/config/pedidos', rotulo: 'Meus pedidos', papeis: CAIXA },
           { para: '/painel/config/impressora', rotulo: 'Impressora' },
           { para: '/painel/config/integracoes', rotulo: 'Integrações', papeis: GESTORES },

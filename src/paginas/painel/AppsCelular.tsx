@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, Bike, Download, MessageCircle, Share, ShoppingCart, Smartphone, SquarePlus, UserRound } from 'lucide-react';
+import { BarChart3, Bike, ClipboardList, Download, MessageCircle, Share, ShoppingCart, Smartphone, SquarePlus, UserRound } from 'lucide-react';
 import { LinkCopiavel, QrCartao } from '../../componentes/Link';
 import { usePainel } from './Painel';
 import { origemSistema } from '../../lib/linkCurto';
 import { linkColaboradores } from './Compras';
+import { ModalCadastrar, ModalEnviarAcesso, type Acesso } from './Garcons';
 
 /* =====================================================================
    Apps no celular: links prontos para abrir e instalar na tela de início
@@ -12,6 +14,8 @@ import { linkColaboradores } from './Compras';
 export default function AppsCelular() {
   const { restaurante: r } = usePainel();
   const origem = origemSistema();
+  const [cadastrando, setCadastrando] = useState(false);
+  const [acesso, setAcesso] = useState<Acesso | null>(null);
   const APK_GARCOM = `${origem}/apps/basilfiery-garcom.apk`;
   const apps = [
     {
@@ -25,6 +29,12 @@ export default function AppsCelular() {
       whats: `Olá! Este é o app dos garçons da ${r.nome}: ${origem}/appgarcom (entre com o seu e-mail e senha)`,
       extra: <Link className="btn btn--fantasma btn--sm" to="/painel/garcons">Criar acesso de garçom</Link>,
       android: true,
+    },
+    {
+      id: 'pedidos', icone: ClipboardList, titulo: 'App de pedidos', link: `${origem}/apppedidos`,
+      texto: 'Para quem recebe os pedidos do cardápio digital: toca a cada pedido novo, mostra a comanda grande para anotar no papel e acompanha até o cliente receber. Funciona no celular e no tablet.',
+      whats: `Olá! Este é o app de pedidos da ${r.nome}: ${origem}/apppedidos (entre com o seu e-mail e senha)`,
+      extra: <button className="btn btn--fantasma btn--sm" onClick={() => setCadastrando(true)}>Criar acesso de atendente</button>,
     },
     {
       id: 'entregador', icone: Bike, titulo: 'App do entregador', link: `${origem}/appentregador`,
@@ -78,6 +88,11 @@ export default function AppsCelular() {
           </section>
         ))}
       </div>
+
+      {cadastrando && (
+        <ModalCadastrar papel="atendente" restauranteId={r.id} aoFechar={() => setCadastrando(false)} aoCriar={(a) => { setCadastrando(false); setAcesso(a); }} />
+      )}
+      {acesso && <ModalEnviarAcesso app="atendente" acesso={acesso} restaurante={r.nome} codigo={r.codigo} aoFechar={() => setAcesso(null)} />}
 
       <section className="card apps__instalar">
         <h2 className="card__titulo">Como instalar na tela de início</h2>

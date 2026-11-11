@@ -39,6 +39,7 @@ const Garcons = tela(() => import('./paginas/painel/Garcons'));
 const Entregadores = tela(() => import('./paginas/painel/Entregadores'));
 const Clientes = tela(() => import('./paginas/painel/config/Clientes'));
 const AppEntregador = tela(() => import('./paginas/entregador/AppEntregador'));
+const AppPedidos = tela(() => import('./paginas/atendente/AppPedidos'));
 const Configuracoes = tela(() => import('./paginas/painel/Configuracoes'));
 const Conta = tela(() => import('./paginas/painel/Conta'));
 const Relatorios = tela(() => import('./paginas/painel/Relatorios'));
@@ -118,6 +119,7 @@ export default function App() {
         <Route path="/colaboradores/:codigo" element={<ListaCompras />} />
         <Route path="/appgarcom" element={<AppGarcomGeral />} />
         <Route path="/appentregador" element={<AppEntregador />} />
+        <Route path="/apppedidos" element={<AppPedidos />} />
         <Route path="/colaboradores" element={<ListaCompras />} />
         <Route path="/g" element={<AppGarcomInicio />} />
         <Route path="/g/:codigo" element={<AppGarcom />} />

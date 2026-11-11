@@ -79,11 +79,21 @@ Deno.serve(async (req) => {
       tag: p.tag,
       url: '/appentregador',
     });
+    // App de pedidos (atendente): só pedido novo do cardápio digital (entrega ou retirada)
+    const mensagemAtendente = JSON.stringify({
+      titulo: `Novo pedido #${String(p.titulo).match(/#(\d+)/)?.[1] ?? ''} · ${p.tipo === 'retirada' ? 'Retirada' : 'Entrega'}`,
+      corpo: `${p.valor ?? ''} · toque para anotar`,
+      tag: p.tag,
+      url: '/apppedidos',
+    });
     let enviados = 0;
     await Promise.all(inscricoes.map(async (s) => {
       const doDono = s.app === 'dono';
       const doEntregador = s.app === 'entregador';
-      if (doEntregador) {
+      const doAtendente = s.app === 'atendente';
+      if (doAtendente) {
+        if (p.evento !== 'pedido' || (p.tipo !== 'delivery' && p.tipo !== 'retirada')) return;
+      } else if (doEntregador) {
         if (p.tipo !== 'delivery' || (p.evento !== 'pedido' && p.evento !== 'pronto')) return;
         // Entrega que já é de outro entregador: não avisa os demais
         if (p.entregador_id && p.entregador_id !== s.user_id) return;
@@ -96,7 +106,7 @@ Deno.serve(async (req) => {
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          doEntregador ? mensagemEntregador : doDono ? mensagemDono : mensagem,
+          doAtendente ? mensagemAtendente : doEntregador ? mensagemEntregador : doDono ? mensagemDono : mensagem,
           { TTL: 600, urgency: 'high' },
         );
         enviados++;

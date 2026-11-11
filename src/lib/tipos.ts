@@ -1,5 +1,5 @@
 import type { ContaParcial } from './contaParcial';
-export type Papel = 'dono' | 'gerente' | 'caixa' | 'garcom' | 'entregador';
+export type Papel = 'dono' | 'gerente' | 'caixa' | 'garcom' | 'entregador' | 'atendente';
 export type StatusPedido = 'novo' | 'preparando' | 'pronto' | 'entregue' | 'cancelado';
 
 /** Marca no topo do menu do sistema: BasilFiery, logo + nome próprios, ou só uma imagem larga (16:9) */
@@ -249,6 +249,11 @@ export interface Pedido {
   /** mesa | delivery | retirada | balcao (PDV) */
   tipo: 'mesa' | 'delivery' | 'retirada' | 'balcao';
   desconto?: number;
+  acrescimo?: number;
+  /** Motivo do cancelamento (o cliente vê no acompanhamento) */
+  cancel_motivo?: string | null;
+  /** Código do link de acompanhamento do cliente */
+  acompanhar?: string | null;
   cliente_nome: string | null;
   cliente_telefone: string | null;
   endereco: EnderecoEntrega | null;

@@ -19,7 +19,7 @@ import { dataBR, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { useToast } from '../../componentes/Toast';
 import { descreverAparelho, idDispositivo } from '../../lib/dispositivo';
 import {
-  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirContaConfirmada, imprimirPedido, imprimirTeste,
+  EVENTO_CONFIG_IMPRESSAO, EVENTO_ERRO_IMPRESSAO, definirLojaImpressao, gravarConfigImpressao, imprimirContaConfirmada, imprimirPedido, imprimirPedidoConfirmado, imprimirTeste,
   lerConfigImpressao, programaDesktop,
 } from '../../lib/impressao';
 import { useSessao } from '../../lib/sessao';
@@ -320,11 +320,11 @@ export default function Painel() {
     const eu = idDispositivo();
     const CHAVE_FALHA = 'bf:impressao:falhou-em';
     const CHAVE_OK = 'bf:impressao:ok-em';
-    type Item = { id: string; mesa_id: string | null; criado_em: string; pego_em?: string | null; impresso_em?: string | null; falharam?: string[] | null };
+    type Item = { id: string; mesa_id: string | null; pedido_id?: string | null; criado_em: string; pego_em?: string | null; impresso_em?: string | null; falharam?: string[] | null };
     const emAndamento = new Set<string>();
     const livre = (i: Item) => !i.impresso_em && !(i.falharam ?? []).includes(eu) && !(i.pego_em && Date.now() - new Date(i.pego_em).getTime() < 40000);
     const atender = async (item: Item) => {
-      if (!item.mesa_id || emAndamento.has(item.id) || !livre(item)) return;
+      if ((!item.mesa_id && !item.pedido_id) || emAndamento.has(item.id) || !livre(item)) return;
       if (Date.now() - new Date(item.criado_em).getTime() > 5 * 60000) return;
       emAndamento.add(item.id);
       try {
@@ -339,8 +339,28 @@ export default function Painel() {
             : 2500 + (cfgImpRef.current.auto ? 0 : 1500);
         if (espera) {
           await new Promise((ok) => setTimeout(ok, espera));
-          const { data: f } = await supabase.from('fila_impressao').select('id, mesa_id, criado_em, impresso_em, pego_em, falharam').eq('id', item.id).maybeSingle();
+          const { data: f } = await supabase.from('fila_impressao').select('id, mesa_id, pedido_id, criado_em, impresso_em, pego_em, falharam').eq('id', item.id).maybeSingle();
           if (!f || !livre(f as Item)) return; // outro computador já pegou
+        }
+        // Pedido do app de pedidos: comanda da cozinha + pedido, nas impressoras deste computador
+        if (item.pedido_id) {
+          const [{ data: pegou }, { data: ped }] = await Promise.all([
+            supabase.rpc('impressao_reivindicar', { p_id: item.id, p_aparelho: nomeAparelho, p_dispositivo: eu }),
+            supabase.from('pedidos').select('*, pedido_itens(*)').eq('id', item.pedido_id).maybeSingle(),
+          ]);
+          if (!pegou) return;
+          let erro: string | null;
+          try {
+            erro = ped ? await imprimirPedidoConfirmado(ped as Pedido, restRef.current?.nome ?? '') : 'Pedido não encontrado';
+          } catch (e) {
+            erro = e instanceof Error ? e.message : 'Erro ao imprimir';
+          }
+          await supabase.rpc('impressao_concluir', { p_id: item.id, p_erro: erro, p_dispositivo: eu });
+          if (erro) {
+            ls.gravar(CHAVE_FALHA, Date.now());
+            toast(`O pedido #${(ped as Pedido | null)?.numero ?? ''} não imprimiu neste computador (${erro}). Passando para outro computador do caixa.`, 'erro');
+          } else { ls.gravar(CHAVE_FALHA, 0); ls.gravar(CHAVE_OK, Date.now()); }
+          return;
         }
         // Pega a conta e já busca a mesa e os pedidos ao mesmo tempo (uma ida ao servidor a menos)
         const [{ data: pegou }, { data: mesa }, { data: peds }] = await Promise.all([
@@ -370,7 +390,7 @@ export default function Painel() {
     };
     // Pendentes (também cobre o aviso em tempo real que se perdeu: aba parada, internet que caiu)
     const conferir = () => {
-      void supabase.from('fila_impressao').select('id, mesa_id, criado_em, impresso_em, pego_em, falharam').eq('restaurante_id', rest)
+      void supabase.from('fila_impressao').select('id, mesa_id, pedido_id, criado_em, impresso_em, pego_em, falharam').eq('restaurante_id', rest)
         .is('impresso_em', null).gte('criado_em', new Date(Date.now() - 5 * 60000).toISOString())
         .then(({ data }) => ((data ?? []) as Item[]).forEach((i) => void atender(i)));
     };
@@ -705,6 +725,7 @@ export default function Painel() {
                 <div className="menu-sep" />
                 <button className="menu-item" onClick={() => { fechar(); setPerfilAberto(true); }}><UserCog size={18} /> Meu perfil</button>
                 <Link className="menu-item" to="/garcom" onClick={fechar}><Smartphone size={18} /> Tela do garçom</Link>
+                <Link className="menu-item" to="/apppedidos" onClick={fechar}><ClipboardList size={18} /> App de pedidos</Link>
                 {s.ehAdmin && <Link className="menu-item" to="/plataforma" onClick={fechar}><ShieldCheck size={18} /> Plataforma</Link>}
                 {s.ehAdmin && <Link className="menu-item" to="/plataforma?aba=suporte" onClick={fechar}><MessagesSquare size={18} /> Suporte{suporte.naoLidas > 0 && <span className="menu-item__selo">{suporte.naoLidas}</span>}</Link>}
                 <div className="menu-sep" />

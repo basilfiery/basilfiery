@@ -139,6 +139,7 @@ export const PAPEL_ROTULO: Record<Papel, string> = {
   caixa: 'Caixa',
   garcom: 'Garçom',
   entregador: 'Entregador',
+  atendente: 'Atendente',
 };
 
 export const ehGestor = (p?: Papel | null) => p === 'dono' || p === 'gerente';

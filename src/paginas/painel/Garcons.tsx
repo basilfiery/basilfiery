@@ -14,10 +14,11 @@ import { confirmar } from '../../componentes/Confirmar';
 export interface Acesso { nome: string; email: string; senha?: string; telefone?: string; jaTinhaConta?: boolean }
 
 /** App de cada cargo de celular: garçom ou entregador */
-export type AppEquipe = 'garcom' | 'entregador';
+export type AppEquipe = 'garcom' | 'entregador' | 'atendente';
 const TEXTO_APP: Record<AppEquipe, { nome: string; caminho: string; dica: string; quem: string }> = {
   garcom: { nome: 'app do garçom', caminho: '/appgarcom', quem: 'garçom', dica: 'Abra o link no celular, entre e toque em “Ativar notificações” para receber os pedidos e os chamados das mesas. Toque na bolinha do topo para colocar sua foto.' },
   entregador: { nome: 'app do entregador', caminho: '/appentregador', quem: 'entregador', dica: 'Abra o link no celular, entre e toque em “Ativar avisos” para saber na hora quando tem entrega pronta para sair.' },
+  atendente: { nome: 'app de pedidos', caminho: '/apppedidos', quem: 'atendente', dica: 'Abra o link no celular ou tablet, entre e toque em “Ativar avisos” para tocar a cada pedido novo do cardápio digital.' },
 };
 
 /** Link do app do garçom: separado do sistema (não passa pela tela de login do caixa). */
@@ -133,7 +134,7 @@ export default function Garcons() {
 }
 
 export function ModalCadastrar({ restauranteId, aoFechar, aoCriar, papel = 'garcom' }: { restauranteId: string; aoFechar: () => void; aoCriar: (a: Acesso) => void; papel?: Papel }) {
-  const quem = papel === 'entregador' ? 'entregador' : 'garçom';
+  const quem = papel === 'entregador' ? 'entregador' : papel === 'atendente' ? 'atendente' : 'garçom';
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState(gerarSenha);

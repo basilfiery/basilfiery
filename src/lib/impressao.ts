@@ -589,6 +589,17 @@ export async function imprimirContaConfirmada(mesaNome: string, restaurante: str
   return typeof r === 'string' ? r : r.find(Boolean) ?? null;
 }
 
+/** Pedido pedido pelo app de pedidos: comanda da cozinha (e o pedido), esperando a impressora responder. */
+export async function imprimirPedidoConfirmado(p: Pedido, restaurante: string): Promise<string | null> {
+  const meus: Promise<string | null>[] = [];
+  coletor = meus;
+  try { imprimirPedido(p, restaurante, { automatico: true }); } finally { coletor = null; }
+  if (!meus.length) return 'Nenhuma impressora configurada neste computador';
+  const limite = new Promise<string>((ok) => setTimeout(() => ok('A impressora do caixa não respondeu'), 45000));
+  const r = await Promise.race([Promise.all(meus), limite]);
+  return typeof r === 'string' ? r : r.find(Boolean) ?? null;
+}
+
 /** Cupom de fechamento (ou parcial) do caixa. */
 export function imprimirFechamento(r: ResumoCaixa, restaurante: string, parcial: boolean) {
   if (restaurante) loja = { ...loja, nome: restaurante };

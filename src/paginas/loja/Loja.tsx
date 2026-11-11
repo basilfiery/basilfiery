@@ -48,13 +48,39 @@ interface Loja {
 
 const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 /** Ganha frete grátis com estes itens? (dia da promoção + pedido mínimo) */
+/** Pizza dançando: braços vão pra frente e voltam, pernas sobem e descem alternadas */
+function PizzaDancando() {
+  return (
+    <svg className="pz" viewBox="0 0 40 44" aria-hidden="true">
+      <g className="pz__corpo">
+        {/* braços (atrás da fatia) */}
+        <g className="pz__braco pz__braco--e"><path d="M12 17 L4 21" /><circle cx="4" cy="21" r="2.3" /></g>
+        <g className="pz__braco pz__braco--d"><path d="M28 17 L36 21" /><circle cx="36" cy="21" r="2.3" /></g>
+        {/* pernas */}
+        <g className="pz__perna pz__perna--e"><path d="M18 30 L16 38" /><ellipse cx="14.6" cy="38.6" rx="3" ry="1.7" /></g>
+        <g className="pz__perna pz__perna--d"><path d="M22 30 L24 38" /><ellipse cx="25.4" cy="38.6" rx="3" ry="1.7" /></g>
+        {/* fatia */}
+        <path className="pz__queijo" d="M7.5 8.5 Q20 5 32.5 8.5 L21.2 32 Q20 34 18.8 32 Z" />
+        <path className="pz__borda" d="M6.5 8.8 Q20 3.6 33.5 8.8 Q34.4 6.2 33 4.6 Q20 -0.6 7 4.6 Q5.6 6.2 6.5 8.8 Z" />
+        <circle className="pz__calabresa" cx="13.6" cy="13.5" r="2.4" />
+        <circle className="pz__calabresa" cx="26" cy="13" r="2.1" />
+        <circle className="pz__calabresa" cx="20.4" cy="25.5" r="1.9" />
+        {/* rosto */}
+        <circle className="pz__olho" cx="17.3" cy="16.4" r="1.25" />
+        <circle className="pz__olho" cx="22.7" cy="16.4" r="1.25" />
+        <path className="pz__boca" d="M17.6 19.6 Q20 22.2 22.4 19.6" />
+      </g>
+    </svg>
+  );
+}
+
 /** Faixa de frete grátis: desliza sozinha, em looping, devagar */
 function FaixaFrete({ hoje, titulo, texto }: { hoje: boolean; titulo: string; texto: string }) {
   const grupo = (k: number) => (
     <div className="loja-frete__grupo" key={k}>
       {[0, 1, 2].map((i) => (
         <span className="loja-frete__item" key={i}>
-          <span className="loja-frete__icone"><Gift size={15} /></span>
+          <PizzaDancando />
           <b>{titulo}</b>
           <small>{texto}</small>
           <i className="loja-frete__sep" />

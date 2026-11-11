@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CircleCheck, Trash2 } from 'lucide-react';
 import { useToast } from '../../../componentes/Toast';
 import { useSessao } from '../../../lib/sessao';
-import { msgErro, supabase } from '../../../lib/supabase';
+import { msgErro, supabase, salvarRestaurante } from '../../../lib/supabase';
 import { cx } from '../../../lib/util';
 import { usePainel } from '../Painel';
 import { CampoAjuda, PaginaConfig, mudou } from './Layout';
@@ -39,7 +39,7 @@ export default function Anuncios() {
     if (invalido('capi', capi)) return toast('Token CAPI inválido. Copie o token inteiro do Gerenciador de Eventos.', 'erro');
     setSalvando(true);
     const [a, b] = await Promise.all([
-      supabase.from('restaurantes').update({ ads_pixel: f.pixel.trim() || null, ads_ga4: f.ga4.trim() || null, ads_gads: f.gads.trim() || null }).eq('id', r.id),
+      salvarRestaurante(r.id, { ads_pixel: f.pixel.trim() || null, ads_ga4: f.ga4.trim() || null, ads_gads: f.gads.trim() || null }),
       capi.trim() ? supabase.from('restaurante_dados').upsert({ restaurante_id: r.id, capi_token: capi.trim() }) : Promise.resolve({ error: null }),
     ]);
     setSalvando(false);

@@ -5,7 +5,7 @@ import { AjustarFoto } from '../../../componentes/AjustarFoto';
 import { useToast } from '../../../componentes/Toast';
 import { IconeForma } from '../../../componentes/Pagamento';
 import { useSessao } from '../../../lib/sessao';
-import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../../lib/supabase';
+import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase, salvarRestaurante } from '../../../lib/supabase';
 import type { EnderecoLoja, HorarioDia, RestauranteDados } from '../../../lib/tipos';
 import { cx, lerPreco, mascaraPreco, precoParaTexto } from '../../../lib/util';
 import { usePainel } from '../Painel';
@@ -259,7 +259,7 @@ export default function Estabelecimento() {
 
     setSalvando(true);
     const [r1, r2] = await Promise.all([
-      supabase.from('restaurantes').update({
+      salvarRestaurante(r.id, {
         nome: f.nome.trim(), segmento: f.segmento || null, instagram: f.instagram.trim().replace(/^@/, '') || null,
         whatsapp: digitos(f.whatsapp) || null, logo_url: f.logo_url,
         endereco_info: temEndereco ? { ...e, uf: e.uf.toUpperCase() } : r.endereco_info, endereco: enderecoTexto,
@@ -269,7 +269,7 @@ export default function Estabelecimento() {
         delivery_minimo: minimo, delivery_taxa: taxa, formas_pagamento: f.formas,
         entrega_modo: f.modo, entrega_raios: raios, entrega_bairros: bairros, lat: f.lat, lng: f.lng,
         frete_gratis_dias: f.frete_dias, frete_gratis_minimo: freteMinimo, frete_gratis_categorias: f.frete_cats, corrida_fixa: corrida,
-      }).eq('id', r.id),
+      }),
       mudou(d, dadosBase)
         ? supabase.from('restaurante_dados').upsert({
           restaurante_id: r.id,

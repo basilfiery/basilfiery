@@ -5,7 +5,7 @@ import { Modal } from './Modal';
 import { Switch } from './Basicos';
 import { BotaoCopiar } from './Link';
 import { useToast } from './Toast';
-import { msgErro, supabase } from '../lib/supabase';
+import { msgErro, salvarRestaurante } from '../lib/supabase';
 import type { RestauranteComPapel } from '../lib/tipos';
 
 export { linkLoja } from '../lib/linkCurto';
@@ -35,7 +35,7 @@ export function ModalCardapioDigital({ restaurante, gestor, aoMudarDelivery, aoF
 
   async function alternar(v: boolean) {
     setAtivo(v);
-    const { error } = await supabase.from('restaurantes').update({ delivery_ativo: v }).eq('id', restaurante.id);
+    const { error } = await salvarRestaurante(restaurante.id, { delivery_ativo: v });
     if (error) {
       setAtivo(!v);
       return toast(msgErro(error), 'erro');

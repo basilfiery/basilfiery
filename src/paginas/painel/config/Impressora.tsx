@@ -11,7 +11,7 @@ import {
   previaModelo, programaDesktop, type ConfigImpressaoLoja, type ImpressoraLocal, type ModeloId, type ModeloImpressao,
 } from '../../../lib/impressao';
 import { useSessao } from '../../../lib/sessao';
-import { enviarImagem, msgErro, supabase } from '../../../lib/supabase';
+import { enviarImagem, msgErro, supabase, salvarRestaurante } from '../../../lib/supabase';
 import { cx, ehGestor } from '../../../lib/util';
 import { usePainel } from '../Painel';
 import { mascaraTelefone } from './Estabelecimento';
@@ -266,7 +266,7 @@ function EditorModelo({ id, aoVoltar }: { id: ModeloId; aoVoltar: () => void }) 
       telefone: loja.telefone ? mascaraTelefone(loja.telefone) : null,
       modelos: { ...(base.modelos ?? {}), [id]: { ...m, vias: Math.max(1, Math.min(5, m.vias)), mensagem: m.mensagem.slice(0, 200), rodape: m.rodape.slice(0, 300), site: m.site.slice(0, 80) } },
     };
-    const { error } = await supabase.from('restaurantes').update({ impressao: nova }).eq('id', r.id);
+    const { error } = await salvarRestaurante(r.id, { impressao: nova });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
     gravarConfigImpressao({ auto: cfgLocal.auto, impressoras: cfgLocal.impressoras });

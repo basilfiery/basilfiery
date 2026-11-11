@@ -333,6 +333,8 @@ export interface Caixa {
   restaurante_id: string;
   aberto_em: string;
   aberto_por_nome: string | null;
+  /** Operador de caixa (usuário e senha) que abriu */
+  operador_nome?: string | null;
   valor_inicial: number;
   fechado_em: string | null;
   fechado_por_nome: string | null;

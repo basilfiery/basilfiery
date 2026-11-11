@@ -11,7 +11,7 @@ import { useAppInstalavel } from '../../lib/manifesto';
 import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
 import { tocarVenda } from '../../lib/som';
-import { msgErro, supabase } from '../../lib/supabase';
+import { msgErro, supabase, salvarRestaurante } from '../../lib/supabase';
 import type { Pedido, ResumoCaixa, RestauranteComPapel } from '../../lib/tipos';
 import { STATUS_ROTULO, brl, cx, duracao, hora, inicioDoDia, lerPreco, ls, mascaraPreco, precoParaTexto, quando } from '../../lib/util';
 import { usePedidosAoVivo } from '../../lib/usePedidosAoVivo';
@@ -495,13 +495,13 @@ function Inicio({ rest, nome, foto, oculto, setOculto, valor, versao, ir, aoSino
     if (rest.meta_mensal != null) { setMetaEstado(Number(rest.meta_mensal)); ls.gravar(chaveMeta, Number(rest.meta_mensal)); return; }
     // Meta antiga, salva só neste celular: sobe para o banco uma vez
     const local = ls.ler<number | null>(chaveMeta, null);
-    if (local) void supabase.from('restaurantes').update({ meta_mensal: local }).eq('id', rest.id);
+    if (local) void salvarRestaurante(rest.id, { meta_mensal: local });
   }, [rest.id, rest.meta_mensal, chaveMeta]);
   async function salvarMeta(v: number | null) {
     const antes = meta;
     setMetaEstado(v);
     ls.gravar(chaveMeta, v);
-    const { error } = await supabase.from('restaurantes').update({ meta_mensal: v }).eq('id', rest.id);
+    const { error } = await salvarRestaurante(rest.id, { meta_mensal: v });
     if (error) { setMetaEstado(antes); ls.gravar(chaveMeta, antes); toast(msgErro(error), 'erro'); }
   }
   const [editMeta, setEditMeta] = useState(false);

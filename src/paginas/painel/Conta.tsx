@@ -6,7 +6,7 @@ import { Avatar, ModalPerfil } from '../../componentes/Perfil';
 import { useToast } from '../../componentes/Toast';
 import { SITE } from '../../config/site';
 import { useSessao } from '../../lib/sessao';
-import { msgErro, supabase } from '../../lib/supabase';
+import { msgErro, supabase, salvarRestaurante } from '../../lib/supabase';
 import type { Fatura } from '../../lib/tipos';
 import { DIAS_TOLERANCIA, dataBR, ehCartao, linkPagarPlano, situacaoPlano } from '../../lib/fatura';
 import { brl, cx } from '../../lib/util';
@@ -107,9 +107,9 @@ function Pessoais() {
     setSalvando(true);
     const [u, x] = await Promise.all([
       supabase.auth.updateUser({ data: { telefone: telefone.replace(/\D/g, '') } }),
-      supabase.from('restaurantes').update({
+      salvarRestaurante(r.id, {
         nome: rest.nome.trim(), whatsapp: rest.whatsapp.replace(/\D/g, '') || null, endereco: rest.endereco.trim() || null,
-      }).eq('id', r.id),
+      }),
     ]);
     setSalvando(false);
     const erro = u.error ?? x.error;

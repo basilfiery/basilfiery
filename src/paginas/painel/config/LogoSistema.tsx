@@ -4,7 +4,7 @@ import { AjustarFoto } from '../../../componentes/AjustarFoto';
 import { MarcaLateral } from '../../../componentes/MarcaSistema';
 import { useToast } from '../../../componentes/Toast';
 import { useSessao } from '../../../lib/sessao';
-import { ACEITA_IMAGEM, enviarImagem, msgErro, supabase } from '../../../lib/supabase';
+import { ACEITA_IMAGEM, enviarImagem, msgErro, salvarRestaurante } from '../../../lib/supabase';
 import type { MarcaSistema } from '../../../lib/tipos';
 import { cx } from '../../../lib/util';
 import { usePainel } from '../Painel';
@@ -49,7 +49,7 @@ export default function LogoSistema({ titulo = 'Logo do sistema', passos = [PASS
     const valor: MarcaSistema | null = f.modo === 'padrao' ? null : {
       modo: f.modo, nome: f.nome?.trim() || '', sub: f.sub?.trim() || '', logo_url: f.logo_url || null, imagem_url: f.imagem_url || null,
     };
-    const { error } = await supabase.from('restaurantes').update({ marca_sistema: valor }).eq('id', r.id);
+    const { error } = await salvarRestaurante(r.id, { marca_sistema: valor });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
     setBase(f);

@@ -3,7 +3,7 @@ import { Film, ImagePlus, Play, RefreshCw, Store, Trash2 } from 'lucide-react';
 import { AjustarFoto } from '../../componentes/AjustarFoto';
 import { useToast } from '../../componentes/Toast';
 import { useSessao } from '../../lib/sessao';
-import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, supabase } from '../../lib/supabase';
+import { ACEITA_IMAGEM, ACEITA_VIDEO, LIMITE_VIDEO_MB, enviarImagem, enviarVideo, msgErro, salvarRestaurante } from '../../lib/supabase';
 import { cx } from '../../lib/util';
 import { CampoAjuda, PaginaConfig, mudou, usePasso, type Passo } from './config/Layout';
 import { usePainel } from './Painel';
@@ -40,10 +40,10 @@ export default function Aparencia() {
 
   async function salvar() {
     setSalvando(true);
-    const { error } = await supabase.from('restaurantes').update({
+    const { error } = await salvarRestaurante(r.id, {
       logo_url: f.logo, cor: f.cor, loja_capa_url: f.capa, capa_video_url: f.video,
       slogan: f.slogan.trim() || null, loja_descricao: f.descricao.trim() || null, loja_rodape: f.rodape.trim() || null,
-    }).eq('id', r.id);
+    });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
     toast('Aparência do cardápio salva. Já aparece na mesa e no delivery.', 'ok');

@@ -6,7 +6,7 @@ import { useToast } from '../../componentes/Toast';
 import { SITE, linkAssinar } from '../../config/site';
 import { SLUG_PRINCIPAL, linkLoja, linkMesa, origemSistema, planoPermiteDominio, slugLoja } from '../../lib/linkCurto';
 import { useSessao } from '../../lib/sessao';
-import { funcao, msgErro, supabase } from '../../lib/supabase';
+import { funcao, msgErro, salvarRestaurante } from '../../lib/supabase';
 import { cx } from '../../lib/util';
 import { usePainel } from './Painel';
 
@@ -209,7 +209,7 @@ function EnderecoLoja() {
     if (limpo.length < 3) return toast('Use pelo menos 3 letras ou números.', 'erro');
     if (!(await confirmar(`Trocar o endereço para ${prefixo}${limpo}?\n\nQR codes e links já divulgados com o endereço antigo param de funcionar.`, { sim: 'Trocar endereço' }))) return;
     setSalvando(true);
-    const { error } = await supabase.from('restaurantes').update({ slug: limpo }).eq('id', r.id);
+    const { error } = await salvarRestaurante(r.id, { slug: limpo });
     setSalvando(false);
     if (error) {
       if (error.code === '23505') return toast('Esse nome já é de outra loja. Tente outro.', 'erro');

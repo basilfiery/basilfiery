@@ -6,7 +6,7 @@ import { useToast } from '../../componentes/Toast';
 import { ativarPush, desativarPush, estadoPush, type EstadoPush } from '../../lib/push';
 import { useSessao } from '../../lib/sessao';
 import { SONS_CHAMADO, definirSom, somLigado, tocarAlerta, tocarChamado, type SomChamado } from '../../lib/som';
-import { msgErro, supabase } from '../../lib/supabase';
+import { msgErro, salvarRestaurante } from '../../lib/supabase';
 import type { Papel } from '../../lib/tipos';
 import { cx, ehGestor, podeCaixa } from '../../lib/util';
 import { VERSAO_CURTA } from '../../lib/versao';
@@ -98,7 +98,7 @@ function CartaoSomChamado() {
     if (!gestor || id === atual) return;
     const antes = atual;
     setAtual(id);
-    const { error } = await supabase.from('restaurantes').update({ som_chamado: id }).eq('id', restaurante.id);
+    const { error } = await salvarRestaurante(restaurante.id, { som_chamado: id });
     if (error) {
       setAtual(antes);
       return toast(msgErro(error), 'erro');

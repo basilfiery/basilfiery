@@ -37,6 +37,7 @@ const Estoque = tela(() => import('./paginas/painel/Estoque'));
 const Equipe = tela(() => import('./paginas/painel/Equipe'));
 const Garcons = tela(() => import('./paginas/painel/Garcons'));
 const Entregadores = tela(() => import('./paginas/painel/Entregadores'));
+const GestaoCaixas = tela(() => import('./paginas/painel/GestaoCaixas'));
 const Clientes = tela(() => import('./paginas/painel/config/Clientes'));
 const AppEntregador = tela(() => import('./paginas/entregador/AppEntregador'));
 const AppPedidos = tela(() => import('./paginas/atendente/AppPedidos'));
@@ -140,6 +141,7 @@ export default function App() {
           <Route path="estoque" element={<Estoque />} />
           <Route path="garcons" element={<Garcons />} />
           <Route path="entregadores" element={<Entregadores />} />
+          <Route path="caixas" element={<GestaoCaixas />} />
           <Route path="clientes" element={<Clientes />} />
           <Route path="equipe" element={<Equipe />} />
           <Route path="pdv" element={<Pdv />} />

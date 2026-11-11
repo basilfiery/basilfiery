@@ -51,6 +51,8 @@ export interface ContextoPainel {
   /** Caixa aberto agora (null = fechado, undefined = carregando) */
   caixa: ResumoCaixa | null | undefined;
   abrirCaixa: () => void;
+  /** Abre o caixa direto em uma tela: resumo, retirada ou fechar */
+  abrirCaixaModo: (m: ModoCaixa) => void;
   recarregarCaixa: () => void;
   /** Texto digitado na busca da barra superior */
   busca: string;
@@ -84,6 +86,12 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
       { para: '/painel/notas', icone: FileText, rotulo: 'Notas fiscais', papeis: CAIXA },
       { para: '/painel/estoque', icone: Package, rotulo: 'Estoque', papeis: CAIXA },
       { para: '/painel/compras', icone: ShoppingCart, rotulo: 'Lista de compras', curto: 'Compras', papeis: TODOS },
+    ],
+  },
+  {
+    titulo: 'Financeiro',
+    itens: [
+      { para: '/painel/caixas', icone: Wallet, rotulo: 'Caixas', curto: 'Caixas', papeis: GESTORES, novo: true },
     ],
   },
   {
@@ -598,6 +606,7 @@ export default function Painel() {
     removerChamado: vivo.removerChamado,
     caixa,
     abrirCaixa: () => setModoCaixa('resumo'),
+    abrirCaixaModo: (m: ModoCaixa) => setModoCaixa(m),
     recarregarCaixa: () => void carregarCaixa(),
     busca,
   };

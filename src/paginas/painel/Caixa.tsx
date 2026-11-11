@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, CheckCircle2, Lock, Printer, RefreshCw, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, CheckCircle2, KeyRound, Lock, Printer, RefreshCw, UserRound, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Campo, Switch } from '../../componentes/Basicos';
 import { Modal } from '../../componentes/Modal';
 import { useToast } from '../../componentes/Toast';
@@ -7,11 +8,41 @@ import { imprimirFechamento, imprimirMovimentoCaixa } from '../../lib/impressao'
 import { msgErro, supabase } from '../../lib/supabase';
 import type { Caixa, MovimentoCaixa, Papel, ResumoCaixa } from '../../lib/tipos';
 import { FORMAS, brl, cx, dataHora, duracao, hora, lerPreco, mascaraPreco, podeCaixa } from '../../lib/util';
-import { aplicarAtualizacao } from '../../lib/versao';import { IconeForma } from '../../componentes/Pagamento';
+import { aplicarAtualizacao } from '../../lib/versao';
+import { IconeForma } from '../../componentes/Pagamento';
 import { confirmar } from '../../componentes/Confirmar';
 
 
 export type ModoCaixa = 'resumo' | 'fechar' | 'retirada';
+
+/** Quantos operadores de caixa a loja tem (com operador, abrir e fechar pedem usuário e senha) */
+export function useOperadoresCaixa(restauranteId: string) {
+  const [qtd, setQtd] = useState<number | null>(null);
+  const recarregar = () => void supabase.rpc('caixa_operadores_qtd', { p_rest: restauranteId }).then(({ data }) => setQtd(Number(data ?? 0)));
+  useEffect(recarregar, [restauranteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { qtd, recarregar };
+}
+
+export interface LoginOperador { usuario: string; senha: string }
+
+/** Usuário e senha do operador de caixa */
+export function CamposOperador({ v, aoMudar, titulo, foco }: { v: LoginOperador; aoMudar: (v: LoginOperador) => void; titulo: string; foco?: boolean }) {
+  return (
+    <div className="caixa__operador">
+      <strong className="caixa__operador-titulo"><KeyRound size={16} /> {titulo}</strong>
+      <div className="form-linha">
+        <Campo rotulo="Usuário do operador">
+          <span className="input-icone"><UserRound size={16} /><input className="input" value={v.usuario} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off"
+            onChange={(e) => aoMudar({ ...v, usuario: e.target.value.toLowerCase().replace(/\s/g, '') })} autoFocus={foco} placeholder="ex.: maria" /></span>
+        </Campo>
+        <Campo rotulo="Senha">
+          <span className="input-icone"><Lock size={16} /><input className="input" type="password" value={v.senha} autoComplete="new-password"
+            onChange={(e) => aoMudar({ ...v, senha: e.target.value })} placeholder="••••" /></span>
+        </Campo>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   restaurante: { id: string; nome: string };
@@ -43,7 +74,7 @@ export function ModalCaixa({ restaurante, papel, caixa, modo: modoInicial, aoFec
       {resultado ? (
         <Resultado r={resultado} restaurante={restaurante.nome} aoConcluir={concluir} atualizar={atualizarAoConcluir} />
       ) : !caixa ? (
-        <CaixaFechado restaurante={restaurante} pode={pode} aoAberto={() => { aoMudar(); aoFechar(); }} />
+        <CaixaFechado restaurante={restaurante} pode={pode} papel={papel} aoAberto={() => { aoMudar(); aoFechar(); }} />
       ) : modo === 'retirada' ? (
         <Retirada r={caixa} restaurante={restaurante.nome} pode={pode} aoVoltar={() => setModo('resumo')} aoConcluir={() => { aoMudar(); aoFechar(); }} />
       ) : (
@@ -61,11 +92,15 @@ export function ModalCaixa({ restaurante, papel, caixa, modo: modoInicial, aoFec
 }
 
 /* ---------------- Caixa fechado: abrir + histórico ---------------- */
-function CaixaFechado({ restaurante, pode, aoAberto }: { restaurante: { id: string; nome: string }; pode: boolean; aoAberto: () => void }) {
+function CaixaFechado({ restaurante, pode, papel, aoAberto }: { restaurante: { id: string; nome: string }; pode: boolean; papel: Papel; aoAberto: () => void }) {
   const toast = useToast();
   const [valor, setValor] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [historico, setHistorico] = useState<Caixa[]>([]);
+  const ops = useOperadoresCaixa(restaurante.id);
+  const [login, setLogin] = useState<LoginOperador>({ usuario: '', senha: '' });
+  const [novoOp, setNovoOp] = useState({ nome: '', usuario: '', senha: '' });
+  const gestor = papel === 'dono' || papel === 'gerente';
 
   useEffect(() => {
     void supabase.from('caixas').select('*').eq('restaurante_id', restaurante.id)
@@ -76,8 +111,22 @@ function CaixaFechado({ restaurante, pode, aoAberto }: { restaurante: { id: stri
   async function abrir() {
     const v = valor.trim() ? lerPreco(valor) : 0;
     if (!Number.isFinite(v) || v < 0) return toast('Valor de troco inválido. Ex.: 150,00', 'erro');
+    let cred = login;
+    if (ops.qtd) {
+      if (!login.usuario.trim() || !login.senha) return toast('Digite o usuário e a senha do operador de caixa.', 'erro');
+    } else if (gestor) {
+      // Primeiro operador: cadastra agora e já abre com ele
+      if (novoOp.nome.trim().length < 2 || novoOp.usuario.trim().length < 3 || novoOp.senha.length < 4) {
+        return toast('Cadastre o operador: nome, usuário (mín. 3 letras) e senha (mín. 4).', 'erro');
+      }
+      setOcupado(true);
+      const c = await supabase.rpc('caixa_operador_salvar', { p_rest: restaurante.id, p_id: null, p_nome: novoOp.nome, p_usuario: novoOp.usuario, p_senha: novoOp.senha, p_ativo: true });
+      if (c.error) { setOcupado(false); return toast(msgErro(c.error), 'erro'); }
+      cred = { usuario: novoOp.usuario, senha: novoOp.senha };
+      ops.recarregar();
+    }
     setOcupado(true);
-    const { error } = await supabase.rpc('caixa_abrir', { p_rest: restaurante.id, p_valor_inicial: v });
+    const { error } = await supabase.rpc('caixa_abrir', { p_rest: restaurante.id, p_valor_inicial: v, p_usuario: cred.usuario || null, p_senha: cred.senha || null });
     setOcupado(false);
     if (error) return toast(msgErro(error), 'erro');
     toast('Caixa aberto. Boas vendas!', 'ok');
@@ -96,11 +145,26 @@ function CaixaFechado({ restaurante, pode, aoAberto }: { restaurante: { id: stri
 
       {pode ? (
         <div className="form">
+          {ops.qtd === null ? null : ops.qtd > 0 ? (
+            <CamposOperador v={login} aoMudar={setLogin} titulo="Quem vai operar o caixa" foco />
+          ) : gestor ? (
+            <div className="caixa__operador caixa__operador--novo">
+              <strong className="caixa__operador-titulo"><UserRound size={16} /> Cadastre o operador deste caixa</strong>
+              <small className="muted">Cada caixa fica no nome de quem abriu. Depois, para abrir e fechar, é só o usuário e a senha. Gerencie os operadores em <Link to="/painel/caixas?aba=operadores">Gestão de caixas</Link>.</small>
+              <Campo rotulo="Nome do operador"><input className="input" value={novoOp.nome} onChange={(e) => setNovoOp({ ...novoOp, nome: e.target.value })} placeholder="Ex.: Maria Souza" autoFocus /></Campo>
+              <div className="form-linha">
+                <Campo rotulo="Usuário"><input className="input" value={novoOp.usuario} autoCapitalize="none" onChange={(e) => setNovoOp({ ...novoOp, usuario: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '') })} placeholder="maria" /></Campo>
+                <Campo rotulo="Senha"><input className="input" type="password" value={novoOp.senha} autoComplete="new-password" onChange={(e) => setNovoOp({ ...novoOp, senha: e.target.value })} placeholder="mín. 4" /></Campo>
+              </div>
+            </div>
+          ) : (
+            <p className="caixa__alerta"><AlertTriangle size={16} /> Peça ao dono para cadastrar os operadores de caixa (usuário e senha).</p>
+          )}
           <Campo rotulo="Troco inicial na gaveta (R$)" dica="O dinheiro que já está no caixa ao começar. Pode deixar em branco se for zero.">
-            <input className="input" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(mascaraPreco(e.target.value))} autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && void abrir()} />
+            <input className="input" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(mascaraPreco(e.target.value))}
+              onKeyDown={(e) => e.key === 'Enter' && void abrir()} autoFocus={ops.qtd === 0 && !gestor} />
           </Campo>
-          <button className="btn btn--sucesso btn--lg" onClick={() => void abrir()} disabled={ocupado}>
+          <button className="btn btn--sucesso btn--lg" onClick={() => void abrir()} disabled={ocupado || ops.qtd === null}>
             {ocupado ? 'Abrindo…' : 'Abrir caixa'}
           </button>
         </div>
@@ -118,7 +182,7 @@ function CaixaFechado({ restaurante, pode, aoAberto }: { restaurante: { id: stri
                 <li key={c.id}>
                   <div>
                     <strong>{dataHora(c.aberto_em)} → {c.fechado_em ? hora(c.fechado_em) : ''}</strong>
-                    <small className="muted">{c.fechado_por_nome ?? c.aberto_por_nome ?? ''}</small>
+                    <small className="muted">{c.operador_nome ?? c.fechado_por_nome ?? c.aberto_por_nome ?? ''}</small>
                   </div>
                   <span>{brl(Number(c.resumo?.recebido ?? 0))}</span>
                   {dif !== null && dif !== undefined && Number(dif) !== 0 && (
@@ -154,17 +218,20 @@ function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado 
   const [contado, setContado] = useState('');
   const [obs, setObs] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const ops = useOperadoresCaixa(restaurante.id);
+  const [login, setLogin] = useState<LoginOperador>({ usuario: '', senha: '' });
   const valorContado = contado.trim() ? lerPreco(contado) : null;
   const diferenca = valorContado !== null && Number.isFinite(valorContado) ? valorContado - Number(r.dinheiro_esperado) : null;
 
   async function fechar() {
     if (valorContado !== null && !Number.isFinite(valorContado)) return toast('Valor contado inválido. Ex.: 350,00', 'erro');
+    if (ops.qtd && (!login.usuario.trim() || !login.senha)) return toast('Digite o usuário e a senha do operador para fechar o caixa.', 'erro');
     const avisoAberto = r.em_aberto.total > 0
       ? `\n\nAtenção: ainda há ${brl(r.em_aberto.total)} em aberto em ${r.em_aberto.mesas} mesa(s). Essas contas poderão ser fechadas no próximo caixa.`
       : '';
     if (!(await confirmar(`Fechar o caixa agora?${avisoAberto}`, { sim: 'Fechar caixa' }))) return;
     setOcupado(true);
-    const { data, error } = await supabase.rpc('caixa_fechar', { p_caixa: r.caixa_id, p_valor_contado: valorContado, p_obs: obs });
+    const { data, error } = await supabase.rpc('caixa_fechar', { p_caixa: r.caixa_id, p_valor_contado: valorContado, p_obs: obs, p_usuario: login.usuario || null, p_senha: login.senha || null });
     setOcupado(false);
     if (error) return toast(msgErro(error), 'erro');
     // Fechou: o demonstrativo sai na impressora na hora (com espaço para assinatura)
@@ -208,6 +275,7 @@ function CaixaAberto({ r, restaurante, pode, comFechamento, aoIrPara, aoFechado 
             <Campo rotulo="Observação (opcional)">
               <input className="input" value={obs} onChange={(e) => setObs(e.target.value)} maxLength={200} placeholder="Algo a registrar sobre este caixa" />
             </Campo>
+            {!!ops.qtd && <CamposOperador v={login} aoMudar={setLogin} titulo="Confirme com o usuário e a senha do operador" />}
             <div className="acoes-linha">
               <button className="btn btn--contorno" onClick={() => imprimirFechamento(r, restaurante.nome, true)}><Printer size={18} /> Imprimir parcial</button>
               <button className="btn btn--primario" style={{ flex: 1 }} onClick={() => void fechar()} disabled={ocupado}>
@@ -292,7 +360,7 @@ function Retirada({ r, restaurante, pode, aoVoltar, aoConcluir }: {
 }
 
 /* ---------------- Peças do resumo ---------------- */
-function ResumoView({ r }: { r: ResumoCaixa }) {
+export function ResumoView({ r }: { r: ResumoCaixa }) {
   const formas = FORMAS.filter((f) => r.por_forma[f.id]);
   const movimentos = r.movimentos ?? [];
   return (

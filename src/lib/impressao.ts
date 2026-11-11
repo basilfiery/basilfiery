@@ -547,7 +547,7 @@ function corpoMovimento(m: Movimento, esperadoDepois: number) {
     ${m.motivo ? `<div><b>Motivo:</b> ${esc(m.motivo)}</div>` : ''}
     ${m.user_nome ? `<div><b>Por:</b> ${esc(m.user_nome)}</div>` : ''}
     <hr>
-    <div>Dinheiro esperado na gaveta agora: <b>${brl(esperadoDepois)}</b></div>
+    ${Number.isFinite(esperadoDepois) ? `<div>Dinheiro esperado na gaveta agora: <b>${brl(esperadoDepois)}</b></div>` : '<div class="c p">2ª via</div>'}
     <br><br>
     <div class="c">______________________________</div>
     <div class="c p">Assinatura</div>`;

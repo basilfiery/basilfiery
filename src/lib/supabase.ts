@@ -29,6 +29,14 @@ const TRADUCOES: [RegExp, string][] = [
 ];
 
 /** Mensagem amigável a partir de qualquer erro do Supabase/fetch. */
+/**
+ * Salva dados da loja pela função do servidor (qualquer campo da loja, menos os da plataforma).
+ * Não depende de liberar coluna por coluna: campo novo nunca dá "sem permissão".
+ */
+export function salvarRestaurante(id: string, campos: Record<string, unknown>) {
+  return supabase.rpc('restaurante_salvar', { p_rest: id, p_campos: campos });
+}
+
 export function msgErro(e: unknown): string {
   const bruto =
     typeof e === 'string' ? e

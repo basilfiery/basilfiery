@@ -6,7 +6,7 @@ import { linkLoja } from '../../../lib/linkCurto';
 import { LinkCopiavel, QrCartao } from '../../../componentes/Link';
 import { useToast } from '../../../componentes/Toast';
 import { useSessao } from '../../../lib/sessao';
-import { msgErro, supabase } from '../../../lib/supabase';
+import { msgErro, supabase, salvarRestaurante } from '../../../lib/supabase';
 import type { Categoria, Produto } from '../../../lib/tipos';
 import { brl, cx, lerPreco, mascaraPreco, precoParaTexto } from '../../../lib/util';
 import { usePainel } from '../Painel';
@@ -40,11 +40,11 @@ export default function CardapioDigitalConfig() {
 
   async function salvar() {
     setSalvando(true);
-    const { error } = await supabase.from('restaurantes').update({
+    const { error } = await salvarRestaurante(r.id, {
       delivery_ativo: f.ativo, loja_obs: f.obs, cor: f.cor, loja_capa_url: f.capa, esgotados_modo: f.esgotados,
       loja_descricao: f.descricao.trim() || null, slogan: f.slogan.trim() || null, loja_rodape: f.rodape.trim() || null,
       fidelidade: { ativo: f.fid_ativo, meta: f.fid_meta, premio: f.fid_premio.trim().slice(0, 120), minimo: f.fid_minimo.trim() ? lerPreco(f.fid_minimo) : 0 },
-    }).eq('id', r.id);
+    });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
     toast('Cardápio digital atualizado.', 'ok');

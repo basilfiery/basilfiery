@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { Check, ClipboardList, LayoutGrid, Plus, ShoppingBasket } from 'lucide-react';
 import { useToast } from '../../../componentes/Toast';
 import { useSessao } from '../../../lib/sessao';
-import { msgErro, supabase } from '../../../lib/supabase';
+import { msgErro, salvarRestaurante } from '../../../lib/supabase';
 import { TEMAS, type TemaSistema } from '../../../lib/temaSistema';
 import { cx } from '../../../lib/util';
 import { usePainel } from '../Painel';
@@ -33,7 +33,7 @@ function CorSistema({ passo, aoPasso }: { passo: Passo; aoPasso: (id: string) =>
   async function salvar() {
     if (!tema) return;
     setSalvando(true);
-    const { error } = await supabase.from('restaurantes').update({ tema_sistema: tema }).eq('id', r.id);
+    const { error } = await salvarRestaurante(r.id, { tema_sistema: tema });
     setSalvando(false);
     if (error) return toast(msgErro(error), 'erro');
     await s.recarregar();

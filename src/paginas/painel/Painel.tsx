@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Banknote, BarChart3, Bell, Bike, Contact, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Headset, Printer, QrCode, Receipt, RefreshCw, Rocket, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
+  Banknote, BarChart3, Landmark, Bell, Bike, Contact, FileText, BellRing, BookOpen, Bot, Building2, ChevronDown, CircleUserRound, ClipboardList, Clock, Eye, History, LayoutGrid, Lock, LockOpen, LogOut, Menu, MessagesSquare, Moon, Package, Headset, Printer, QrCode, Receipt, RefreshCw, Rocket, Search, Settings, ShieldCheck, ShoppingBasket, ShoppingCart, Smartphone, Store, Sun, UserCog, UserRound, Users, Volume2, VolumeX, Wallet, X,
   type LucideIcon,
 } from 'lucide-react';
 import { AvisoAtualizacao, ModalCaixa, type ModoCaixa } from './Caixa';
@@ -91,6 +91,7 @@ const SECOES: { titulo: string; itens: ItemMenu[] }[] = [
   {
     titulo: 'Financeiro',
     itens: [
+      { para: '/painel/financeiro', icone: Landmark, rotulo: 'Financeiro', papeis: GESTORES, novo: true },
       { para: '/painel/caixas', icone: Wallet, rotulo: 'Caixas', curto: 'Caixas', papeis: GESTORES, novo: true },
     ],
   },

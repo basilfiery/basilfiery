@@ -25,3 +25,6 @@ verify_jwt = false
 
 [functions.suporte-ia]
 verify_jwt = false
+
+[functions.whatsapp-bot]
+verify_jwt = false

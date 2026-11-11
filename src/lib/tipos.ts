@@ -81,6 +81,8 @@ export interface Restaurante {
   frete_gratis_dias?: number[];
   /** Pedido mínimo (itens) para ganhar o frete grátis */
   frete_gratis_minimo?: number;
+  /** Frete grátis só em pedidos com itens destas categorias (vazio = qualquer pedido) */
+  frete_gratis_categorias?: string[];
   /** Corrida do entregador: valor fixo por entrega (null = a taxa de entrega normal) */
   corrida_fixa?: number | null;
   entrega_bairros?: { nome: string; taxa: number; lat?: number; lng?: number }[];

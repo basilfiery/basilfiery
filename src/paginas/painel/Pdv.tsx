@@ -136,7 +136,8 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   const [end, setEnd] = useState<EnderecoPdv>(END_VAZIO);
   const [taxaTxt, setTaxaTxt] = useState('');
   const [taxaManual, setTaxaManual] = useState(false);
-  const [freteHoje, setFreteHoje] = useState(false);
+  const [freteDia, setFreteDia] = useState(false);
+  const [freteCats, setFreteCats] = useState<string[]>([]);
   const [freteManual, setFreteManual] = useState<boolean | null>(null);
   const [pagoAgora, setPagoAgora] = useState(false);
   const [corridaFixa, setCorridaFixa] = useState<number | null>(null);
@@ -198,6 +199,8 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
   const itensComDesconto = Math.max(0, subtotal - (descontoOk ? valorDesconto : 0));
   const taxaEntrega = modo === 'entrega' && taxaTxt.trim() ? lerPreco(taxaTxt) : 0;
   const taxaOk = modo !== 'entrega' || (taxaTxt.trim() !== '' && Number.isFinite(taxaEntrega) && taxaEntrega >= 0);
+  // Frete grátis do dia: só se tiver item das categorias da promoção (ex.: pizza)
+  const freteHoje = freteDia && (!freteCats.length || linhas.some((l) => freteCats.includes(porId.get(l.produto_id)?.categoria_id ?? '')));
   const freteGratis = modo === 'entrega' && (freteManual ?? freteHoje);
   const total = itensComDesconto + (modo === 'entrega' && !freteGratis && Number.isFinite(taxaEntrega) ? taxaEntrega : 0);
   const cobraAgora = modo === 'balcao' || (modo === 'entrega' && pagoAgora);
@@ -212,9 +215,10 @@ export default function Pdv({ mesaFixa, cabecalho, aoLancar, conta }: { mesaFixa
     if (modo !== 'entrega') return;
     const t = setTimeout(() => {
       void supabase.rpc('pdv_taxa_entrega', { p_rest: r.id, p_bairro: end.bairro.trim(), p_itens: itensComDesconto }).then(({ data }) => {
-        const x = data as { taxa: number | null; frete_gratis: boolean; corrida_fixa: number | null } | null;
+        const x = data as { taxa: number | null; frete_gratis: boolean; frete_categorias?: string[] | null; corrida_fixa: number | null } | null;
         if (!x) return;
-        setFreteHoje(!!x.frete_gratis);
+        setFreteDia(!!x.frete_gratis);
+        setFreteCats(x.frete_categorias ?? []);
         setCorridaFixa(x.corrida_fixa != null ? Number(x.corrida_fixa) : null);
         if (!taxaManual && x.taxa != null) setTaxaTxt(precoParaTexto(Number(x.taxa)));
       });

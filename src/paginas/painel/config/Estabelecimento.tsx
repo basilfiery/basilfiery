@@ -94,6 +94,36 @@ function lerTempo(t: string): [string, string] {
   return m ? [m[1], m[2]] : ['40', '60'];
 }
 
+/** Em quais categorias vale o frete grátis (nenhuma marcada = qualquer pedido) */
+function CategoriasFrete({ restauranteId, marcadas, aoMudar }: { restauranteId: string; marcadas: string[]; aoMudar: (v: string[]) => void }) {
+  const [cats, setCats] = useState<{ id: string; nome: string; emoji: string | null }[] | null>(null);
+  useEffect(() => {
+    void supabase.from('categorias').select('id, nome, emoji, pai_id, ordem').eq('restaurante_id', restauranteId).eq('ativo', true).is('pai_id', null).order('ordem')
+      .then(({ data }) => setCats((data ?? []) as { id: string; nome: string; emoji: string | null }[]));
+  }, [restauranteId]);
+  if (!cats?.length) return null;
+  return (
+    <div className="cfg-frete__cats">
+      <span className="cfg-frete__rotulo">Vale para quais itens?</span>
+      <div className="cfg-dias" role="group" aria-label="Categorias com frete grátis">
+        <button type="button" aria-pressed={!marcadas.length} className={cx('cfg-dia', !marcadas.length && 'ativo')} onClick={() => aoMudar([])}>
+          {!marcadas.length && <Check size={14} strokeWidth={3} />} Qualquer pedido
+        </button>
+        {cats.map((c) => {
+          const ligado = marcadas.includes(c.id);
+          return (
+            <button key={c.id} type="button" aria-pressed={ligado} className={cx('cfg-dia', ligado && 'ativo')}
+              onClick={() => aoMudar(ligado ? marcadas.filter((x) => x !== c.id) : [...marcadas, c.id])}>
+              {ligado && <Check size={14} strokeWidth={3} />} {c.nome}
+            </button>
+          );
+        })}
+      </div>
+      <small className="cfg-frete__dica">{marcadas.length ? 'O frete só sai grátis se o pedido tiver pelo menos um item dessas categorias (as subcategorias entram junto).' : 'Qualquer pedido de entrega ganha o frete grátis.'}</small>
+    </div>
+  );
+}
+
 export default function Estabelecimento() {
   const { restaurante: r } = usePainel();
   const s = useSessao();
@@ -117,6 +147,7 @@ export default function Estabelecimento() {
     lat: r.lat ?? null as number | null, lng: r.lng ?? null as number | null,
     frete_dias: [...(r.frete_gratis_dias ?? [])].map(Number).sort() as number[],
     frete_minimo: precoParaTexto(Number(r.frete_gratis_minimo ?? 0)),
+    frete_cats: [...(r.frete_gratis_categorias ?? [])] as string[],
     corrida_modo: (r.corrida_fixa != null ? 'fixa' : 'taxa') as 'taxa' | 'fixa',
     corrida: r.corrida_fixa != null ? precoParaTexto(Number(r.corrida_fixa)) : '',
   });
@@ -237,7 +268,7 @@ export default function Estabelecimento() {
         delivery_tempo: `${de} a ${ate} min`, entrega_ativa: f.entrega_ativa, retirada_ativa: f.retirada_ativa,
         delivery_minimo: minimo, delivery_taxa: taxa, formas_pagamento: f.formas,
         entrega_modo: f.modo, entrega_raios: raios, entrega_bairros: bairros, lat: f.lat, lng: f.lng,
-        frete_gratis_dias: f.frete_dias, frete_gratis_minimo: freteMinimo, corrida_fixa: corrida,
+        frete_gratis_dias: f.frete_dias, frete_gratis_minimo: freteMinimo, frete_gratis_categorias: f.frete_cats, corrida_fixa: corrida,
       }).eq('id', r.id),
       mudou(d, dadosBase)
         ? supabase.from('restaurante_dados').upsert({
@@ -441,10 +472,11 @@ export default function Estabelecimento() {
                 );
               })}
             </div>
+            <CategoriasFrete restauranteId={r.id} marcadas={f.frete_cats} aoMudar={(v) => set('frete_cats', v)} />
             <CampoAjuda rotulo="Pedido mínimo para ganhar o frete grátis (R$)" ajuda="0,00 = vale para qualquer pedido. A conta é só dos itens.">
               <span className="input-icone"><b>R$</b><input className="input" inputMode="decimal" value={f.frete_minimo} onChange={(e) => set('frete_minimo', mascaraPreco(e.target.value))} /></span>
             </CampoAjuda>
-            <p className="cfg-nota"><span>{f.frete_dias.length ? <>Frete grátis toda <b>{f.frete_dias.map((i) => DIAS[i].toLowerCase()).join(', ')}</b>.</> : 'Nenhum dia marcado: o frete é cobrado normalmente.'}</span></p>
+            <p className="cfg-nota"><span>{f.frete_dias.length ? <>Frete grátis toda <b>{f.frete_dias.map((i) => DIAS[i].toLowerCase()).join(', ')}</b>{f.frete_cats.length ? ', só em pedidos com os itens escolhidos' : ', em qualquer pedido'}.</> : 'Nenhum dia marcado: o frete é cobrado normalmente.'}</span></p>
           </section>
           <section className="cfg-frete__bloco">
             <h3><Bike size={18} /> Corrida do entregador</h3>

@@ -3312,6 +3312,9 @@ button.garcom__chamado:active { transform: scale(.985); }
 .cfg-frete__bloco > p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
 .cfg-frete__bloco .campo, .cfg-frete__bloco label { max-width: 320px; }
 .cfg-dias { display: flex; flex-wrap: wrap; gap: 8px; }
+.cfg-frete__cats { display: grid; gap: 8px; }
+.cfg-frete__rotulo { font-size: .88rem; font-weight: 700; }
+.cfg-frete__dica { color: var(--muted); font-size: .82rem; line-height: 1.4; }
 .cfg-dia {
   display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 14px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;

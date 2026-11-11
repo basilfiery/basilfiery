@@ -43,7 +43,7 @@ interface Loja {
   entrega_modo?: 'fixa' | 'raio' | 'bairro'; lat?: number | null; lng?: number | null; cidade?: string | null;
   raios?: FaixaRaio[] | null; bairros?: { nome: string; taxa: number }[] | null;
   /** Frete grátis em dias da semana (0 = domingo); hoje = é dia de frete grátis */
-  frete_gratis?: { dias: number[]; minimo: number; hoje: boolean } | null;
+  frete_gratis?: { dias: number[]; minimo: number; hoje: boolean; categorias?: string[] | null; rotulo?: string | null } | null;
 }
 
 const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -69,7 +69,21 @@ function FaixaFrete({ hoje, titulo, texto }: { hoje: boolean; titulo: string; te
   );
 }
 
-const ganhaFreteGratis = (l: Loja, subtotal: number) => !!l.frete_gratis?.hoje && subtotal >= Number(l.frete_gratis.minimo ?? 0);
+/** O carrinho tem item das categorias com frete grátis? (sem categoria escolhida: qualquer pedido) */
+const temCategoriaFrete = (l: Loja, cats: (string | null | undefined)[]) =>
+  !l.frete_gratis?.categorias?.length || cats.some((c) => !!c && l.frete_gratis!.categorias!.includes(c));
+const ganhaFreteGratis = (l: Loja, subtotal: number, cats: (string | null | undefined)[]) =>
+  !!l.frete_gratis?.hoje && subtotal >= Number(l.frete_gratis.minimo ?? 0) && temCategoriaFrete(l, cats);
+/** "pizzas", "pizzas e lanches" */
+const rotuloFrete = (l: Loja) => (l.frete_gratis?.rotulo ? l.frete_gratis.rotulo.toLowerCase() : null);
+function textoFaixaFrete(l: Loja) {
+  const fg = l.frete_gratis!;
+  const rot = rotuloFrete(l);
+  const minimo = Number(fg.minimo) > 0 ? ` a partir de ${brl(Number(fg.minimo))}` : '';
+  if (rot) return `Válido para pedidos com ${rot}${minimo}`;
+  if (minimo) return `Em pedidos${minimo}`;
+  return fg.hoje ? 'A entrega é por nossa conta' : 'Em qualquer pedido para entrega';
+}
 /** "Frete grátis toda terça" / "às terças e sextas" */
 function textoDiasFrete(dias: number[]) {
   const nomes = [...dias].sort().map((d) => DIAS_SEMANA[d]);
@@ -356,6 +370,7 @@ export default function LojaCardapio() {
   const lista = !secao ? [] : abaAtual === OUTRAS || !secao.subs.length ? secao.diretos : produtosDe(abaAtual);
 
   const subtotal = carrinho.reduce((s, l) => s + precoLinha(l, porId.get(l.produto_id)) * l.qtd, 0);
+  const catsCarrinho = carrinho.map((l) => porId.get(l.produto_id)?.categoria_id);
   const qtdItens = carrinho.reduce((s, l) => s + l.qtd, 0);
   const qtdDoProduto = (id: string) => carrinho.filter((l) => l.produto_id === id).reduce((s, l) => s + l.qtd, 0);
   const faltaMinimo = Math.max(0, Number(loja.minimo) - subtotal);
@@ -419,11 +434,13 @@ export default function LojaCardapio() {
       <div className="carrinho__rodape">
         <div className="loja-totais">
           <div><span>Subtotal</span><span>{brl(subtotal)}</span></div>
-          {ganhaFreteGratis(loja, subtotal) ? <div className="loja-totais__frete"><span>Entrega</span><span><Gift size={14} /> Grátis hoje</span></div>
+          {ganhaFreteGratis(loja, subtotal, catsCarrinho) ? <div className="loja-totais__frete"><span>Entrega</span><span><Gift size={14} /> Grátis hoje</span></div>
             : (loja.entrega_modo ?? 'fixa') === 'fixa' ? Number(loja.taxa) > 0 && <div><span>Entrega</span><span>{brl(Number(loja.taxa))}</span></div>
               : <div><span>Entrega</span><span>calculada no endereço</span></div>}
-          {loja.frete_gratis?.hoje && !ganhaFreteGratis(loja, subtotal) && carrinho.length > 0 && (
-            <p className="loja-frete-falta"><Gift size={14} /> Faltam {brl(Number(loja.frete_gratis.minimo) - subtotal)} para ganhar frete grátis</p>
+          {loja.frete_gratis?.hoje && !ganhaFreteGratis(loja, subtotal, catsCarrinho) && carrinho.length > 0 && (
+            <p className="loja-frete-falta"><Gift size={14} /> {!temCategoriaFrete(loja, catsCarrinho)
+              ? `Frete grátis hoje em pedidos com ${rotuloFrete(loja)}`
+              : `Faltam ${brl(Number(loja.frete_gratis.minimo) - subtotal)} para ganhar frete grátis`}</p>
           )}
         </div>
         {faltaMinimo > 0 && carrinho.length > 0 && <p className="loja-aviso">Pedido mínimo {brl(Number(loja.minimo))}. Faltam {brl(faltaMinimo)}.</p>}
@@ -497,7 +514,7 @@ export default function LojaCardapio() {
       {loja.entrega !== false && loja.frete_gratis && (
         <FaixaFrete hoje={!!loja.frete_gratis.hoje}
           titulo={loja.frete_gratis.hoje ? 'Hoje tem frete grátis' : `Frete grátis ${textoDiasFrete(loja.frete_gratis.dias)}`}
-          texto={Number(loja.frete_gratis.minimo) > 0 ? `Em pedidos a partir de ${brl(Number(loja.frete_gratis.minimo))}` : loja.frete_gratis.hoje ? 'A entrega é por nossa conta' : 'Em qualquer pedido para entrega'} />
+          texto={textoFaixaFrete(loja)} />
       )}
       <div className="loja-info">
         <span><Clock size={15} /> {loja.tempo}</span>
@@ -858,7 +875,7 @@ function ModalFinalizar({ codigo, loja, carrinho, porId, subtotal, conta, aoEntr
       : modo === 'raio' ? Number(local?.taxa ?? 0)
         : Number(loja.taxa);
   // Dia de frete grátis: o cliente não paga a entrega (o servidor confere de novo)
-  const freteGratis = tipo === 'delivery' && ganhaFreteGratis(loja, subtotal);
+  const freteGratis = tipo === 'delivery' && ganhaFreteGratis(loja, subtotal, carrinho.map((l) => porId.get(l.produto_id)?.categoria_id));
   const taxa = freteGratis ? 0 : taxaNormal;
   const total = subtotal + taxa;
 
